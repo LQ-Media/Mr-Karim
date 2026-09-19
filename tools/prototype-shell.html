@@ -1,0 +1,412 @@
+<title>Pokok Keluarga</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=Amiri:wght@400;700&display=swap">
+<style>
+:root{
+  --paper:#f2f5f0; --surface:#ffffff; --sunk:#e8ece5;
+  --ink:#191f1a; --ink-2:#5c665d; --ink-3:#8b948b;
+  --line:#dbe1d8; --line-2:#c7cfc4;
+  --pine:#14453a; --pine-soft:#dcebe4; --pine-ink:#0d3a30;
+  --brass:#8d6b1f; --brass-soft:#f3ecd9;
+  --rose:#8e5069; --rose-soft:#f4e7ec;
+  --blue:#3d5f85; --blue-soft:#e2eaf3;
+  --display:"Fraunces",Georgia,serif;
+  --ui:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --arabic:"Amiri","Noto Naskh Arabic",serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#11150f; --surface:#1a1f18; --sunk:#232a21;
+  --ink:#e9ede6; --ink-2:#a3ada2; --ink-3:#76806f;
+  --line:#2d3529; --line-2:#3d4738;
+  --pine:#6dc0a4; --pine-soft:#183a30; --pine-ink:#9ad9c2;
+  --brass:#cfa94f; --brass-soft:#32290f;
+  --rose:#d9a0b4; --rose-soft:#3a262d;
+  --blue:#9dbde0; --blue-soft:#23303f;
+}}
+:root[data-theme="dark"]{
+  --paper:#11150f; --surface:#1a1f18; --sunk:#232a21;
+  --ink:#e9ede6; --ink-2:#a3ada2; --ink-3:#76806f;
+  --line:#2d3529; --line-2:#3d4738;
+  --pine:#6dc0a4; --pine-soft:#183a30; --pine-ink:#9ad9c2;
+  --brass:#cfa94f; --brass-soft:#32290f;
+  --rose:#d9a0b4; --rose-soft:#3a262d;
+  --blue:#9dbde0; --blue-soft:#23303f;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--ui);
+  font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;border:none;background:none;cursor:pointer}
+h1,h2,h3{margin:0}
+.shell{max-width:660px;margin:0 auto;padding-block:28px 64px;padding-left:16px;padding-right:16px}
+
+/* ---- Masthead ---- */
+.mast{margin-bottom:22px}
+.eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--brass);
+  font-weight:600;margin-bottom:8px}
+.mast h1{font-family:var(--display);font-size:clamp(30px,7vw,42px);font-weight:600;
+  line-height:1.05;letter-spacing:-.02em;text-wrap:balance}
+.mast p{color:var(--ink-2);margin:10px 0 0;max-width:52ch;font-size:14.5px}
+
+/* ---- Demo controls ---- */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;
+  padding:16px;margin-bottom:20px}
+.panel + .panel{margin-top:-6px}
+.ctrl{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ctrl + .ctrl{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.ctrl .lab{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);
+  font-weight:600;width:100%}
+.chip{padding:7px 13px;border-radius:999px;background:var(--sunk);font-size:13.5px;
+  font-weight:500;color:var(--ink-2);border:1px solid transparent;transition:.14s}
+.chip:hover{border-color:var(--line-2)}
+.chip[aria-pressed="true"]{background:var(--pine-soft);color:var(--pine-ink);
+  border-color:var(--pine);font-weight:600}
+.chip .rel{color:var(--ink-3);font-weight:400;font-size:12px}
+.chip[aria-pressed="true"] .rel{color:var(--pine)}
+
+/* ---- Centre ---- */
+.centre{display:flex;gap:16px;align-items:center;background:var(--surface);
+  border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:6px}
+.centre .av{width:66px;height:66px;font-size:21px}
+.centre .who{min-width:0;flex:1}
+.badge{display:inline-block;background:var(--pine-soft);color:var(--pine-ink);
+  border-radius:999px;padding:3px 11px;font-size:12.5px;font-weight:600;margin-bottom:5px}
+.badge.ar{font-family:var(--arabic);font-size:15px;padding:1px 11px}
+.centre .nm{font-family:var(--display);font-size:22px;font-weight:600;line-height:1.15;
+  letter-spacing:-.01em}
+.centre .mt{color:var(--ink-2);font-size:13px;margin-top:3px;
+  font-variant-numeric:tabular-nums}
+
+/* ---- Rows ---- */
+.sec{margin-top:18px}
+.sec h2{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3);
+  font-weight:600;margin-bottom:9px}
+.row{display:flex;gap:9px;overflow-x:auto;padding-bottom:6px;scrollbar-width:thin}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 10px;
+  min-width:124px;max-width:124px;display:flex;flex-direction:column;align-items:center;
+  gap:5px;text-align:center;transition:.14s}
+.card:hover{border-color:var(--pine);transform:translateY(-2px)}
+.card[data-you="1"]{border-color:var(--pine);background:var(--pine-soft)}
+.card .tt{font-size:13px;font-weight:700;color:var(--pine-ink);line-height:1.2}
+.card .tt.ar{font-family:var(--arabic);font-size:16px;font-weight:400}
+.card .n2{font-size:12px;color:var(--ink-2);line-height:1.25}
+.card .y2{font-size:11px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.none{color:var(--ink-3);font-size:13.5px;font-style:italic;padding:2px 0 6px}
+
+.av{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;
+  font-weight:600;font-size:14px;background:var(--sunk);color:var(--ink-3);flex:none}
+.av.f{background:var(--rose-soft);color:var(--rose)}
+.av.m{background:var(--blue-soft);color:var(--blue)}
+.av.gone{opacity:.62}
+
+/* ---- Why panel ---- */
+.why{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--brass);
+  border-radius:4px 14px 14px 4px;padding:15px 16px;margin-top:20px}
+.why h3{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--brass);
+  font-weight:600;margin-bottom:10px}
+.why dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:7px 14px;align-items:baseline}
+.why dt{font-size:11.5px;font-weight:600;color:var(--ink-3);text-transform:uppercase;
+  letter-spacing:.06em;white-space:nowrap}
+.why dd{margin:0;font-size:13.5px;color:var(--ink-2)}
+.why dd b{color:var(--ink);font-weight:600}
+.why dd .ar{font-family:var(--arabic);font-size:16px}
+
+/* ---- Matcher ---- */
+.try{margin-top:34px;padding-top:26px;border-top:1px solid var(--line)}
+.try h2{font-family:var(--display);font-size:22px;font-weight:600;letter-spacing:-.01em}
+.try p{color:var(--ink-2);font-size:14px;margin:8px 0 14px;max-width:56ch}
+.try input{width:100%;padding:12px 14px;border:1px solid var(--line-2);border-radius:11px;
+  background:var(--surface);color:var(--ink);font:inherit;outline:none}
+.try input:focus{border-color:var(--pine);box-shadow:0 0 0 3px var(--pine-soft)}
+.egs{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.eg{font-size:12px;padding:5px 10px;border-radius:7px;background:var(--sunk);color:var(--ink-2)}
+.eg:hover{color:var(--ink)}
+.hit{display:flex;gap:11px;align-items:center;background:var(--surface);
+  border:1px solid var(--line);border-radius:11px;padding:11px;margin-top:9px}
+.hit .who{flex:1;min-width:0}
+.hit .n3{font-weight:600;font-size:14px}
+.hit .w3{font-size:12.5px;color:var(--ink-2)}
+.meter{flex:none;text-align:right}
+.meter .pc{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--brass)}
+.meter .bar{width:52px;height:4px;border-radius:2px;background:var(--sunk);margin-top:4px;
+  overflow:hidden}
+.meter .bar i{display:block;height:100%;background:var(--brass)}
+.verdict{font-size:13px;color:var(--ink-2);margin-top:12px;padding:11px 13px;border-radius:10px;
+  background:var(--sunk)}
+.verdict b{color:var(--ink)}
+
+.foot{margin-top:40px;padding-top:20px;border-top:1px solid var(--line);
+  font-size:12.5px;color:var(--ink-3)}
+.foot b{color:var(--ink-2);font-weight:600}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="shell">
+  <header class="mast">
+    <div class="eyebrow">Working prototype</div>
+    <h1>Pokok Keluarga</h1>
+    <p>The tree stores one set of facts. Every title you see is worked out for
+       whoever is looking &mdash; change the reader below and watch the same
+       people get renamed.</p>
+  </header>
+
+  <div class="panel">
+    <div class="ctrl">
+      <span class="lab">Signed in as</span>
+      <div id="egoChips" class="ctrl" style="gap:8px;margin:0;padding:0;border:0"></div>
+    </div>
+    <div class="ctrl">
+      <span class="lab">Titles in</span>
+      <button class="chip" data-lang="ms">Bahasa Melayu</button>
+      <button class="chip" data-lang="en">English</button>
+      <button class="chip" data-lang="ar">Arabic</button>
+    </div>
+  </div>
+
+  <div id="tree"></div>
+  <div id="why"></div>
+
+  <section class="try">
+    <h2>Catching a duplicate</h2>
+    <p>Type a relative the way a cousin might enter them. A Malay name states
+       its owner&rsquo;s father &mdash; <em>bin Ismail</em> means son of Ismail &mdash; so
+       the app can recognise someone already in the tree before a second copy
+       of them is ever created.</p>
+    <input id="q" type="text" placeholder="e.g. Sulaiman bin Ismail" autocomplete="off" spellcheck="false">
+    <div class="egs">
+      <button class="eg" data-q="Sulaiman bin Ismail">Sulaiman bin Ismail</button>
+      <button class="eg" data-q="Mohd Osman bin Ismail">Mohd Osman bin Ismail</button>
+      <button class="eg" data-q="Abdul Rahim bin Ismail">Abdul Rahim bin Ismail</button>
+      <button class="eg" data-q="Ahmad bin Bakar">Ahmad bin Bakar</button>
+    </div>
+    <div id="hits"></div>
+  </section>
+
+  <footer class="foot">
+    <b>This is a prototype running entirely in your browser.</b> It uses the same
+    kinship and matching code as the real app, with a made-up family of 21 people
+    across four generations. Nothing here is saved.
+  </footer>
+</div>
+
+<script>
+var SETTINGS = { birth_order_titles: 'Long,Ngah,Alang,Anjang,Andak,Uda,Uteh' };
+var graph = REL_buildGraph(FAMILY);
+var state = { ego: 'P041', focus: 'P041', lang: 'ms' };
+
+var READERS = [
+  ['P001', 'Ismail', 'the great-grandfather'],
+  ['P012', 'Rahim', 'his third son'],
+  ['P041', 'Karim', 'Rahim’s son'],
+  ['P050', 'Aisha', 'who married in'],
+  ['P060', 'Hana', 'the youngest']
+];
+
+/* ---------- helpers ---------- */
+function esc(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+  .replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function initials(n){var p=String(n||'?').trim().split(/\s+/);
+  return esc(((p[0]||'?')[0]+(p.length>1?p[p.length-1][0]:'')).toUpperCase());}
+function gcls(g){return g==='F'?'f':(g==='M'?'m':'');}
+function yr(d){return d?String(d).slice(0,4):'';}
+function person(id){return graph.people[id];}
+function title(id){return TTL_title(graph, state.ego, id, state.lang, SETTINGS);}
+
+function av(p,big){
+  var cls='av '+gcls(p.gender)+(p.is_living==='FALSE'?' gone':'');
+  return '<div class="'+cls+'"'+(big?' style="width:66px;height:66px;font-size:21px"':'')+'>'+
+    initials(p.display_name)+'</div>';
+}
+
+/* ---------- chips ---------- */
+function drawChips(){
+  document.getElementById('egoChips').innerHTML = READERS.map(function(r){
+    return '<button class="chip" data-ego="'+r[0]+'" aria-pressed="'+(state.ego===r[0])+'">'+
+      esc(r[1])+' <span class="rel">'+esc(r[2])+'</span></button>';
+  }).join('');
+  document.querySelectorAll('[data-lang]').forEach(function(b){
+    b.setAttribute('aria-pressed', String(state.lang === b.dataset.lang));
+  });
+}
+
+/* ---------- the tree ---------- */
+function card(id){
+  var p = person(id); if(!p) return '';
+  var t = title(id);
+  var you = id === state.ego;
+  var lbl = you ? (state.lang==='en'?'You':state.lang==='ar'?'Ana':'Saya') : t.label;
+  var ar = state.lang==='ar' && t.script;
+  return '<button class="card" data-go="'+id+'" data-you="'+(you?1:0)+'">'+
+    av(p)+
+    '<div class="tt'+(ar?' ar':'')+'">'+esc(ar?t.script:lbl)+'</div>'+
+    '<div class="n2">'+esc(p.display_name.split(' ')[0])+'</div>'+
+    '<div class="y2">'+esc(yr(p.birth_date))+(p.is_living==='FALSE'?'–':'')+'</div>'+
+  '</button>';
+}
+
+function sec(heading, ids){
+  if(!ids.length) return '<div class="sec"><h2>'+esc(heading)+
+    '</h2><div class="none">none recorded</div></div>';
+  return '<div class="sec"><h2>'+esc(heading)+'</h2><div class="row">'+
+    ids.map(card).join('')+'</div></div>';
+}
+
+function draw(){
+  drawChips();
+  var c = person(state.focus);
+  var t = title(state.focus);
+  var you = state.focus === state.ego;
+  var ar = state.lang==='ar' && t.script;
+
+  var meta = [];
+  if(c.birth_date) meta.push('b. '+yr(c.birth_date));
+  if(c.is_living==='FALSE') meta.push(c.death_date ? 'd. '+yr(c.death_date) : 'deceased');
+  var order = KIN_birthOrder(graph, state.focus), count = KIN_siblingCount(graph, state.focus);
+  if(order && count>1) meta.push(order+' of '+count+' children');
+
+  var sibs = KIN_siblingsOf(graph, state.focus).sort(function(a,b){
+    return REL_compareBirth(person(a), person(b)); });
+  var spouses = KIN_spousesOf(graph, state.focus).map(function(s){return s.personId;});
+
+  document.getElementById('tree').innerHTML =
+    '<div class="centre">'+av(c,true)+'<div class="who">'+
+      (you?'':'<span class="badge'+(ar?' ar':'')+'">'+esc(ar?t.script:t.label)+'</span>')+
+      '<div class="nm">'+esc(c.display_name)+'</div>'+
+      '<div class="mt">'+esc(meta.join(' · '))+'</div>'+
+    '</div></div>'+
+    sec('Parents', KIN_parentsOf(graph, state.focus))+
+    sec(spouses.length>1?'Marriages':'Spouse', spouses)+
+    sec('Brothers and sisters', sibs)+
+    sec('Children', KIN_childrenOf(graph, state.focus));
+
+  document.getElementById('why').innerHTML = explain();
+}
+
+/* ---------- why this title ---------- */
+/* The interesting part of this app is not that it produces a word, but that the
+   three languages disagree about which facts matter. Showing the reasoning makes
+   that visible, and lets a family correct a birth order rather than argue with
+   the result. */
+function explain(){
+  if(state.focus === state.ego) return '';
+  var rel = KIN_relate(graph, state.ego, state.focus);
+  var them = person(state.focus).display_name.split(' ')[0];
+  var me = person(state.ego).display_name.split(' ')[0];
+
+  var ms = TTL_title(graph, state.ego, state.focus, 'ms', SETTINGS);
+  var en = TTL_title(graph, state.ego, state.focus, 'en', SETTINGS);
+  var arT = TTL_title(graph, state.ego, state.focus, 'ar', SETTINGS);
+
+  var msWhy='', arWhy='', enWhy='';
+
+  if(rel.kind==='blood' && rel.type==='auncle' && rel.generations===1){
+    if(rel.birthOrder && rel.siblingCount){
+      msWhy = rel.birthOrder===rel.siblingCount
+        ? 'the youngest of '+rel.siblingCount+' siblings, and the youngest is always <b>Su</b>'
+        : 'ranked <b>'+rel.birthOrder+' of '+rel.siblingCount+'</b> among their own siblings';
+    } else {
+      msWhy = 'birth order unknown, so it falls back to the general Pak Cik / Mak Cik';
+    }
+    arWhy = 'on your <b>'+(rel.side==='maternal'?'mother’s':'father’s')+' side</b>, and Arabic has separate words for each';
+    enWhy = 'English marks neither birth order nor side';
+  } else if(rel.kind==='blood' && rel.type==='sibling'){
+    msWhy = rel.elder===true ? 'older than '+esc(me)+', and Malay grades siblings by seniority'
+          : rel.elder===false ? 'younger than '+esc(me)+', so Adik'
+          : 'seniority unknown';
+    arWhy = 'Arabic does not grade siblings by age';
+    enWhy = 'English does not either';
+  } else if(rel.kind==='blood' && rel.type==='cousin'){
+    var link = rel.linkAuncle;
+    msWhy = (rel.degree===1?'first':'distant')+' cousin, '+
+      (rel.removed?'one generation apart':'same generation');
+    arWhy = link ? 'named after '+esc(link.display_name.split(' ')[0])+', the '+
+      (rel.side==='maternal'?'maternal':'paternal')+' '+(link.gender==='F'?'aunt':'uncle')+
+      ' they descend from' : '';
+    enWhy = 'English counts degree and removal only';
+  } else if(rel.kind==='in_law' && rel.direction==='co_parent_in_law'){
+    msWhy = 'your child married theirs';
+    arWhy = 'Arabic calls this nasib';
+    enWhy = '<b>English has no single word for this relationship at all</b>';
+  } else if(rel.kind==='blood' && rel.type==='ancestor'){
+    msWhy = rel.generations+' generation'+(rel.generations>1?'s':'')+' above you';
+    arWhy = 'a direct line, so the side does not matter';
+    enWhy = 'counted in greats';
+  } else if(rel.kind==='blood' && rel.type==='descendant'){
+    msWhy = rel.generations+' generation'+(rel.generations>1?'s':'')+' below you';
+    arWhy = 'a direct line';
+    enWhy = 'counted in greats';
+  } else {
+    msWhy = 'related through a marriage';
+    arWhy = 'named by marriage';
+    enWhy = 'named by marriage';
+  }
+
+  function line(lang, value, script, reason){
+    return '<dt>'+lang+'</dt><dd><b>'+esc(value)+'</b>'+
+      (script?' <span class="ar">'+esc(script)+'</span>':'')+
+      (reason?' &mdash; '+reason:'')+'</dd>';
+  }
+
+  return '<div class="why"><h3>Why '+esc(me)+' calls '+esc(them)+' that</h3><dl>'+
+    line('Malay', ms.label, '', msWhy)+
+    line('English', en.label, '', enWhy)+
+    line('Arabic', arT.label, arT.script, arWhy)+
+  '</dl></div>';
+}
+
+/* ---------- duplicate matcher ---------- */
+function runMatch(text){
+  var box = document.getElementById('hits');
+  var q = String(text||'').trim();
+  if(q.length < 3){ box.innerHTML=''; return; }
+
+  var parsed = MTC_parseName(q);
+  var subject = { person_id:null, full_name:q, display_name:q,
+                  gender: parsed.genderHint || '' };
+  var hits = MTC_findCandidates(graph, subject, 45, 4);
+
+  var wording = {
+    father_matches:'father matches', same_father_record:'same father on record',
+    father_similar:'father name similar', name_similar:'name matches',
+    name_partial:'name similar', birth_date:'birth date agrees',
+    gender_match:'', nickname_match:'known nickname'
+  };
+
+  if(!hits.length){
+    box.innerHTML = '<div class="verdict">Nobody in the tree looks like that. '+
+      '<b>A new record would be created.</b></div>';
+    return;
+  }
+
+  box.innerHTML = hits.map(function(h){
+    var p = h.person;
+    var fid = MTC_fatherOf(graph, p.person_id);
+    var why = h.signals.filter(function(s){return s.points>0 && wording[s.signal];})
+      .map(function(s){return wording[s.signal];}).join(', ');
+    return '<div class="hit">'+av(p)+'<div class="who">'+
+      '<div class="n3">'+esc(p.full_name)+'</div>'+
+      '<div class="w3">'+esc((fid?'father: '+person(fid).display_name.split(' ')[0]+' · ':'')+
+        (why||'similar details'))+'</div></div>'+
+      '<div class="meter"><div class="pc">'+h.score+'%</div>'+
+      '<div class="bar"><i style="width:'+h.score+'%"></i></div></div></div>';
+  }).join('') +
+  '<div class="verdict">The app would stop here and ask: <b>is this the same person?</b> '+
+  'Linking keeps the tree whole; only a deliberate second press creates a new record.</div>';
+}
+
+/* ---------- events ---------- */
+document.addEventListener('click', function(e){
+  var go = e.target.closest('[data-go]');
+  if(go){ state.focus = go.dataset.go; draw(); return; }
+  var ego = e.target.closest('[data-ego]');
+  if(ego){ state.ego = ego.dataset.ego; state.focus = ego.dataset.ego; draw(); return; }
+  var lang = e.target.closest('[data-lang]');
+  if(lang){ state.lang = lang.dataset.lang; draw(); return; }
+  var eg = e.target.closest('[data-q]');
+  if(eg){ document.getElementById('q').value = eg.dataset.q; runMatch(eg.dataset.q); }
+});
+document.getElementById('q').addEventListener('input', function(e){ runMatch(e.target.value); });
+
+draw();
+runMatch('Sulaiman bin Ismail');
+document.getElementById('q').value = 'Sulaiman bin Ismail';
+</script>

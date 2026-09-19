@@ -98,6 +98,24 @@ say who knew this, not who clicked yes.
 - **A field a client should not write.** Only known fields survive sanitising,
   so nothing submitted can reach `role`, `status` or a merge pointer.
 
+## What a merge does, and deliberately does not do
+
+Merging is the most destructive operation here, so it is built to be survivable.
+The losing record is never deleted: it stays in the sheet marked `merged` with a
+pointer to the survivor, so an old link, an invitation or a relative's bookmark
+still resolves. Every field the survivor was missing is filled from the loser,
+because the duplicate usually exists precisely because someone knew something
+the first record did not. Links that would duplicate one the survivor already
+has are retired rather than moved, so nobody ends up with four parents.
+
+One consequence is worth knowing before you merge. If the duplicate recorded
+only a father, a child attached to it becomes a **half-sibling** of the
+survivor's other children after the merge, because a shared father is all the
+tree now knows. The merge will not attach that child to the survivor's wife as
+well — that would be inventing a mother, and a duplicate entered by a distant
+cousin may genuinely be a child of an earlier marriage nobody mentioned. The app
+states what it knows; the family adds the rest.
+
 ## Files
 
 | File | Holds |

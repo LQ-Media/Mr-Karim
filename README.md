@@ -75,5 +75,19 @@ father, which catches most duplicate entries on its own.
 
     apps-script/     The deployable Apps Script project
     docs/            Setup and design documentation
-    tests/           Node tests for the kinship and matching engines
-    tools/           Local development helpers
+    tests/           204 assertions, run with `npm test`
+    tools/           Prototype builder and other local helpers
+
+## Tests
+
+    npm test
+
+Four suites, run under Node against the same sources Apps Script loads, with an
+in-memory stand-in for the spreadsheet so the write paths are covered too:
+
+| Suite | Covers |
+| --- | --- |
+| `kinship` | 105 titles across four generations in three languages |
+| `matching` | duplicate detection, in both failure directions |
+| `settings` | configured, shortened and absent birth-order sequences |
+| `writes` | creating, batch entry, reordering, merging, permissions |

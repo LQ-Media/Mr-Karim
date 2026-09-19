@@ -573,6 +573,8 @@ var BATCH_WORDING = {
  */
 function openBatch(anchorId, relationship) {
   var wording = BATCH_WORDING[relationship];
+  // Any rows held over from a batch that was abandoned rather than cancelled.
+  S.batchRows = null;
   openSheet(
     '<h2>' + wording.title + esc(S.view.centre.name) + '</h2>' +
     '<div class="sub">List them <strong>oldest first</strong>. That order is what ' +
@@ -1154,14 +1156,16 @@ function loadSettings() {
       var list = titlesInput.value.split(',')
         .map(function (t) { return t.replace(/[^A-Za-z' -]/g, '').trim(); })
         .filter(Boolean).slice(0, 12);
-      var shown = list.map(function (t, i) {
-        return (i === 0 ? 'Pak ' : 'Mak ') + t;
-      });
+      // Pak for an uncle, Mak for an aunt -- the prefix follows the person, not
+      // their position, so the preview shows one consistent run.
+      var shown = list.map(function (t) { return 'Pak ' + t; });
       shown.push('Pak Su');
       document.getElementById('titlePreview').innerHTML =
-        '<span class="lbl">Your uncles and aunts would be called</span>' +
-        esc(shown.join(' \u00b7 ')) +
-        (list.length ? '' : ' \u2014 with no list, everyone is simply Pak Cik or Mak Cik');
+        '<span class="lbl">Your uncles, eldest to youngest</span>' +
+        esc(list.length ? shown.join(' \u00b7 ')
+                        : 'Pak Cik \u2014 with no list, every uncle is simply Pak Cik') +
+        (list.length ? '<span class="lbl" style="margin-top:6px">Aunts take Mak instead: ' +
+          esc('Mak ' + list[0]) + ', and so on</span>' : '');
     }
     titlesInput.oninput = preview;
     preview();

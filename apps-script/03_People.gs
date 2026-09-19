@@ -102,10 +102,16 @@ function PPL_applyRoot(actorEmail, clean) {
   return person;
 }
 
-/** Performs the write. Shared by the direct path and by approval. */
-function PPL_applyCreate(actorEmail, anchorId, relationship, clean) {
-  var lock = LockService.getScriptLock();
-  lock.waitLock(20000);
+/**
+ * Performs the write. Shared by the direct path, by approval and by a batch.
+ *
+ * `alreadyLocked` is passed by a caller that holds the script lock already.
+ * Taking it twice in one execution is not reliably reentrant in Apps Script,
+ * and a deadlock here would strand someone mid-way through entering a family.
+ */
+function PPL_applyCreate(actorEmail, anchorId, relationship, clean, alreadyLocked) {
+  var lock = alreadyLocked ? null : LockService.getScriptLock();
+  if (lock) lock.waitLock(20000);
   try {
     var personId = ST_nextId('People');
     var parsed = MTC_parseName(clean.full_name || clean.display_name);
@@ -138,7 +144,7 @@ function PPL_applyCreate(actorEmail, anchorId, relationship, clean) {
     ST_invalidate();
     return person;
   } finally {
-    lock.releaseLock();
+    if (lock) lock.releaseLock();
   }
 }
 
@@ -546,7 +552,7 @@ function PPL_applyBatch(actorEmail, anchorId, relationship, entries) {
       if (!data.birth_order) {
         data = PPL_withBirthOrder(data, startOrder + created.length + 1);
       }
-      var person = PPL_applyCreate(actorEmail, anchorId, relationship, data);
+      var person = PPL_applyCreate(actorEmail, anchorId, relationship, data, true);
       created.push(person.person_id);
     }
 

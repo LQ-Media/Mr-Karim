@@ -66,6 +66,7 @@ father, which catches most duplicate entries on its own.
 | Document | Contents |
 | --- | --- |
 | [`docs/SETUP.md`](docs/SETUP.md) | Step-by-step deployment, start to finish |
+| [`docs/TESTING.md`](docs/TESTING.md) | How to check it works, from zero setup to two accounts |
 | [`docs/DATA-MODEL.md`](docs/DATA-MODEL.md) | Every sheet tab, every column |
 | [`docs/KINSHIP.md`](docs/KINSHIP.md) | How titles are computed, in all three languages |
 | [`tools/prototype.html`](tools/prototype.html) | A browser prototype, built from the real engine |

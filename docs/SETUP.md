@@ -123,7 +123,20 @@ Script Properties and the secret should not sit in the source.
 
 Run **showInstallation** to check everything is set.
 
-## 7. Start the tree
+## 7. Check it before trusting it
+
+Run **checkInstallation** in the editor. It reports what is configured and
+prints the exact redirect URI to compare against the Cloud Console.
+
+Then run **seedDemoFamily**, which fills the empty tree with a known family of
+twenty-one people so you can see the app working before typing anything real,
+and **verifyKinship**, which asserts eleven known titles against your own sheet
+and your own settings. Remove it all afterwards with **clearDemoFamily**.
+
+[`docs/TESTING.md`](TESTING.md) covers this properly, including how to test the
+invitation, proposal and duplicate flows with a second Google account.
+
+## 8. Start the tree
 
 Open your web app URL, sign in, and the app will ask you to create the first
 person: yourself. Everyone after that is added *through* someone already in the

@@ -1,0 +1,959 @@
+<script>
+/**
+ * The browser side.
+ *
+ * Google Identity Services signs the visitor in and hands us an ID token. That
+ * token goes with every call and is verified server-side each time, so nothing
+ * here is trusted: hiding a button does not protect anything, it just keeps the
+ * interface honest about what the person can do.
+ */
+
+var S = {
+  token: null,       // The signed session token from the server.
+  me: null,          // Who is signed in.
+  focusId: null,     // Who the view is centred on.
+  view: null,
+  thumbs: {},        // Portrait cache, keyed by person id.
+  searchTimer: null
+};
+
+/* ------------------------------------------------------------------ *
+ * Sign-in
+ * ------------------------------------------------------------------ */
+
+var SESSION_KEY = 'familyTreeSession';
+
+/**
+ * Picks up the session.
+ *
+ * A fresh sign-in arrives embedded in the page, because the server has just
+ * exchanged Google's authorization code for it. A reload of the bare app URL
+ * has no such token, so the last one is taken from sessionStorage -- which
+ * keeps a refresh from bouncing the person back through Google.
+ */
+function loadSession() {
+  if (SESSION) {
+    S.token = SESSION;
+    try { sessionStorage.setItem(SESSION_KEY, SESSION); } catch (e) { /* private mode */ }
+    return true;
+  }
+  try {
+    S.token = sessionStorage.getItem(SESSION_KEY) || null;
+  } catch (e) {
+    S.token = null;
+  }
+  return !!S.token;
+}
+
+function signOutLocally() {
+  S.token = null;
+  try { sessionStorage.removeItem(SESSION_KEY); } catch (e) { /* private mode */ }
+}
+
+/** A session lasts twelve hours. When one runs out, send them back to Google. */
+function reauth() {
+  signOutLocally();
+  gate('gateSignIn');
+  show('signInError', 'Your sign-in has expired. Please sign in again.');
+}
+
+/* ------------------------------------------------------------------ *
+ * Server calls
+ * ------------------------------------------------------------------ */
+
+function call(fnName) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  return new Promise(function (resolve, reject) {
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res) return reject(new Error('No response from the server.'));
+        if (res.ok) return resolve(res.data);
+        if (/sign-?in (expired|required)/i.test(res.error)) {
+          reauth();
+          return reject(new Error(res.error));
+        }
+        reject(new Error(res.error));
+      })
+      .withFailureHandler(function (err) { reject(err); })
+      [fnName].apply(null, [S.token].concat(args));
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ * Routing
+ * ------------------------------------------------------------------ */
+
+function boot() {
+  call('api_me').then(function (me) {
+    S.me = me;
+    document.getElementById('familyName').textContent = me.familyName || 'Family tree';
+
+    if (me.isPending) return gate('gatePending');
+    if (me.treeSize === 0 && me.isAdmin) return startTreeGate();
+    if (me.needsBinding) return claimGate(me.unclaimed || []);
+
+    gate('app');
+    if (me.isAdmin) {
+      var n = (me.adminCounts.pendingChanges || 0) + (me.adminCounts.pendingUsers || 0) +
+              (me.adminCounts.mergeQueue || 0);
+      var btn = document.getElementById('btnAdmin');
+      btn.style.display = '';
+      if (n) btn.innerHTML = '&#9881;<span class="dot">' + n + '</span>';
+    }
+    loadView(null);
+  }).catch(function (err) {
+    signOutLocally();
+    gate('gateSignIn');
+    show('signInError', err.message);
+  });
+}
+
+/* Start here: either we have a session, or the person signs in. */
+if (SIGN_IN_ERROR) {
+  gate('gateSignIn');
+  show('signInError', SIGN_IN_ERROR);
+} else if (loadSession()) {
+  boot();
+} else {
+  gate('gateSignIn');
+}
+
+function gate(id) {
+  ['gateSignIn', 'gatePending', 'gateClaim', 'gateStart', 'app'].forEach(function (g) {
+    document.getElementById(g).style.display = g === id ? '' : 'none';
+  });
+}
+
+function show(id, text) {
+  var el = document.getElementById(id);
+  el.textContent = text;
+  el.style.display = '';
+}
+
+/* ------------------------------------------------------------------ *
+ * First-run gates
+ * ------------------------------------------------------------------ */
+
+function claimGate(candidates) {
+  gate('gateClaim');
+  var list = document.getElementById('claimList');
+  if (!candidates.length) {
+    list.innerHTML = '<p class="empty">Nobody in the tree looks like you yet.</p>';
+  } else {
+    list.innerHTML = candidates.map(function (c) {
+      return '<button class="match" style="width:100%;text-align:left" data-id="' + c.personId + '">' +
+        '<div class="avatar">' + initials(c.name) + '</div>' +
+        '<div class="who"><div class="nm">' + esc(c.name) + '</div>' +
+        '<div class="why">' + (c.birthDate ? 'Born ' + esc(c.birthDate) : 'No birth date recorded') +
+        '</div></div></button>';
+    }).join('');
+    Array.prototype.forEach.call(list.querySelectorAll('[data-id]'), function (btn) {
+      btn.onclick = function () {
+        call('api_claimPerson', btn.getAttribute('data-id'))
+          .then(boot).catch(fail);
+      };
+    });
+  }
+  document.getElementById('claimNone').onclick = function () {
+    toast('Ask a family admin to add you and link your account.');
+  };
+}
+
+function startTreeGate() {
+  gate('gateStart');
+  document.getElementById('startForm').innerHTML =
+    personFields({}, true) +
+    '<button class="btn" id="startBtn" style="margin-top:8px">Create my record</button>';
+  document.getElementById('startBtn').onclick = function () {
+    var data = readPersonFields();
+    if (!data.display_name) return toast('Please enter a name.', true);
+    busy(this, true);
+    call('api_startTree', data).then(boot).catch(function (e) { busy(null); fail(e); });
+  };
+}
+
+/* ------------------------------------------------------------------ *
+ * The me-centred view
+ * ------------------------------------------------------------------ */
+
+function loadView(focusId) {
+  S.focusId = focusId;
+  document.getElementById('view').innerHTML = '<div class="loading">Loading&hellip;</div>';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('search').value = '';
+
+  call('api_view', focusId).then(function (view) {
+    S.view = view;
+    renderView(view);
+    loadThumbs(view);
+  }).catch(fail);
+}
+
+function renderView(v) {
+  var html = centreCard(v.centre);
+
+  html += section('Parents', v.parents, v.centre, 'parent_of', 'No parents recorded yet');
+  html += section(v.spouses.length > 1 ? 'Marriages' : 'Spouse', v.spouses, v.centre,
+                  'spouse_of', 'No marriage recorded');
+  html += section('Brothers and sisters', v.siblings, v.centre, 'sibling_of', 'No siblings recorded');
+  html += section('Children', v.children, v.centre, 'child_of', 'No children recorded');
+
+  document.getElementById('view').innerHTML = html;
+  wireCards();
+}
+
+function centreCard(p) {
+  var meta = [];
+  if (p.birthDate) meta.push((p.isLiving ? 'b. ' : 'b. ') + year(p.birthDate));
+  if (!p.isLiving) meta.push(p.deathDate ? 'd. ' + year(p.deathDate) : 'deceased');
+
+  return '<div class="centre">' +
+    avatar(p, 'avatar ' + genderClass(p.gender)) +
+    '<div class="who">' +
+      (p.isYou ? '' : '<span class="title-badge">' + esc(p.yourTitle) + '</span>') +
+      '<div class="name">' + esc(p.name) + '</div>' +
+      '<div class="meta">' + esc(meta.join(' · ')) + '</div>' +
+    '</div>' +
+    '<button class="icon-btn" data-open="' + p.personId + '" title="Details">&#8250;</button>' +
+  '</div>';
+}
+
+/**
+ * One relationship row.
+ *
+ * Each card leads with the title the VIEWER uses, not the label that applies at
+ * the centre of the screen -- that is the whole point of the app, and it stays
+ * true however far into a distant branch someone wanders. The smaller line
+ * underneath says how the person sits relative to whoever is centred, which is
+ * what stops a cousin's household from being confusing.
+ */
+function section(heading, people, centre, relationship, emptyText) {
+  var cards = people.map(function (p) {
+    var sub = p.isYou ? 'you' : p.roleHere;
+    return '<button class="card' + (p.isYou ? ' you' : '') + '" data-focus="' + p.personId + '">' +
+      avatar(p, 'avatar ' + genderClass(p.gender)) +
+      '<div class="ttl">' + esc(p.isYou ? 'You' : p.yourTitle) + '</div>' +
+      '<div class="nm">' + esc(p.name) + '</div>' +
+      '<div class="yr">' + esc(sub) + (p.birthDate ? ' · ' + year(p.birthDate) : '') + '</div>' +
+    '</button>';
+  });
+
+  if (centre.editable) {
+    cards.push('<button class="card add" data-add="' + relationship + '">' +
+      '<div class="plus">+</div><div class="nm">Add</div></button>');
+  }
+
+  return '<div class="section">' +
+    '<div class="section-head"><h2>' + esc(heading) + '</h2></div>' +
+    (cards.length ? '<div class="row">' + cards.join('') + '</div>'
+                  : '<div class="empty">' + esc(emptyText) + '</div>') +
+  '</div>';
+}
+
+function wireCards() {
+  var view = document.getElementById('view');
+  Array.prototype.forEach.call(view.querySelectorAll('[data-focus]'), function (el) {
+    el.onclick = function () { loadView(el.getAttribute('data-focus')); };
+  });
+  Array.prototype.forEach.call(view.querySelectorAll('[data-open]'), function (el) {
+    el.onclick = function () { openPerson(el.getAttribute('data-open')); };
+  });
+  Array.prototype.forEach.call(view.querySelectorAll('[data-add]'), function (el) {
+    el.onclick = function () { openAdd(S.view.centre.personId, el.getAttribute('data-add')); };
+  });
+}
+
+/** Portraits for everyone on screen, in one call rather than one per face. */
+function loadThumbs(v) {
+  var ids = [];
+  [[v.centre], v.parents, v.spouses, v.siblings, v.children].forEach(function (group) {
+    group.forEach(function (p) {
+      if (p && p.hasPhoto && !S.thumbs[p.personId]) ids.push(p.personId);
+    });
+  });
+  if (!ids.length) return paintThumbs();
+
+  call('api_thumbnails', ids).then(function (map) {
+    for (var id in map) if (map.hasOwnProperty(id)) S.thumbs[id] = map[id];
+    paintThumbs();
+  }).catch(function () { /* A missing portrait is not worth an error. */ });
+}
+
+function paintThumbs() {
+  Array.prototype.forEach.call(document.querySelectorAll('[data-photo]'), function (el) {
+    var id = el.getAttribute('data-photo');
+    if (S.thumbs[id] && !el.querySelector('img')) {
+      el.innerHTML = '<img src="' + S.thumbs[id] + '" alt="">';
+    }
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ * Person detail
+ * ------------------------------------------------------------------ */
+
+function openPerson(personId) {
+  openSheet('<div class="loading">Loading&hellip;</div>');
+  call('api_person', personId).then(function (p) {
+    var facts = [];
+    function fact(k, v) { if (v) facts.push('<div class="fact"><div class="k">' + k +
+      '</div><div class="v">' + esc(String(v)) + '</div></div>'); }
+
+    fact('Full name', p.full_name);
+    fact('Also known as', p.also_known_as);
+    fact('Born', datePhrase(p.birth_date, p.birth_precision));
+    fact('Birthplace', p.birth_place);
+    if (p.is_living === 'FALSE') {
+      fact('Died', datePhrase(p.death_date, p.death_precision));
+      fact('Place of death', p.death_place);
+      fact('Buried', p.burial_place);
+    }
+    fact('Occupation', p.occupation);
+    fact('Email', p.email);
+    fact('Mobile', p.mobile);
+    fact('Address', p.address);
+    if (p.derivedBirthOrder) {
+      fact('Birth order', p.derivedBirthOrder + ' of ' + p.siblingCount +
+        (p.birth_order ? '' : ' (worked out from birth dates)'));
+    }
+    fact('Notes', p.notes);
+
+    var html =
+      '<h2>' + esc(p.display_name) + '</h2>' +
+      '<div class="sub">You call them <strong>' + esc(p.yourTitle) + '</strong>' +
+        (p.titleSource === 'custom' ? ' (set by your family)' : '') + '</div>' +
+      '<div class="facts">' + (facts.join('') || '<div class="empty">Nothing recorded yet.</div>') + '</div>' +
+      '<div class="btn-row">' +
+        (p.editable ? '<button class="btn" id="editBtn">Edit</button>' +
+                      '<button class="btn ghost" id="photoBtn">Photo</button>' : '') +
+        '<button class="btn ghost" id="titleBtn">Rename title</button>' +
+      '</div>' +
+      '<input type="file" id="photoInput" accept="image/*" class="sr">';
+
+    openSheet(html);
+
+    if (p.editable) {
+      document.getElementById('editBtn').onclick = function () { openEdit(p); };
+      document.getElementById('photoBtn').onclick = function () {
+        document.getElementById('photoInput').click();
+      };
+      document.getElementById('photoInput').onchange = function (e) {
+        if (e.target.files[0]) uploadPhoto(personId, e.target.files[0]);
+      };
+    }
+    document.getElementById('titleBtn').onclick = function () { openTitle(p); };
+  }).catch(fail);
+}
+
+function openEdit(p) {
+  openSheet(
+    '<h2>Edit ' + esc(p.display_name) + '</h2>' +
+    '<div class="sub">Changes outside your own branch are sent to a family admin first.</div>' +
+    personFields(p, false) +
+    '<div class="btn-row"><button class="btn" id="saveBtn">Save</button>' +
+    '<button class="btn ghost" onclick="closeSheet()">Cancel</button></div>');
+
+  document.getElementById('saveBtn').onclick = function () {
+    var data = readPersonFields();
+    busy(this, true);
+    call('api_updatePerson', p.personId, data).then(function (res) {
+      closeSheet();
+      toast(res.status === 'pending_approval'
+        ? 'Sent to a family admin for approval.' : 'Saved.');
+      if (res.status !== 'pending_approval') loadView(S.focusId);
+    }).catch(function (e) { busy(null); fail(e); });
+  };
+}
+
+/** The family's own name for someone, overriding what the engine worked out. */
+function openTitle(p) {
+  openSheet(
+    '<h2>What you call ' + esc(p.display_name) + '</h2>' +
+    '<div class="sub">The app worked out <strong>' + esc(p.yourTitle) + '</strong>. If your ' +
+      'family uses a different name for them, put it here -- it only changes what ' +
+      '<em>you</em> see, unless you set it for everyone.</div>' +
+    '<div class="field"><label>Your name for them</label>' +
+      '<input id="customTitle" placeholder="' + esc(p.yourTitle) + '" maxlength="60"></div>' +
+    (S.me.isAdmin ? '<div class="field"><label>' +
+      '<input type="checkbox" id="titleGlobal" style="width:auto;margin-right:8px">' +
+      'Use this for the whole family</label></div>' : '') +
+    '<div class="btn-row"><button class="btn" id="titleSave">Save</button>' +
+    '<button class="btn ghost" onclick="closeSheet()">Cancel</button></div>');
+
+  document.getElementById('titleSave').onclick = function () {
+    var label = document.getElementById('customTitle').value;
+    var globalEl = document.getElementById('titleGlobal');
+    busy(this, true);
+    call('api_setCustomTitle', p.personId, label,
+         globalEl && globalEl.checked ? 'GLOBAL' : 'ME', '*')
+      .then(function () { closeSheet(); toast('Saved.'); loadView(S.focusId); })
+      .catch(function (e) { busy(null); fail(e); });
+  };
+}
+
+/* ------------------------------------------------------------------ *
+ * Adding someone
+ * ------------------------------------------------------------------ */
+
+var ADD_WORDING = {
+  parent_of: 'a parent of', child_of: 'a child of',
+  spouse_of: 'married to', sibling_of: 'a brother or sister of'
+};
+
+function openAdd(anchorId, relationship) {
+  var anchorName = S.view.centre.name;
+  openSheet(
+    '<h2>Add someone</h2>' +
+    '<div class="sub">This person will be recorded as <strong>' +
+      ADD_WORDING[relationship] + ' ' + esc(anchorName) + '</strong>.</div>' +
+    '<div id="dupeZone"></div>' +
+    personFields({}, true) +
+    (relationship === 'spouse_of' ? marriageFields() : '') +
+    '<div class="btn-row"><button class="btn" id="addBtn">Add them</button>' +
+    '<button class="btn ghost" onclick="closeSheet()">Cancel</button></div>');
+
+  document.getElementById('addBtn').onclick = function () {
+    submitAdd(anchorId, relationship, false);
+  };
+}
+
+/**
+ * Submits a new person.
+ *
+ * The first attempt asks the server to look for anyone this might already be.
+ * If it finds someone, the form stays exactly as it is and the matches appear
+ * above it, so the person entering data can link instead of duplicating without
+ * losing what they typed. Only a deliberate second press creates a new record.
+ */
+function submitAdd(anchorId, relationship, ignoreDuplicates) {
+  var data = readPersonFields();
+  if (!data.display_name) return toast('Please enter a name.', true);
+  Object.assign(data, readMarriageFields());
+
+  var btn = document.getElementById('addBtn');
+  busy(btn, true);
+
+  call('api_addPerson', anchorId, relationship, data, { ignoreDuplicates: ignoreDuplicates })
+    .then(function (res) {
+      busy(btn, false);
+      if (res.status === 'possible_duplicate') return showDuplicates(res, anchorId, relationship);
+      closeSheet();
+      toast(res.status === 'pending_approval'
+        ? 'Sent to a family admin for approval.' : 'Added.');
+      if (res.status !== 'pending_approval') loadView(S.focusId);
+    })
+    .catch(function (e) { busy(btn, false); fail(e); });
+}
+
+function showDuplicates(res, anchorId, relationship) {
+  var matches = res.candidates.map(function (c) {
+    var why = c.why.length ? c.why.join(', ') : 'similar details';
+    var line = [c.fatherName ? 'father: ' + c.fatherName : '',
+                c.birthDate ? 'b. ' + year(c.birthDate) : ''].filter(Boolean).join(' · ');
+    return '<div class="match">' +
+      '<div class="avatar">' + initials(c.name) + '</div>' +
+      '<div class="who"><div class="nm">' + esc(c.name) +
+        (c.yourTitle ? ' <span class="score">' + esc(c.yourTitle) + '</span>' : '') + '</div>' +
+        (line ? '<div class="why">' + esc(line) + '</div>' : '') +
+        '<div class="why">Matched on ' + esc(why) + '</div></div>' +
+      '<button class="btn sm" data-link="' + c.personId + '">This one</button>' +
+    '</div>';
+  }).join('');
+
+  document.getElementById('dupeZone').innerHTML =
+    '<div class="dupe">' +
+      '<h3>Is this someone already in the tree?</h3>' +
+      '<p>Adding a second copy of the same person is how a family tree quietly ' +
+         'splits in two. Pick them if you recognise them.</p>' +
+      matches +
+      '<button class="btn ghost sm" id="notThem" style="width:100%">' +
+        'None of these &mdash; add as a new person</button>' +
+    '</div>';
+
+  Array.prototype.forEach.call(document.querySelectorAll('[data-link]'), function (btn) {
+    btn.onclick = function () {
+      busy(btn, true);
+      call('api_linkExisting', anchorId, relationship, btn.getAttribute('data-link'),
+           readMarriageFields())
+        .then(function (r) {
+          closeSheet();
+          toast(r.status === 'pending_approval'
+            ? 'Sent to a family admin for approval.' : 'Connected.');
+          if (r.status !== 'pending_approval') loadView(S.focusId);
+        })
+        .catch(function (e) { busy(btn, false); fail(e); });
+    };
+  });
+
+  document.getElementById('notThem').onclick = function () {
+    submitAdd(anchorId, relationship, true);
+  };
+  document.getElementById('sheet').scrollTop = 0;
+}
+
+/* ------------------------------------------------------------------ *
+ * Forms
+ * ------------------------------------------------------------------ */
+
+function personFields(p, isNew) {
+  p = p || {};
+  return '' +
+  field('Name as the family says it', '<input id="f_display_name" value="' +
+    attr(p.display_name) + '" placeholder="e.g. Karim" maxlength="120">') +
+  field('Full name', '<input id="f_full_name" value="' + attr(p.full_name) + '" ' +
+    'placeholder="e.g. Karim bin Rahim" maxlength="200">',
+    'Writing the full name with bin or binti helps the app spot duplicates.') +
+  '<div class="two">' +
+    field('Gender', select('f_gender', [['U', 'Not recorded'], ['M', 'Male'], ['F', 'Female']],
+      p.gender || 'U')) +
+    field('Born', '<input id="f_birth_date" type="date" value="' + attr(p.birth_date) + '">') +
+  '</div>' +
+  '<div class="two">' +
+    field('How sure is that date?', select('f_birth_precision',
+      [['exact', 'Exact'], ['month', 'Month only'], ['year', 'Year only'],
+       ['about', 'Approximate'], ['unknown', 'Unknown']], p.birth_precision || 'exact')) +
+    field('Birthplace', '<input id="f_birth_place" value="' + attr(p.birth_place) +
+      '" maxlength="120">') +
+  '</div>' +
+  field('Living?', select('f_is_living', [['TRUE', 'Living'], ['FALSE', 'Passed away']],
+    p.is_living === 'FALSE' ? 'FALSE' : 'TRUE')) +
+  '<div id="deathBlock" style="display:' + (p.is_living === 'FALSE' ? '' : 'none') + '">' +
+    '<div class="two">' +
+      field('Died', '<input id="f_death_date" type="date" value="' + attr(p.death_date) + '">') +
+      field('Place of death', '<input id="f_death_place" value="' + attr(p.death_place) +
+        '" maxlength="120">') +
+    '</div>' +
+    field('Buried at', '<input id="f_burial_place" value="' + attr(p.burial_place) +
+      '" maxlength="160">') +
+  '</div>' +
+  field('Also known as', '<input id="f_also_known_as" value="' + attr(p.also_known_as) +
+    '" placeholder="nicknames, separated by commas" maxlength="200">') +
+  '<div class="two">' +
+    field('Birth order', '<input id="f_birth_order" type="number" min="1" max="30" value="' +
+      attr(p.birth_order) + '">',
+      'Which child they are. Needed for Pak Long, Mak Ngah, Pak Su.') +
+    field('Occupation', '<input id="f_occupation" value="' + attr(p.occupation) +
+      '" maxlength="120">') +
+  '</div>' +
+  '<div class="two">' +
+    field('Mobile', '<input id="f_mobile" value="' + attr(p.mobile) + '" maxlength="40">') +
+    field('Email', '<input id="f_email" type="email" value="' + attr(p.email) +
+      '" maxlength="120">') +
+  '</div>' +
+  field('Address', '<input id="f_address" value="' + attr(p.address) + '" maxlength="200">') +
+  field('Notes and stories', '<textarea id="f_notes" maxlength="5000">' +
+    esc(p.notes || '') + '</textarea>');
+}
+
+function marriageFields() {
+  return '<div class="two">' +
+    field('Marriage', select('f_union_status',
+      [['current', 'Married'], ['divorced', 'Divorced'], ['widowed', 'Widowed'],
+       ['separated', 'Separated']], 'current')) +
+    field('Married on', '<input id="f_union_start_date" type="date">') +
+  '</div>';
+}
+
+function readPersonFields() {
+  var out = {};
+  ['display_name', 'full_name', 'gender', 'birth_date', 'birth_precision', 'birth_place',
+   'is_living', 'death_date', 'death_place', 'burial_place', 'also_known_as',
+   'birth_order', 'occupation', 'mobile', 'email', 'address', 'notes'].forEach(function (f) {
+    var el = document.getElementById('f_' + f);
+    if (el && el.value !== '') out[f] = el.value;
+  });
+  if (!out.full_name && out.display_name) out.full_name = out.display_name;
+  return out;
+}
+
+function readMarriageFields() {
+  var out = {};
+  var status = document.getElementById('f_union_status');
+  var start = document.getElementById('f_union_start_date');
+  if (status) out.union_status = status.value;
+  if (start && start.value) out.union_start_date = start.value;
+  return out;
+}
+
+function field(label, control, hint) {
+  return '<div class="field"><label>' + label + '</label>' + control +
+    (hint ? '<div class="hint">' + hint + '</div>' : '') + '</div>';
+}
+
+function select(id, options, value) {
+  return '<select id="' + id + '">' + options.map(function (o) {
+    return '<option value="' + o[0] + '"' + (o[0] === value ? ' selected' : '') + '>' +
+      o[1] + '</option>';
+  }).join('') + '</select>';
+}
+
+// Reveal the death fields the moment someone is marked as passed away.
+document.addEventListener('change', function (e) {
+  if (e.target && e.target.id === 'f_is_living') {
+    var block = document.getElementById('deathBlock');
+    if (block) block.style.display = e.target.value === 'FALSE' ? '' : 'none';
+  }
+});
+
+/* ------------------------------------------------------------------ *
+ * Photos
+ * ------------------------------------------------------------------ */
+
+/**
+ * Downscales in the browser before uploading.
+ *
+ * Apps Script has no image API, so nothing can be resized once it arrives, and
+ * a modern phone photo is several megabytes. Two sizes are produced: a full
+ * image capped at 1200px and a thumbnail at 256px, which is what the card grid
+ * loads.
+ */
+function uploadPhoto(personId, file) {
+  toast('Preparing photo…');
+  Promise.all([downscale(file, 1200, 0.82), downscale(file, 256, 0.75)])
+    .then(function (sizes) {
+      return call('api_uploadPhoto', personId,
+        { full: sizes[0], thumb: sizes[1], mime: 'image/jpeg' });
+    })
+    .then(function (res) {
+      if (res.status === 'pending_approval') return toast('Photo sent for approval.');
+      delete S.thumbs[personId];
+      toast('Photo saved.');
+      closeSheet();
+      loadView(S.focusId);
+    })
+    .catch(fail);
+}
+
+function downscale(file, maxEdge, quality) {
+  return new Promise(function (resolve, reject) {
+    var reader = new FileReader();
+    reader.onerror = function () { reject(new Error('That file could not be read.')); };
+    reader.onload = function () {
+      var img = new Image();
+      img.onerror = function () { reject(new Error('That does not look like an image.')); };
+      img.onload = function () {
+        var scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+        var canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', quality).split(',')[1]);
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ * Search
+ * ------------------------------------------------------------------ */
+
+document.getElementById('search').addEventListener('input', function (e) {
+  var q = e.target.value;
+  clearTimeout(S.searchTimer);
+  if (q.length < 2) {
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('view').style.display = '';
+    return;
+  }
+  S.searchTimer = setTimeout(function () { runSearch(q); }, 280);
+});
+
+function runSearch(q) {
+  call('api_search', q).then(function (rows) {
+    var box = document.getElementById('results');
+    document.getElementById('view').style.display = 'none';
+    box.style.display = '';
+    if (!rows.length) {
+      box.innerHTML = '<div class="empty">Nobody found.</div>';
+      return;
+    }
+    box.innerHTML = rows.map(function (r) {
+      return '<button class="match" style="width:100%;text-align:left" data-focus="' +
+        r.personId + '">' +
+        '<div class="avatar">' + initials(r.name) + '</div>' +
+        '<div class="who"><div class="nm">' + esc(r.name) + '</div>' +
+        '<div class="why">' + esc(r.yourTitle) +
+          (r.birthDate ? ' · ' + year(r.birthDate) : '') + '</div></div></button>';
+    }).join('');
+    Array.prototype.forEach.call(box.querySelectorAll('[data-focus]'), function (el) {
+      el.onclick = function () { loadView(el.getAttribute('data-focus')); };
+    });
+  }).catch(fail);
+}
+
+/* ------------------------------------------------------------------ *
+ * Settings and admin
+ * ------------------------------------------------------------------ */
+
+document.getElementById('btnHome').onclick = function () { loadView(null); };
+document.getElementById('btnMenu').onclick = openSettings;
+document.getElementById('btnAdmin').onclick = openAdmin;
+
+function openSettings() {
+  var langs = [['ms', 'Bahasa Melayu'], ['en', 'English'], ['ar', 'Arabic']];
+  openSheet(
+    '<h2>Settings</h2>' +
+    '<div class="sub">Signed in as ' + esc(S.me.email) + '</div>' +
+    '<div class="field"><label>Family titles shown in</label><div class="chips">' +
+      langs.map(function (l) {
+        return '<button class="chip' + (S.me.lang === l[0] ? ' on' : '') +
+          '" data-lang="' + l[0] + '">' + l[1] + '</button>';
+      }).join('') +
+    '</div><div class="hint">The same person is Pak Long in Malay, Uncle in English ' +
+      'and ‘Amm in Arabic. Only the label changes.</div></div>' +
+    (S.me.canInvite || S.me.isAdmin ?
+      '<div class="field"><label>Invite a relative</label>' +
+      '<input id="inviteEmail" type="email" placeholder="their@gmail.com">' +
+      '<div class="hint">They sign in with that Google account.</div></div>' +
+      '<button class="btn" id="inviteBtn">Send invitation</button>' : '') +
+    '<div id="inviteResult"></div>' +
+    '<button class="btn ghost" id="signOutBtn" style="margin-top:18px">Sign out</button>');
+
+  document.getElementById('signOutBtn').onclick = function () {
+    signOutLocally();
+    location.reload();
+  };
+
+  Array.prototype.forEach.call(document.querySelectorAll('[data-lang]'), function (btn) {
+    btn.onclick = function () {
+      call('api_setLanguage', btn.getAttribute('data-lang')).then(function () {
+        S.me.lang = btn.getAttribute('data-lang');
+        closeSheet();
+        loadView(S.focusId);
+      }).catch(fail);
+    };
+  });
+
+  var inviteBtn = document.getElementById('inviteBtn');
+  if (inviteBtn) inviteBtn.onclick = function () {
+    var email = document.getElementById('inviteEmail').value;
+    busy(inviteBtn, true);
+    call('api_invite', email, null).then(function (r) {
+      busy(inviteBtn, false);
+      document.getElementById('inviteResult').innerHTML =
+        '<div class="dupe" style="margin-top:14px"><h3>Invitation ready</h3>' +
+        '<p>Send this link to ' + esc(r.email) + '. It works until ' +
+        esc(String(r.expiresAt).slice(0, 10)) + '.</p>' +
+        '<input value="' + attr(r.url) + '" readonly onclick="this.select()"></div>';
+    }).catch(function (e) { busy(inviteBtn, false); fail(e); });
+  };
+}
+
+function openAdmin() {
+  openSheet('<div class="loading">Loading&hellip;</div>');
+  call('api_adminQueues').then(function (q) {
+    openSheet(
+      '<h2>Admin</h2>' +
+      '<div class="tabs">' +
+        tabBtn('changes', 'Changes', q.changes.length) +
+        tabBtn('merges', 'Duplicates', q.merges.length) +
+        tabBtn('users', 'Access', q.users.length) +
+      '</div><div id="adminBody"></div>');
+
+    var panels = {
+      changes: function () { return renderChanges(q.changes); },
+      merges: function () { return renderMerges(q.merges); },
+      users: function () { return renderUsers(q.users); }
+    };
+
+    function openTab(name) {
+      Array.prototype.forEach.call(document.querySelectorAll('[data-tab]'), function (b) {
+        b.className = b.getAttribute('data-tab') === name ? 'on' : '';
+      });
+      document.getElementById('adminBody').innerHTML = panels[name]();
+      wireAdmin();
+    }
+    Array.prototype.forEach.call(document.querySelectorAll('[data-tab]'), function (b) {
+      b.onclick = function () { openTab(b.getAttribute('data-tab')); };
+    });
+    openTab('changes');
+  }).catch(fail);
+}
+
+function tabBtn(id, label, count) {
+  return '<button data-tab="' + id + '">' + label + (count ? ' (' + count + ')' : '') + '</button>';
+}
+
+function renderChanges(changes) {
+  if (!changes.length) return '<div class="empty">Nothing waiting.</div>';
+  return changes.map(function (c) {
+    return '<div class="admin-item">' +
+      '<div class="what">' + esc(c.summary) + '</div>' +
+      '<div class="who">Asked by ' + esc(c.requestedBy) + ' · ' +
+        esc(String(c.requestedAt).slice(0, 10)) + '</div>' +
+      '<div class="btn-row" style="margin-top:0">' +
+        '<button class="btn sm" data-approve="' + c.changeId + '">Approve</button>' +
+        '<button class="btn sm ghost" data-reject="' + c.changeId + '">Reject</button>' +
+      '</div></div>';
+  }).join('');
+}
+
+function renderMerges(merges) {
+  if (!merges.length) {
+    return '<div class="empty">No suspected duplicates.</div>' +
+      '<button class="btn ghost" id="rescan" style="margin-top:12px">Scan again</button>';
+  }
+  return merges.map(function (m) {
+    return '<div class="admin-item">' +
+      '<div class="what">Possibly the same person · ' + m.score + '% match</div>' +
+      '<div class="who">' + esc(m.signals.filter(function (s) { return s.points > 0; })
+        .map(function (s) { return s.signal.replace(/_/g, ' '); }).join(', ')) + '</div>' +
+      '<div class="side-by-side">' + mergeSide(m.a) + mergeSide(m.b) + '</div>' +
+      '<div class="btn-row" style="margin-top:0">' +
+        '<button class="btn sm" data-merge="' + m.a.personId + '|' + m.b.personId +
+          '">Keep left</button>' +
+        '<button class="btn sm" data-merge="' + m.b.personId + '|' + m.a.personId +
+          '">Keep right</button>' +
+        '<button class="btn sm ghost" data-dismiss="' + m.candidateId +
+          '">Different people</button>' +
+      '</div></div>';
+  }).join('') + '<button class="btn ghost" id="rescan">Scan again</button>';
+}
+
+function mergeSide(s) {
+  // Each line is escaped on its own and the breaks added afterwards, so the
+  // markup survives while the names stay escaped.
+  var lines = [
+    s.birthDate ? 'b. ' + year(s.birthDate) : '',
+    s.fatherName ? 'father: ' + s.fatherName : '',
+    s.childCount + ' children'
+  ].filter(Boolean).map(esc).join('<br>');
+
+  return '<div class="side"><div class="nm">' + esc(s.fullName || s.name) + '</div>' +
+    '<div class="l">' + lines + '</div>' +
+    '<div class="l" style="margin-top:6px">added by ' + esc(s.createdBy || 'unknown') + '</div></div>';
+}
+
+function renderUsers(users) {
+  if (!users.length) return '<div class="empty">Nobody waiting for access.</div>';
+  return users.map(function (u) {
+    return '<div class="admin-item">' +
+      '<div class="what">' + esc(u.email) + '</div>' +
+      '<div class="who">Asked ' + esc(String(u.requestedAt).slice(0, 10)) + '</div>' +
+      '<div class="btn-row" style="margin-top:0">' +
+        '<button class="btn sm" data-admit="' + attr(u.email) + '">Let them in</button>' +
+      '</div></div>';
+  }).join('');
+}
+
+function wireAdmin() {
+  function bind(attrName, handler) {
+    Array.prototype.forEach.call(document.querySelectorAll('[' + attrName + ']'), function (b) {
+      b.onclick = function () { handler(b.getAttribute(attrName), b); };
+    });
+  }
+  bind('data-approve', function (id, b) {
+    busy(b, true);
+    call('api_approveChange', id, '').then(function () { toast('Approved.'); openAdmin(); })
+      .catch(function (e) { busy(b, false); fail(e); });
+  });
+  bind('data-reject', function (id, b) {
+    busy(b, true);
+    call('api_rejectChange', id, '').then(function () { toast('Rejected.'); openAdmin(); })
+      .catch(function (e) { busy(b, false); fail(e); });
+  });
+  bind('data-merge', function (pair, b) {
+    var ids = pair.split('|');
+    if (!confirm('Merge these two records into one? This cannot be undone from here.')) return;
+    busy(b, true);
+    call('api_merge', ids[0], ids[1], null).then(function () { toast('Merged.'); openAdmin(); })
+      .catch(function (e) { busy(b, false); fail(e); });
+  });
+  bind('data-dismiss', function (id, b) {
+    busy(b, true);
+    call('api_dismissMerge', id, '').then(function () { toast('Marked as different people.'); openAdmin(); })
+      .catch(function (e) { busy(b, false); fail(e); });
+  });
+  bind('data-admit', function (email, b) {
+    busy(b, true);
+    call('api_approveUser', email, '', 'member').then(function () {
+      toast('They can sign in now.'); openAdmin();
+    }).catch(function (e) { busy(b, false); fail(e); });
+  });
+  var rescan = document.getElementById('rescan');
+  if (rescan) rescan.onclick = function () {
+    busy(rescan, true);
+    call('api_rebuildMergeQueue').then(function (r) {
+      toast('Found ' + r.added + ' new to check.'); openAdmin();
+    }).catch(function (e) { busy(rescan, false); fail(e); });
+  };
+}
+
+/* ------------------------------------------------------------------ *
+ * Sheet, toast and small helpers
+ * ------------------------------------------------------------------ */
+
+function openSheet(html) {
+  document.getElementById('sheetBody').innerHTML = html;
+  document.getElementById('sheet').classList.add('on');
+  document.getElementById('scrim').classList.add('on');
+  document.getElementById('sheet').scrollTop = 0;
+}
+
+function closeSheet() {
+  document.getElementById('sheet').classList.remove('on');
+  document.getElementById('scrim').classList.remove('on');
+}
+document.getElementById('scrim').onclick = closeSheet;
+
+function toast(text, bad) {
+  var el = document.getElementById('toast');
+  el.textContent = text;
+  el.className = 'toast on' + (bad ? ' bad' : '');
+  clearTimeout(el._t);
+  el._t = setTimeout(function () { el.className = 'toast'; }, 3400);
+}
+
+function fail(err) { toast(err && err.message ? err.message : String(err), true); }
+
+function busy(btn, on) {
+  if (!btn) return;
+  if (on) {
+    btn._label = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner"></span>';
+    btn.disabled = true;
+  } else if (btn._label) {
+    btn.innerHTML = btn._label;
+    btn.disabled = false;
+  }
+}
+
+function avatar(p, cls) {
+  return '<div class="' + cls + '" data-photo="' + p.personId + '">' +
+    (S.thumbs[p.personId] ? '<img src="' + S.thumbs[p.personId] + '" alt="">'
+                          : initials(p.name)) + '</div>';
+}
+
+function initials(name) {
+  var parts = String(name || '?').replace(/^\s+|\s+$/g, '').split(/\s+/);
+  var first = parts[0] ? parts[0][0] : '?';
+  var second = parts.length > 1 ? parts[parts.length - 1][0] : '';
+  return esc((first + second).toUpperCase());
+}
+
+function genderClass(g) { return g === 'F' ? 'f' : (g === 'M' ? 'm' : ''); }
+
+function year(date) { return date ? String(date).slice(0, 4) : ''; }
+
+/** Dates are often approximate for an older generation, and saying so is more
+ *  honest than printing a precise date nobody actually knows. */
+function datePhrase(date, precision) {
+  if (!date) return '';
+  var text = String(date);
+  if (precision === 'year') return text.slice(0, 4);
+  if (precision === 'month') return text.slice(0, 7);
+  if (precision === 'about') return 'about ' + text.slice(0, 4);
+  if (precision === 'unknown') return '';
+  return text.slice(0, 10);
+}
+
+function esc(text) {
+  return String(text === undefined || text === null ? '' : text)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function attr(text) { return esc(text); }
+</script>

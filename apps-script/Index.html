@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <?!= include('Styles'); ?>
+</head>
+<body>
+
+<!-- Sign in. Nothing below this point renders until Google has confirmed who
+     the visitor is and the server has verified the token it issued. -->
+<div class="gate" id="gateSignIn">
+  <div class="box">
+    <div class="mark">&#127795;</div>
+    <h1><?= appName ?></h1>
+    <p>Sign in with the Google account your family invited.</p>
+    <!-- A plain top-level link, not a scripted popup. Google will not render
+         its sign-in page inside an iframe, and this page is always framed. -->
+    <a class="btn" id="signInLink" href="<?= signInUrl ?>" target="_top"
+       style="text-decoration:none">Continue with Google</a>
+    <p id="signInError" style="color:var(--danger); margin-top:16px; display:none"></p>
+  </div>
+</div>
+
+<!-- Waiting for an admin. -->
+<div class="gate" id="gatePending" style="display:none">
+  <div class="box">
+    <div class="mark">&#9203;</div>
+    <h1>Waiting for approval</h1>
+    <p>Your request to join the family tree has been sent. You will be able to
+       sign in once a family admin approves it.</p>
+    <button class="btn ghost" onclick="location.reload()">Check again</button>
+  </div>
+</div>
+
+<!-- Claiming an existing record, so nobody enters themselves twice. -->
+<div class="gate" id="gateClaim" style="display:none">
+  <div class="box" style="text-align:left">
+    <h1 style="text-align:center">Which one are you?</h1>
+    <p style="text-align:center">Your family may already have added you. Choosing
+       yourself here keeps the tree from holding two of you.</p>
+    <div id="claimList"></div>
+    <button class="btn ghost" id="claimNone" style="margin-top:12px">
+      None of these are me
+    </button>
+  </div>
+</div>
+
+<!-- An empty tree, waiting on its first person. -->
+<div class="gate" id="gateStart" style="display:none">
+  <div class="box" style="text-align:left">
+    <h1 style="text-align:center">Start the family tree</h1>
+    <p style="text-align:center">Begin with yourself. Everyone after this is added
+       through someone already here.</p>
+    <div id="startForm"></div>
+  </div>
+</div>
+
+<!-- The app. -->
+<div id="app" style="display:none">
+  <div class="topbar">
+    <button class="icon-btn" id="btnHome" title="Back to me">&#9679;</button>
+    <div class="brand" id="familyName">Family tree</div>
+    <button class="icon-btn" id="btnAdmin" title="Admin" style="display:none">&#9881;</button>
+    <button class="icon-btn" id="btnMenu" title="Settings">&#9776;</button>
+  </div>
+
+  <div class="wrap">
+    <div class="searchbar">
+      <input id="search" type="search" placeholder="Search the family&hellip;"
+             autocomplete="off" spellcheck="false">
+    </div>
+    <div id="results" style="display:none"></div>
+    <div id="view"><div class="loading">Loading your family&hellip;</div></div>
+  </div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet">
+  <div class="grabber"></div>
+  <div id="sheetBody"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+  /* <?!= ?> emits raw, which is required here: <?= ?> HTML-escapes its output
+     and would turn the quotes of these JSON literals into &quot;. Both values
+     are produced by this server, never by anything a visitor supplied. */
+  var SESSION = <?!= JSON.stringify(session) ?>;
+  var SIGN_IN_ERROR = <?!= JSON.stringify(signInError) ?>;
+</script>
+<?!= include('Client'); ?>
+
+</body>
+</html>

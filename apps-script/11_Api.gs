@@ -1,0 +1,491 @@
+/**
+ * The call surface the browser talks to.
+ *
+ * Every function takes the caller's Google ID token as its first argument and
+ * verifies it before doing anything. There is no session cookie and no trusted
+ * client state: the browser proves who it is on each call, or it gets nothing.
+ *
+ * Errors are returned as objects rather than thrown across the bridge, so the
+ * interface can show the message instead of a generic failure.
+ */
+
+function API_run(idToken, handler) {
+  try {
+    var session = AUTH_session(idToken);
+    return { ok: true, data: handler(session) };
+  } catch (err) {
+    return { ok: false, error: err.message || String(err) };
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Reading
+ * ------------------------------------------------------------------ */
+
+/** Who the caller is, and what state their account is in. */
+function api_me(idToken) {
+  return API_run(idToken, function (session) {
+    var settings = ST_settings();
+    var graph = ST_graph();
+    var out = {
+      email: session.email,
+      role: session.role,
+      lang: session.lang,
+      isAdmin: session.isAdmin,
+      isPending: session.isPending,
+      canInvite: session.canInvite,
+      familyName: settings.family_name,
+      personId: session.personId,
+      needsBinding: !session.isPending && !session.personId,
+      treeSize: Object.keys(graph.people).length
+    };
+    if (out.needsBinding) out.unclaimed = API_unclaimedPeople(graph, session);
+    if (session.isAdmin) {
+      out.adminCounts = {
+        pendingChanges: API_countPending('PendingChanges'),
+        pendingUsers: API_countPendingUsers(),
+        mergeQueue: API_countOpenMerges()
+      };
+    }
+    return out;
+  });
+}
+
+/**
+ * The me-centred view: one person in the middle, their immediate family around
+ * them, every card carrying the title the VIEWER would use.
+ *
+ * `focusId` moves the centre without changing whose point of view the titles
+ * come from. Opening your uncle still shows his children as your cousins, not
+ * as his children -- so the second label says how they sit relative to the
+ * person on screen, which is what makes exploring a distant branch legible.
+ */
+function api_view(idToken, focusId) {
+  return API_run(idToken, function (session) {
+    AUTH_requireActive(session);
+    var graph = ST_graph();
+    var settings = ST_settings();
+    var centre = focusId && graph.people[focusId] ? focusId : session.personId;
+    if (!graph.people[centre]) throw new Error('That person is no longer in the tree.');
+
+    var scope = AUTH_editableScope(graph, session.personId);
+
+    function card(personId, roleHere) {
+      var person = graph.people[personId];
+      if (!person) return null;
+      var title = TTL_title(graph, session.personId, personId, session.lang, settings);
+      return {
+        personId: personId,
+        name: person.display_name,
+        fullName: person.full_name,
+        gender: person.gender,
+        birthDate: person.birth_date,
+        birthPrecision: person.birth_precision,
+        isLiving: person.is_living !== 'FALSE',
+        deathDate: person.death_date,
+        hasPhoto: !!person.photo_thumb_id,
+        yourTitle: title.label,
+        titleScript: title.script,
+        titleSource: title.source,
+        roleHere: roleHere,
+        editable: session.isAdmin || !!scope[personId],
+        isYou: personId === session.personId
+      };
+    }
+
+    function cards(ids, roleHere) {
+      var out = [];
+      for (var i = 0; i < ids.length; i++) {
+        var made = card(ids[i], roleHere);
+        if (made) out.push(made);
+      }
+      return out;
+    }
+
+    var parents = KIN_parentsOf(graph, centre);
+    var children = KIN_childrenOf(graph, centre);
+    var siblings = KIN_siblingsOf(graph, centre);
+
+    siblings.sort(function (a, b) {
+      return REL_compareBirth(graph.people[a], graph.people[b]);
+    });
+
+    var spouseEntries = KIN_spousesOf(graph, centre);
+    var spouses = [];
+    for (var s = 0; s < spouseEntries.length; s++) {
+      var made = card(spouseEntries[s].personId, API_spouseRole(spouseEntries[s], graph, centre));
+      if (made) {
+        made.unionStatus = spouseEntries[s].status;
+        spouses.push(made);
+      }
+    }
+
+    return {
+      centre: card(centre, 'centre'),
+      viewerPersonId: session.personId,
+      parents: cards(parents, 'parent'),
+      spouses: spouses,
+      siblings: cards(siblings, 'sibling'),
+      children: cards(children, 'child'),
+      counts: {
+        grandparents: API_countGeneration(graph, centre, 2),
+        grandchildren: API_countDescendants(graph, centre, 2)
+      }
+    };
+  });
+}
+
+function API_spouseRole(entry, graph, centreId) {
+  var person = graph.people[entry.personId === centreId ? centreId : entry.personId];
+  var word = person && person.gender === 'F' ? 'wife' : 'husband';
+  if (entry.status === 'divorced') return 'former ' + word;
+  if (entry.status === 'widowed') return 'late ' + word;
+  return word;
+}
+
+/** Everything recorded about one person, plus how they connect. */
+function api_person(idToken, personId) {
+  return API_run(idToken, function (session) {
+    AUTH_requireActive(session);
+    var graph = ST_graph();
+    var settings = ST_settings();
+    var person = graph.people[personId];
+    if (!person) throw new Error('That person is no longer in the tree.');
+
+    var title = TTL_title(graph, session.personId, personId, session.lang, settings);
+    var out = {
+      personId: personId,
+      yourTitle: title.label,
+      titleScript: title.script,
+      titleSource: title.source,
+      editable: AUTH_canEditDirectly(session, graph, personId),
+      hasPhoto: !!person.photo_file_id
+    };
+
+    var fields = ['display_name', 'full_name', 'also_known_as', 'honorific', 'gender',
+      'birth_date', 'birth_precision', 'birth_place', 'birth_order', 'is_living',
+      'death_date', 'death_precision', 'death_place', 'burial_place', 'email',
+      'mobile', 'address', 'country', 'occupation', 'notes'];
+    for (var i = 0; i < fields.length; i++) out[fields[i]] = person[fields[i]];
+
+    // The derived rank, shown so a family can see why a title came out as it
+    // did and correct the order rather than argue with the app.
+    out.derivedBirthOrder = KIN_birthOrder(graph, personId);
+    out.siblingCount = KIN_siblingCount(graph, personId);
+    return out;
+  });
+}
+
+function api_search(idToken, query) {
+  return API_run(idToken, function (session) {
+    AUTH_requireActive(session);
+    var graph = ST_graph();
+    var settings = ST_settings();
+    var needle = MTC_normalise(query);
+    if (needle.length < 2) return [];
+
+    var out = [];
+    for (var id in graph.people) {
+      if (!Object.prototype.hasOwnProperty.call(graph.people, id)) continue;
+      var person = graph.people[id];
+      var haystack = MTC_normalise(
+        person.display_name + ' ' + person.full_name + ' ' + (person.also_known_as || ''));
+      if (haystack.indexOf(needle) === -1) continue;
+
+      out.push({
+        personId: id,
+        name: person.display_name,
+        fullName: person.full_name,
+        birthDate: person.birth_date,
+        isLiving: person.is_living !== 'FALSE',
+        hasPhoto: !!person.photo_thumb_id,
+        yourTitle: TTL_title(graph, session.personId, id, session.lang, settings).label
+      });
+      if (out.length >= 40) break;
+    }
+    return out;
+  });
+}
+
+function api_thumbnails(idToken, personIds) {
+  return API_run(idToken, function (session) {
+    return PHO_thumbnails(session, personIds || []);
+  });
+}
+
+function api_photo(idToken, personId) {
+  return API_run(idToken, function (session) { return PHO_full(session, personId); });
+}
+
+/* ------------------------------------------------------------------ *
+ * Writing
+ * ------------------------------------------------------------------ */
+
+function api_addPerson(idToken, anchorId, relationship, data, options) {
+  return API_run(idToken, function (session) {
+    return PPL_createPerson(session, anchorId, relationship, data, options);
+  });
+}
+
+function api_updatePerson(idToken, personId, changes) {
+  return API_run(idToken, function (session) {
+    return PPL_updatePerson(session, personId, changes);
+  });
+}
+
+/** Links a person who is already in the tree, instead of creating a duplicate. */
+function api_linkExisting(idToken, anchorId, relationship, existingPersonId, data) {
+  return API_run(idToken, function (session) {
+    AUTH_requireActive(session);
+    var graph = ST_graph();
+    if (!graph.people[anchorId] || !graph.people[existingPersonId]) {
+      throw new Error('One of those people is no longer in the tree.');
+    }
+
+    if (!AUTH_canEditDirectly(session, graph, anchorId) &&
+        !AUTH_canEditDirectly(session, graph, existingPersonId)) {
+      var kind = relationship === 'spouse_of' ? 'add_union' : 'add_parentage';
+      var payload = relationship === 'spouse_of'
+        ? { aId: anchorId, bId: existingPersonId, data: data || {} }
+        : API_parentagePayload(graph, anchorId, relationship, existingPersonId, data);
+      var change = PPL_queueChange(session, kind, anchorId, payload,
+        'Connect ' + graph.people[existingPersonId].display_name + ' to ' +
+        graph.people[anchorId].display_name);
+      return { status: 'pending_approval', changeId: change.change_id };
+    }
+
+    if (relationship === 'spouse_of') {
+      PPL_addUnion(session.email, anchorId, existingPersonId, data || {});
+    } else {
+      var p = API_parentagePayload(graph, anchorId, relationship, existingPersonId, data);
+      PPL_addParentLink(session.email, p.childId, p.parentId, p.role, p.relationType);
+    }
+    ST_invalidate();
+    return { status: 'linked' };
+  });
+}
+
+function API_parentagePayload(graph, anchorId, relationship, otherId, data) {
+  if (relationship === 'child_of') {
+    return {
+      childId: otherId, parentId: anchorId,
+      role: PPL_roleOf(graph.people[anchorId]),
+      relationType: (data && data.relation_type) || 'biological'
+    };
+  }
+  if (relationship === 'parent_of') {
+    return {
+      childId: anchorId, parentId: otherId,
+      role: PPL_roleOf(graph.people[otherId]),
+      relationType: (data && data.relation_type) || 'biological'
+    };
+  }
+  throw new Error('That connection cannot be made this way.');
+}
+
+function api_uploadPhoto(idToken, personId, payload) {
+  return API_run(idToken, function (session) { return PHO_upload(session, personId, payload); });
+}
+
+function api_setLanguage(idToken, lang) {
+  return API_run(idToken, function (session) { return ADM_setLanguage(session, lang); });
+}
+
+function api_setCustomTitle(idToken, toPersonId, label, scope, lang) {
+  return API_run(idToken, function (session) {
+    return ADM_setCustomTitle(session, toPersonId, label, scope, lang);
+  });
+}
+
+function api_claimPerson(idToken, personId) {
+  return API_run(idToken, function (session) { return ADM_bindSelf(session, personId); });
+}
+
+function api_invite(idToken, email, prebindPersonId) {
+  return API_run(idToken, function (session) {
+    return ADM_invite(session, email, prebindPersonId);
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ * Admin
+ * ------------------------------------------------------------------ */
+
+function api_adminQueues(idToken) {
+  return API_run(idToken, function (session) {
+    AUTH_requireAdmin(session);
+    return {
+      changes: ADM_pendingChanges(session),
+      users: ADM_pendingUsers(session),
+      merges: API_mergeQueue(session)
+    };
+  });
+}
+
+function API_mergeQueue(session) {
+  var graph = ST_graph();
+  var rows = ST_readAll('MergeQueue');
+  var out = [];
+  for (var i = 0; i < rows.length; i++) {
+    if (rows[i].status !== 'open') continue;
+    var a = graph.people[rows[i].person_a_id];
+    var b = graph.people[rows[i].person_b_id];
+    if (!a || !b) continue;
+    out.push({
+      candidateId: rows[i].candidate_id,
+      score: Number(rows[i].score),
+      signals: ADM_parseJson(rows[i].signals_json) || [],
+      a: API_mergeSide(graph, a),
+      b: API_mergeSide(graph, b)
+    });
+  }
+  out.sort(function (x, y) { return y.score - x.score; });
+  return out;
+}
+
+function API_mergeSide(graph, person) {
+  var fatherId = MTC_fatherOf(graph, person.person_id);
+  return {
+    personId: person.person_id,
+    name: person.display_name,
+    fullName: person.full_name,
+    gender: person.gender,
+    birthDate: person.birth_date,
+    birthPlace: person.birth_place,
+    isLiving: person.is_living !== 'FALSE',
+    fatherName: fatherId && graph.people[fatherId] ? graph.people[fatherId].display_name : '',
+    childCount: KIN_childrenOf(graph, person.person_id).length,
+    spouseCount: KIN_spousesOf(graph, person.person_id).length,
+    createdBy: person.created_by,
+    createdAt: person.created_at
+  };
+}
+
+function api_approveChange(idToken, changeId, note) {
+  return API_run(idToken, function (session) { return ADM_approve(session, changeId, note); });
+}
+
+function api_rejectChange(idToken, changeId, note) {
+  return API_run(idToken, function (session) { return ADM_reject(session, changeId, note); });
+}
+
+function api_approveUser(idToken, email, personId, role) {
+  return API_run(idToken, function (session) {
+    return ADM_approveUser(session, email, personId, role);
+  });
+}
+
+function api_merge(idToken, keepId, loseId, fieldChoices) {
+  return API_run(idToken, function (session) {
+    return MRG_merge(session, keepId, loseId, fieldChoices);
+  });
+}
+
+function api_dismissMerge(idToken, candidateId, note) {
+  return API_run(idToken, function (session) { return MRG_dismiss(session, candidateId, note); });
+}
+
+function api_rebuildMergeQueue(idToken) {
+  return API_run(idToken, function (session) { return MRG_rebuildQueue(session); });
+}
+
+/* ------------------------------------------------------------------ *
+ * Helpers
+ * ------------------------------------------------------------------ */
+
+/**
+ * People a newly admitted account might be.
+ *
+ * Offered on first sign-in so someone the family already added claims that
+ * record instead of creating a second copy of themselves -- the duplicate that
+ * is hardest to spot later, because both copies look equally real.
+ */
+function API_unclaimedPeople(graph, session) {
+  var users = ST_readAll('Users');
+  var claimed = {};
+  for (var i = 0; i < users.length; i++) {
+    if (users[i].person_id) claimed[users[i].person_id] = true;
+  }
+
+  var localPart = session.email.split('@')[0].replace(/[._\-0-9]/g, ' ');
+  var guess = { full_name: session.name || localPart, display_name: session.name || localPart };
+  var ranked = MTC_findCandidates(graph, guess, 40, 6);
+
+  var out = [];
+  for (var r = 0; r < ranked.length; r++) {
+    if (claimed[ranked[r].person.person_id]) continue;
+    out.push({
+      personId: ranked[r].person.person_id,
+      name: ranked[r].person.display_name,
+      birthDate: ranked[r].person.birth_date,
+      score: ranked[r].score
+    });
+  }
+  return out;
+}
+
+function API_countPending(tab) {
+  var rows = ST_readAll(tab);
+  var n = 0;
+  for (var i = 0; i < rows.length; i++) if (rows[i].status === 'pending') n++;
+  return n;
+}
+
+function API_countPendingUsers() {
+  var rows = ST_readAll('Users');
+  var n = 0;
+  for (var i = 0; i < rows.length; i++) if (rows[i].role === 'pending') n++;
+  return n;
+}
+
+function API_countOpenMerges() {
+  var rows = ST_readAll('MergeQueue');
+  var n = 0;
+  for (var i = 0; i < rows.length; i++) if (rows[i].status === 'open') n++;
+  return n;
+}
+
+function API_countGeneration(graph, personId, up) {
+  var map = KIN_ancestorMap(graph, personId, up);
+  var n = 0;
+  for (var id in map) {
+    if (Object.prototype.hasOwnProperty.call(map, id) && map[id].depth === up) n++;
+  }
+  return n;
+}
+
+function API_countDescendants(graph, personId, down) {
+  var frontier = [personId];
+  for (var step = 0; step < down; step++) {
+    var next = [];
+    for (var i = 0; i < frontier.length; i++) {
+      next = next.concat(KIN_childrenOf(graph, frontier[i]));
+    }
+    frontier = next;
+  }
+  return frontier.length;
+}
+
+/**
+ * Creates the very first person and binds the caller to them.
+ *
+ * The only way a person is ever created without being attached to someone else,
+ * and it is available only to an admin, only while the tree is empty. Everyone
+ * after this arrives through a relative.
+ */
+function api_startTree(idToken, data) {
+  return API_run(idToken, function (session) {
+    AUTH_requireAdmin(session);
+    var graph = ST_graph();
+    if (Object.keys(graph.people).length) {
+      throw new Error('The family tree has already been started.');
+    }
+
+    var clean = PPL_sanitise(data);
+    if (!clean.display_name) throw new Error('A name is required.');
+
+    var person = PPL_applyRoot(session.email, clean);
+    ST_update('Users', 'email', session.email, { person_id: person.person_id });
+    return { status: 'created', personId: person.person_id };
+  });
+}

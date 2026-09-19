@@ -7,7 +7,7 @@
  */
 const assert = require('assert');
 const { loadEngine } = require('./harness');
-const { buildFamily } = require('./fixtures');
+const { buildFamily, buildInLawFamily, person, parent } = require('./fixtures');
 
 const env = loadEngine(['05_Relations.gs', '06_Kinship.gs', '07_Titles.gs']);
 const graph = env.REL_buildGraph(buildFamily());
@@ -112,6 +112,98 @@ for (const [ego, target, ms, en, ar] of cases) {
       );
     }
   }
+}
+
+/* --- Relationships that exist only through marriage ------------------ *
+ *
+ * Four siblings, each married, each with children. The interesting people are
+ * the four who married in: they are related to each other by nothing but the
+ * marriages, and a flat family list has nowhere to put them -- which is exactly
+ * what a real trip manifest showed, with three of them left blank.
+ */
+
+const inLaws = env.REL_buildGraph(buildInLawFamily());
+const IN_NAMES = {
+  X01: 'Salim (wife\'s father)', X02: 'Sadiah (wife\'s mother)',
+  X03: 'Suaidah (wife)', X04: 'Karim (ego)', X05: 'Syahirah (wife\'s sister)',
+  X06: 'Afiq (married to Syahirah)', X07: 'Azwan (wife\'s brother)',
+  X08: 'Farihin (married to Azwan)', X09: 'Syazwani (wife\'s sister)',
+  X10: 'Nazrul (married to Syazwani)', X11: 'Aqilah (daughter)',
+  X14: 'Bilal (Azwan\'s son)', X15: 'Abbas (son)', X16: 'Hadi (Syahirah\'s son)'
+};
+
+const inLawCases = [
+  ['X04', 'X01', 'Bapa Mertua', 'Father-in-law', 'Ham'],
+  ['X04', 'X03', 'Isteri', 'Wife', 'Zawjah'],
+  ['X04', 'X05', 'Adik Ipar', 'Sister-in-law', 'Salifah'],
+  ['X04', 'X07', 'Adik Ipar', 'Brother-in-law', 'Sihr'],
+
+  // Biras: married to your spouse's sibling. Malay names this relationship,
+  // Arabic names it, and English has to borrow brother-in-law and leave the
+  // distinction unsaid.
+  ['X04', 'X06', 'Biras', 'Brother-in-law', 'Silf'],
+  ['X04', 'X08', 'Biras', 'Sister-in-law', 'Silfah'],
+  ['X04', 'X10', 'Biras', 'Brother-in-law', 'Silf'],
+  ['X06', 'X04', 'Biras', 'Brother-in-law', 'Silf'],
+  ['X08', 'X10', 'Biras', 'Brother-in-law', 'Silf'],
+
+  // Your spouse's sibling's child is your nephew. Malay does not mark that the
+  // link runs through a marriage.
+  ['X04', 'X14', 'Anak Saudara', 'Nephew by marriage', 'Ibn al-Akh'],
+  ['X04', 'X16', 'Anak Saudara', 'Nephew by marriage', 'Ibn al-Akh'],
+
+  // The generation below sees plain blood relatives, ranked by the birth order
+  // of the parents' generation.
+  // These are her MOTHER's siblings, so Arabic uses the maternal words. Malay
+  // ranks them by birth order and does not care which side; English marks
+  // neither. One stored fact, three different answers.
+  ['X11', 'X01', 'Atuk', 'Grandfather', 'Jadd'],
+  ['X11', 'X05', 'Mak Ngah', 'Aunt', 'Khalah'],
+  ['X11', 'X07', 'Pak Alang', 'Uncle', 'Khal'],
+  ['X11', 'X09', 'Mak Su', 'Aunt', 'Khalah'],
+  ['X11', 'X06', 'Pak Ngah', 'Uncle by marriage', 'Qarib bil-musaharah'],
+  ['X11', 'X14', 'Sepupu', 'First cousin', 'Ibn al-Khal'],
+  ['X11', 'X15', 'Adik', 'Younger brother', 'Akh']
+];
+
+for (const [ego, target, ms, en, ar] of inLawCases) {
+  const got = {
+    ms: env.TTL_title(inLaws, ego, target, 'ms', settings).label,
+    en: env.TTL_title(inLaws, ego, target, 'en', settings).label,
+    ar: env.TTL_title(inLaws, ego, target, 'ar', settings).label
+  };
+  const want = { ms, en, ar };
+  for (const lang of ['ms', 'en', 'ar']) {
+    if (got[lang] === want[lang]) {
+      pass++;
+    } else {
+      failures.push(
+        `${IN_NAMES[ego]} -> ${IN_NAMES[target]} [${lang}]\n` +
+        `      expected: ${want[lang]}\n` +
+        `      actual:   ${got[lang]}`
+      );
+    }
+  }
+}
+
+/* A step-child must read as a step-child, not as "somebody related to the
+ * person you married" -- which is what the generic in-law search returned
+ * before step relationships were given priority over it. */
+const blended = buildInLawFamily();
+blended.people.push(person('X20', 'Hafiz bin Omar', 'M', '2010-01-01'));
+blended.parentage.push(parent('X20', 'X03', 'mother'));
+const blendedGraph = env.REL_buildGraph(blended);
+
+check2('a spouse\'s child from elsewhere is a step-child',
+  env.TTL_title(blendedGraph, 'X04', 'X20', 'ms', settings).label, 'Anak Lelaki Tiri');
+check2('and in English too',
+  env.TTL_title(blendedGraph, 'X04', 'X20', 'en', settings).label, 'Stepson');
+check2('while the ego\'s own child is unaffected',
+  env.TTL_title(blendedGraph, 'X04', 'X15', 'ms', settings).label, 'Anak Lelaki');
+
+function check2(label, actual, expected) {
+  if (actual === expected) pass++;
+  else failures.push(`${label}\n      expected: ${expected}\n      actual:   ${actual}`);
 }
 
 console.log(`\nkinship: ${pass} passed, ${failures.length} failed\n`);

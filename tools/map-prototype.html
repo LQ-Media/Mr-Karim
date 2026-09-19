@@ -1,0 +1,2421 @@
+<title>Salim Family Map</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=Amiri:wght@400;700&display=swap">
+<style>
+:root{
+  --paper:#f2f5f0; --surface:#ffffff; --sunk:#e8ece5; --canvas:#eef1eb;
+  --ink:#191f1a; --ink-2:#5c665d; --ink-3:#8b948b;
+  --line:#dbe1d8; --line-2:#c7cfc4;
+  --pine:#14453a; --pine-soft:#dcebe4; --pine-ink:#0d3a30;
+  --brass:#8d6b1f; --brass-soft:#f3ecd9;
+  --rose:#8e5069; --rose-soft:#f8eef2; --rose-line:#d9b6c4;
+  --blue:#3d5f85; --blue-soft:#eaf1f8; --blue-line:#adc4dc;
+  --wire:#a9b4a6; --wire-strong:#14453a;
+  --display:"Fraunces",Georgia,serif;
+  --ui:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --arabic:"Amiri","Noto Naskh Arabic",serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#11150f; --surface:#1e241c; --sunk:#232a21; --canvas:#161a14;
+  --ink:#e9ede6; --ink-2:#a3ada2; --ink-3:#76806f;
+  --line:#2d3529; --line-2:#3d4738;
+  --pine:#6dc0a4; --pine-soft:#1a3a30; --pine-ink:#9ad9c2;
+  --brass:#cfa94f; --brass-soft:#32290f;
+  --rose:#d9a0b4; --rose-soft:#33242a; --rose-line:#5d3f4a;
+  --blue:#9dbde0; --blue-soft:#1f2b37; --blue-line:#3c5170;
+  --wire:#4a5546; --wire-strong:#6dc0a4;
+}}
+:root[data-theme="dark"]{
+  --paper:#11150f; --surface:#1e241c; --sunk:#232a21; --canvas:#161a14;
+  --ink:#e9ede6; --ink-2:#a3ada2; --ink-3:#76806f;
+  --line:#2d3529; --line-2:#3d4738;
+  --pine:#6dc0a4; --pine-soft:#1a3a30; --pine-ink:#9ad9c2;
+  --brass:#cfa94f; --brass-soft:#32290f;
+  --rose:#d9a0b4; --rose-soft:#33242a; --rose-line:#5d3f4a;
+  --blue:#9dbde0; --blue-soft:#1f2b37; --blue-line:#3c5170;
+  --wire:#4a5546; --wire-strong:#6dc0a4;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--ui);
+  font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;
+  display:flex;flex-direction:column;overflow:hidden}
+button{font:inherit;color:inherit;border:none;background:none;cursor:pointer}
+h1{margin:0}
+
+.bar{flex:none;padding:12px 16px 10px;border-bottom:1px solid var(--line);
+  background:var(--paper);z-index:3}
+.tool .sm{display:none}
+@media (max-width:560px){
+  .bar{padding:10px 16px 8px}
+  .bar h1{font-size:17px;white-space:nowrap}
+  /* The count is pleasant, not necessary. Dropping it keeps the title and the
+     three controls on one line, which buys back a row of the chart. */
+  .bar .sub{display:none}
+  .tool{padding:5px 10px;font-size:12px}
+  .tool .lg{display:none}
+  .tool .sm{display:inline}
+}
+.bar h1{font-family:var(--display);font-size:20px;font-weight:600;letter-spacing:-.01em}
+.bar .sub{font-size:12.5px;color:var(--ink-2);margin-top:1px}
+.titlerow{display:flex;align-items:flex-start;gap:8px}
+.titles{flex:1;min-width:0}
+/* The control rows scroll sideways rather than wrapping. On a phone, wrapping
+   pushed the chart itself off the bottom of the screen. */
+.ctrls{display:flex;gap:6px;align-items:center;margin-top:9px;
+  overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;
+  padding-bottom:1px;-webkit-overflow-scrolling:touch}
+.ctrls::-webkit-scrollbar{display:none}
+.ctrls .lab{font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:600;margin-right:2px}
+.chip{padding:5px 11px;border-radius:999px;background:var(--sunk);font-size:12.5px;
+  font-weight:500;color:var(--ink-2);border:1px solid transparent;white-space:nowrap}
+.chip:hover{border-color:var(--line-2)}
+.chip[aria-pressed="true"]{background:var(--pine-soft);color:var(--pine-ink);
+  border-color:var(--pine);font-weight:650}
+.spacer{flex:1;min-width:8px}
+.tool{padding:5px 11px;border-radius:8px;background:var(--surface);border:1px solid var(--line);
+  font-size:12.5px;font-weight:550;color:var(--ink-2);white-space:nowrap}
+.tool:hover{border-color:var(--pine);color:var(--pine-ink)}
+
+/* ---- Canvas ---- */
+.stage{flex:1;position:relative;overflow:hidden;background:var(--canvas);
+  touch-action:none;cursor:grab}
+.stage.panning{cursor:grabbing}
+.stage::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background-image:radial-gradient(circle,var(--line) 1px,transparent 1px);
+  background-size:26px 26px;opacity:.5}
+.world{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform}
+#wires{position:absolute;top:0;left:0;overflow:visible;pointer-events:none}
+
+.node{position:absolute;width:176px;height:74px;border-radius:13px;
+  background:var(--surface);border:1.5px solid var(--line-2);
+  padding:8px 10px;display:flex;flex-direction:column;justify-content:center;
+  cursor:grab;user-select:none;-webkit-user-select:none;
+  box-shadow:0 1px 2px rgba(0,0,0,.05),0 4px 12px rgba(0,0,0,.05);
+  transition:box-shadow .15s,border-color .15s}
+.node.m{border-color:var(--blue-line);background:var(--blue-soft)}
+.node.f{border-color:var(--rose-line);background:var(--rose-soft)}
+.node.dragging{cursor:grabbing;box-shadow:0 8px 28px rgba(0,0,0,.2);z-index:10}
+.node.you{border-color:var(--pine);border-width:2.5px;background:var(--pine-soft)}
+.node.lit{border-color:var(--brass);box-shadow:0 0 0 3px var(--brass-soft)}
+.node.dim{opacity:.32}
+.node .ttl{font-size:12px;font-weight:700;color:var(--pine-ink);line-height:1.15;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.node .ttl.ar{font-family:var(--arabic);font-size:15px;font-weight:400}
+.node .nm{font-size:12.5px;font-weight:600;color:var(--ink);line-height:1.2;margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.node .yr{font-size:10.5px;color:var(--ink-3);margin-top:1px;
+  font-variant-numeric:tabular-nums;letter-spacing:.02em}
+
+/* ---- Detail strip ---- */
+.strip{flex:none;border-top:1px solid var(--line);background:var(--surface);
+  padding:11px 16px calc(11px + env(safe-area-inset-bottom));
+  display:flex;gap:12px;align-items:center;min-height:62px}
+.strip .who{flex:1;min-width:0}
+.strip .nm{font-family:var(--display);font-size:16px;font-weight:600;line-height:1.2;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.strip .why{font-size:12.5px;color:var(--ink-2);margin-top:1px}
+.strip .why b{color:var(--ink);font-weight:650}
+.strip .why .ar{font-family:var(--arabic);font-size:15px}
+.strip .badge{background:var(--pine-soft);color:var(--pine-ink);border-radius:999px;
+  padding:4px 12px;font-size:13px;font-weight:700;flex:none;white-space:nowrap}
+.strip .badge.ar{font-family:var(--arabic);font-size:16px;font-weight:400;padding:2px 12px}
+.strip .hint{font-size:12.5px;color:var(--ink-3)}
+
+.legend{position:absolute;left:12px;bottom:12px;background:var(--surface);
+  border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:11px;
+  color:var(--ink-2);display:flex;gap:14px;pointer-events:none;flex-wrap:wrap;max-width:calc(100% - 24px)}
+.legend i{display:inline-block;width:20px;height:0;border-top:2px solid var(--wire);
+  vertical-align:middle;margin-right:5px}
+.legend i.mar{border-top-style:solid;border-color:var(--brass);border-top-width:3px}
+@media (max-width:520px){ .legend{display:none} }
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="bar">
+  <div class="titlerow">
+    <div class="titles">
+      <h1>Pokok Keluarga</h1>
+      <div class="sub" id="subtitle">Salim family</div>
+    </div>
+    <button class="tool" id="me"><span class="lg">Find me</span><span class="sm">Me</span></button>
+    <button class="tool" id="fit"><span class="lg">Whole tree</span><span class="sm">All</span></button>
+    <button class="tool" id="arrange"><span class="lg">Re-arrange</span><span class="sm">Tidy</span></button>
+  </div>
+  <div class="ctrls">
+    <span class="lab">As</span>
+    <span id="egoChips" style="display:contents"></span>
+  </div>
+  <div class="ctrls">
+    <span class="lab">In</span>
+    <button class="chip" data-lang="ms">Melayu</button>
+    <button class="chip" data-lang="en">English</button>
+    <button class="chip" data-lang="ar">Arabic</button>
+  </div>
+</div>
+
+<div class="stage" id="stage">
+  <div class="world" id="world">
+    <svg id="wires"></svg>
+  </div>
+  <div class="legend">
+    <span><i class="mar"></i>marriage</span>
+    <span><i></i>descent</span>
+    <span>drag a card &middot; pinch or scroll to zoom</span>
+  </div>
+</div>
+
+<div class="strip" id="strip">
+  <div class="who"><div class="nm">Tap a card</div>
+  <div class="why">Drag cards to rearrange. Change who is reading, above, and every label changes with them.</div></div>
+</div>
+
+<script>
+var FAMILY = {"people":[{"person_id":"S01","display_name":"MOHAMED SALIM BIN ALI","full_name":"MOHAMED SALIM BIN ALI","given_name":"MOHAMED","gender":"M","birth_date":"1960-05-24","birth_precision":"exact","is_living":"TRUE","status":"active"},{"person_id":"S02","display_name":"SA'DIAH BTE ALIMON","full_name":"SA'DIAH BTE ALIMON","given_name":"SA'DIAH","gender":"F","birth_date":"1962-07-09","birth_precision":"exact","is_living":"TRUE","status":"active"},{"person_id":"S03","display_name":"SITI SU'AIDAH BINTE MOHAMED SALIM","full_name":"SITI SU'AIDAH BINTE MOHAMED SALIM","given_name":"SITI","gender":"F","birth_date":"1986-12-31","birth_precision":"exact","is_living":"TRUE","status":"active"},{"person_id":"S04","display_name":"NUR ABDUL KARIM BIN KAMARUDDIN","full_name":"NUR ABDUL KARIM BIN KAMARUDDIN","given_name":"NUR","gender":"M","birth_date":"1988-03-24","birth_precision":"exact","is_living":"TRUE","status":"active"},{"person_id":"S05","display_name":"SITI SYAHIRAH BINTE MOHAMED SALIM","full_name":"SITI SYAHIRAH BINTE MOHAMED SALIM","given_name":"SITI","gender":"F","birth_date":"1990-08-03","birth_precision":"exact","is_living":"TRUE","status":"active"},{"person_id":"S06","display_name":"AMALI AFIQ BIN NOR ANUAR","full_name":"AMALI AFIQ BIN NOR ANUAR","given_name":"AMALI","gender":"M","birth_date":"1990-10-26","birth_precision":"exact","is_living":"TRUE","status":"active"},{"person_id":"S07","display_name":"SAIFUL AZWAN BIN MOHAMED SALIM","full_name":"SAIFUL AZWAN BIN MOHAMED SALIM","given_name":"SAIFUL","gender":"M","birth_date":"1992-06-03","birth_precision":"exact","is_living":"TRUE","status":"active"},{"person_id":"S08","display_name":"NUR FARIHIN BINTE KAMAL","full_name":"NUR FARIHIN BINTE KAMAL","given_name":"NUR","gender":"F","birth_date":"1992-09-29","birth_precision":"exact","is_living":"TRUE","status":"active"},{"person_id":"S09","display_name":"SITI SYAZWANI BINTE MOHAMED SALIM","full_name":"SITI SYAZWANI BINTE MOHAMED SALIM","given_name":"SITI","gender":"F","birth_date":"1998-05-30","birth_precision":"exact","is_living":"TRUE","status":"active"},{"person_id":"S10","display_name":"NAZRUL HAQUE BIN ABDOLAH","full_name":"NAZRUL HAQUE BIN ABDOLAH","given_name":"NAZRUL","gender":"M","birth_date":"1998-09-24","birth_precision":"exact","is_living":"TRUE","status":"active"},{"person_id":"S11","display_name":"AQILAH SYUKAIRAH BINTI NUR ABDUL KARIM","full_name":"AQILAH SYUKAIRAH BINTI NUR ABDUL KARIM","given_name":"AQILAH","gender":"F","birth_date":"2013-03-20","birth_precision":"exact","is_living":"TRUE","status":"active"},{"person_id":"S12","display_name":"AMNA SAFIRAH BINTE NUR ABDUL KARIM","full_name":"AMNA SAFIRAH BINTE NUR ABDUL KARIM","given_name":"AMNA","gender":"F","birth_date":"2015-11-02","birth_precision":"exact","is_living":"TRUE","status":"active"},{"person_id":"S13","display_name":"ANWARA SUMAYYAH BINTE NUR ABDUL KARIM","full_name":"ANWARA SUMAYYAH BINTE NUR ABDUL KARIM","given_name":"ANWARA","gender":"F","birth_date":"2020-09-03","birth_precision":"exact","is_living":"TRUE","status":"active"},{"person_id":"S14","display_name":"BILAL SAIF BIN SAIFUL AZWAN","full_name":"BILAL SAIF BIN SAIFUL AZWAN","given_name":"BILAL","gender":"M","birth_date":"2021-04-29","birth_precision":"exact","is_living":"TRUE","status":"active"},{"person_id":"S15","display_name":"NUR ABBAS SYAKUR BIN NUR ABDUL KARIM","full_name":"NUR ABBAS SYAKUR BIN NUR ABDUL KARIM","given_name":"NUR","gender":"M","birth_date":"2022-06-05","birth_precision":"exact","is_living":"TRUE","status":"active"},{"person_id":"S16","display_name":"MUHAMMAD HADI BIN AMALI AFIQ","full_name":"MUHAMMAD HADI BIN AMALI AFIQ","given_name":"MUHAMMAD","gender":"M","birth_date":"2024-01-10","birth_precision":"exact","is_living":"TRUE","status":"active"},{"person_id":"S17","display_name":"NURUL HUDA BINTE AMALI AFIQ","full_name":"NURUL HUDA BINTE AMALI AFIQ","given_name":"NURUL","gender":"F","birth_date":"2024-01-10","birth_precision":"exact","is_living":"TRUE","status":"active"},{"person_id":"S18","display_name":"UMAR SAIF BIN SAIFUL AZWAN","full_name":"UMAR SAIF BIN SAIFUL AZWAN","given_name":"UMAR","gender":"M","birth_date":"2024-03-22","birth_precision":"exact","is_living":"TRUE","status":"active"}],"parentage":[{"link_id":"L1","child_id":"S03","parent_id":"S01","parent_role":"father","relation_type":"biological","status":"active"},{"link_id":"L2","child_id":"S03","parent_id":"S02","parent_role":"mother","relation_type":"biological","status":"active"},{"link_id":"L3","child_id":"S05","parent_id":"S01","parent_role":"father","relation_type":"biological","status":"active"},{"link_id":"L4","child_id":"S05","parent_id":"S02","parent_role":"mother","relation_type":"biological","status":"active"},{"link_id":"L5","child_id":"S07","parent_id":"S01","parent_role":"father","relation_type":"biological","status":"active"},{"link_id":"L6","child_id":"S07","parent_id":"S02","parent_role":"mother","relation_type":"biological","status":"active"},{"link_id":"L7","child_id":"S09","parent_id":"S01","parent_role":"father","relation_type":"biological","status":"active"},{"link_id":"L8","child_id":"S09","parent_id":"S02","parent_role":"mother","relation_type":"biological","status":"active"},{"link_id":"L9","child_id":"S11","parent_id":"S04","parent_role":"father","relation_type":"biological","status":"active"},{"link_id":"L10","child_id":"S11","parent_id":"S03","parent_role":"mother","relation_type":"biological","status":"active"},{"link_id":"L11","child_id":"S12","parent_id":"S04","parent_role":"father","relation_type":"biological","status":"active"},{"link_id":"L12","child_id":"S12","parent_id":"S03","parent_role":"mother","relation_type":"biological","status":"active"},{"link_id":"L13","child_id":"S13","parent_id":"S04","parent_role":"father","relation_type":"biological","status":"active"},{"link_id":"L14","child_id":"S13","parent_id":"S03","parent_role":"mother","relation_type":"biological","status":"active"},{"link_id":"L15","child_id":"S15","parent_id":"S04","parent_role":"father","relation_type":"biological","status":"active"},{"link_id":"L16","child_id":"S15","parent_id":"S03","parent_role":"mother","relation_type":"biological","status":"active"},{"link_id":"L17","child_id":"S16","parent_id":"S06","parent_role":"father","relation_type":"biological","status":"active"},{"link_id":"L18","child_id":"S16","parent_id":"S05","parent_role":"mother","relation_type":"biological","status":"active"},{"link_id":"L19","child_id":"S17","parent_id":"S06","parent_role":"father","relation_type":"biological","status":"active"},{"link_id":"L20","child_id":"S17","parent_id":"S05","parent_role":"mother","relation_type":"biological","status":"active"},{"link_id":"L21","child_id":"S14","parent_id":"S07","parent_role":"father","relation_type":"biological","status":"active"},{"link_id":"L22","child_id":"S14","parent_id":"S08","parent_role":"mother","relation_type":"biological","status":"active"},{"link_id":"L23","child_id":"S18","parent_id":"S07","parent_role":"father","relation_type":"biological","status":"active"},{"link_id":"L24","child_id":"S18","parent_id":"S08","parent_role":"mother","relation_type":"biological","status":"active"}],"unions":[{"union_id":"U1","partner_a_id":"S01","partner_b_id":"S02","union_type":"nikah","status":"current","order_index":1},{"union_id":"U2","partner_a_id":"S03","partner_b_id":"S04","union_type":"nikah","status":"current","order_index":1},{"union_id":"U3","partner_a_id":"S05","partner_b_id":"S06","union_type":"nikah","status":"current","order_index":1},{"union_id":"U4","partner_a_id":"S07","partner_b_id":"S08","union_type":"nikah","status":"current","order_index":1},{"union_id":"U5","partner_a_id":"S09","partner_b_id":"S10","union_type":"nikah","status":"current","order_index":1}],"customTitles":[]};
+/* ===== 05_Relations.gs ===== */
+/**
+ * Builds the in-memory relationship graph from raw sheet rows.
+ *
+ * The whole family is loaded at once and indexed. At family scale -- even a few
+ * thousand people -- this costs a handful of Sheet reads and lets every
+ * subsequent lookup run against plain objects, which is far cheaper than
+ * querying the spreadsheet per person. The result is cached between requests.
+ */
+
+/**
+ * @param data {{people, parentage, unions, customTitles}} arrays of row objects
+ * @return the graph consumed by the kinship engine
+ */
+function REL_buildGraph(data) {
+  var graph = {
+    people: {},
+    parentsOf: {},
+    childrenOf: {},
+    unionsOf: {},
+    customTitles: data.customTitles || []
+  };
+
+  var people = data.people || [];
+  for (var i = 0; i < people.length; i++) {
+    var person = people[i];
+    if (!person.person_id) continue;
+    if (person.status === 'merged') continue; // Losers of a merge are followed, not shown.
+    graph.people[person.person_id] = person;
+  }
+
+  var links = data.parentage || [];
+  for (var j = 0; j < links.length; j++) {
+    var link = links[j];
+    if (link.status === 'removed') continue;
+    if (!graph.people[link.child_id] || !graph.people[link.parent_id]) continue;
+
+    if (!graph.parentsOf[link.child_id]) graph.parentsOf[link.child_id] = [];
+    graph.parentsOf[link.child_id].push(link);
+
+    if (!graph.childrenOf[link.parent_id]) graph.childrenOf[link.parent_id] = [];
+    graph.childrenOf[link.parent_id].push(link);
+  }
+
+  var unions = data.unions || [];
+  for (var k = 0; k < unions.length; k++) {
+    var union = unions[k];
+    var a = union.partner_a_id;
+    var b = union.partner_b_id;
+    if (!graph.people[a] || !graph.people[b]) continue;
+
+    if (!graph.unionsOf[a]) graph.unionsOf[a] = [];
+    if (!graph.unionsOf[b]) graph.unionsOf[b] = [];
+    graph.unionsOf[a].push(union);
+    graph.unionsOf[b].push(union);
+  }
+
+  // Children are ordered oldest first everywhere they are displayed, which is
+  // also the order the Malay birth-order titles depend on.
+  for (var parentId in graph.childrenOf) {
+    if (!Object.prototype.hasOwnProperty.call(graph.childrenOf, parentId)) continue;
+    graph.childrenOf[parentId].sort(function (x, y) {
+      return REL_compareBirth(graph.people[x.child_id], graph.people[y.child_id]);
+    });
+  }
+
+  for (var pid in graph.unionsOf) {
+    if (!Object.prototype.hasOwnProperty.call(graph.unionsOf, pid)) continue;
+    graph.unionsOf[pid].sort(function (x, y) {
+      return (Number(x.order_index) || 99) - (Number(y.order_index) || 99);
+    });
+  }
+
+  return graph;
+}
+
+function REL_compareBirth(a, b) {
+  if (!a || !b) return 0;
+  var ao = Number(a.birth_order) || 0;
+  var bo = Number(b.birth_order) || 0;
+  if (ao && bo) return ao - bo;
+  var ad = a.birth_date ? String(a.birth_date) : '';
+  var bd = b.birth_date ? String(b.birth_date) : '';
+  if (ad && bd) return ad < bd ? -1 : (ad > bd ? 1 : 0);
+  if (ad) return -1;
+  if (bd) return 1;
+  return 0;
+}
+
+/**
+ * Everyone within `radius` relationship steps of a person.
+ *
+ * Used both by the me-centred home screen and by the duplicate matcher, where a
+ * shared relative is one of the strongest signals that two records are the same
+ * human being.
+ */
+function REL_neighbourhood(graph, personId, radius) {
+  var seen = {};
+  seen[personId] = 0;
+  var frontier = [personId];
+
+  for (var step = 1; step <= (radius || 2); step++) {
+    var next = [];
+    for (var i = 0; i < frontier.length; i++) {
+      var id = frontier[i];
+      var touching = []
+        .concat(KIN_parentsOf(graph, id))
+        .concat(KIN_childrenOf(graph, id));
+
+      var spouses = KIN_spousesOf(graph, id);
+      for (var s = 0; s < spouses.length; s++) touching.push(spouses[s].personId);
+
+      for (var t = 0; t < touching.length; t++) {
+        if (seen[touching[t]] === undefined) {
+          seen[touching[t]] = step;
+          next.push(touching[t]);
+        }
+      }
+    }
+    frontier = next;
+  }
+  return seen;
+}
+
+/**
+ * Follows merge redirects to the surviving record.
+ *
+ * After a merge the losing row stays in the sheet pointing at the winner, so
+ * that any link, invite or old bookmark still resolves rather than breaking.
+ */
+function REL_resolveId(allPeopleById, personId) {
+  var hops = 0;
+  var current = personId;
+  while (current && allPeopleById[current] && allPeopleById[current].merged_into_id && hops < 10) {
+    current = allPeopleById[current].merged_into_id;
+    hops++;
+  }
+  return current;
+}
+
+
+/* ===== 06_Kinship.gs ===== */
+/**
+ * Kinship engine.
+ *
+ * Turns a pair of people into the title one of them would use for the other.
+ *
+ * The database stores only neutral facts -- X fathered Y, A married B. Every
+ * title in the interface is derived here, per viewer, at read time. "Uncle" is
+ * not a property of a person; it is a property of a pair, and it changes
+ * depending on who is looking.
+ *
+ * This file is plain ES5-compatible JavaScript with no Apps Script APIs, so the
+ * same source is loaded directly by the Node test suite.
+ */
+
+/* ------------------------------------------------------------------ *
+ * Ancestor traversal
+ * ------------------------------------------------------------------ */
+
+var KIN_MAX_DEPTH = 12;
+
+/**
+ * Walks up from a person through blood and adoptive parents.
+ *
+ * Returns a map from ancestor id to { depth, side, path }, where `path` is the
+ * chain of ids from the starting person up to that ancestor inclusive, and
+ * `side` is whether the first step went through the father or the mother.
+ * Where an ancestor is reachable by several routes the shortest is kept, and a
+ * person appearing on both sides of the family is marked 'both'.
+ *
+ * Step and foster links are deliberately not followed. A step-father's brother
+ * is not your uncle by blood, and treating him as one would make two unrelated
+ * families appear to be cousins.
+ */
+function KIN_ancestorMap(graph, startId, maxDepth) {
+  var limit = maxDepth || KIN_MAX_DEPTH;
+  var found = {};
+  found[startId] = { depth: 0, side: 'self', path: [startId] };
+
+  var frontier = [{ id: startId, depth: 0, side: 'self', path: [startId] }];
+
+  while (frontier.length) {
+    var next = [];
+    for (var i = 0; i < frontier.length; i++) {
+      var node = frontier[i];
+      if (node.depth >= limit) continue;
+
+      var links = graph.parentsOf[node.id] || [];
+      for (var j = 0; j < links.length; j++) {
+        var link = links[j];
+        if (link.relation_type !== 'biological' && link.relation_type !== 'adoptive') continue;
+
+        var side = node.depth === 0
+          ? (link.parent_role === 'mother' ? 'maternal' : 'paternal')
+          : node.side;
+
+        var existing = found[link.parent_id];
+        if (existing) {
+          // Reachable two ways: record that the two sides converge, but keep
+          // the shorter path. Cousin marriage makes this ordinary, not exotic.
+          if (existing.side !== side && existing.side !== 'both') existing.side = 'both';
+          if (existing.depth <= node.depth + 1) continue;
+        }
+
+        var entry = {
+          depth: node.depth + 1,
+          side: side,
+          path: node.path.concat([link.parent_id])
+        };
+        found[link.parent_id] = entry;
+        next.push({ id: link.parent_id, depth: entry.depth, side: side, path: entry.path });
+      }
+    }
+    frontier = next;
+  }
+  return found;
+}
+
+/**
+ * The closest ancestor shared by two people.
+ *
+ * Preference order: fewest total steps first, then the most balanced split.
+ * Balance matters -- between a shared grandparent (2 up, 2 down: first cousins)
+ * and a shared great-grandparent reached lopsidedly, the balanced one describes
+ * the real relationship.
+ */
+function KIN_commonAncestor(egoMap, targetMap) {
+  var best = null;
+  for (var id in egoMap) {
+    if (!Object.prototype.hasOwnProperty.call(egoMap, id)) continue;
+    if (!targetMap[id]) continue;
+
+    var up = egoMap[id].depth;
+    var down = targetMap[id].depth;
+    var total = up + down;
+    var skew = Math.abs(up - down);
+
+    if (!best || total < best.total || (total === best.total && skew < best.skew)) {
+      best = {
+        ancestorId: id,
+        up: up,
+        down: down,
+        total: total,
+        skew: skew,
+        side: egoMap[id].side,
+        egoPath: egoMap[id].path,
+        targetPath: targetMap[id].path
+      };
+    }
+  }
+  return best;
+}
+
+/* ------------------------------------------------------------------ *
+ * Relationship classification
+ * ------------------------------------------------------------------ */
+
+/**
+ * Works out how `targetId` is related to `egoId`.
+ *
+ * Returns a language-neutral descriptor. Naming it is a separate step, because
+ * the same structural fact is named differently in Malay, English and Arabic --
+ * and Arabic in particular needs to know which side of the family the link runs
+ * through, which is why `side` is carried all the way here.
+ */
+function KIN_relate(graph, egoId, targetId) {
+  if (!egoId || !targetId) return { kind: 'unrelated' };
+  if (egoId === targetId) return { kind: 'self' };
+
+  var target = graph.people[targetId];
+  if (!target) return { kind: 'unrelated' };
+
+  // 1. Married to each other.
+  var union = KIN_unionBetween(graph, egoId, targetId);
+  if (union) {
+    return {
+      kind: 'spouse',
+      gender: target.gender,
+      unionStatus: union.status,
+      unionOrder: union.order_index,
+      target: targetId
+    };
+  }
+
+  // 2. Related by blood or adoption.
+  var egoMap = KIN_ancestorMap(graph, egoId);
+  var targetMap = KIN_ancestorMap(graph, targetId);
+  var lca = KIN_commonAncestor(egoMap, targetMap);
+
+  if (lca) {
+    return KIN_classifyBlood(graph, egoId, targetId, lca);
+  }
+
+  // 3. A step relationship. Checked before the general in-law search because a
+  //    spouse's child is a step-child specifically, not merely somebody related
+  //    to the person you married.
+  var step = KIN_findStep(graph, egoId, targetId);
+  if (step) return step;
+
+  // 4. Related through a marriage.
+  var inLaw = KIN_findInLaw(graph, egoId, targetId, egoMap, targetMap);
+  if (inLaw) return inLaw;
+
+  return { kind: 'unrelated', target: targetId, gender: target.gender };
+}
+
+function KIN_classifyBlood(graph, egoId, targetId, lca) {
+  var target = graph.people[targetId];
+  var up = lca.up;
+  var down = lca.down;
+
+  var base = {
+    kind: 'blood',
+    up: up,
+    down: down,
+    side: lca.side,
+    gender: target.gender,
+    ancestorId: lca.ancestorId,
+    target: targetId
+  };
+
+  // Direct line down: child, grandchild, great-grandchild.
+  if (up === 0) {
+    base.type = 'descendant';
+    base.generations = down;
+    return base;
+  }
+
+  // Direct line up: parent, grandparent, great-grandparent.
+  if (down === 0) {
+    base.type = 'ancestor';
+    base.generations = up;
+    return base;
+  }
+
+  // Siblings.
+  if (up === 1 && down === 1) {
+    base.type = 'sibling';
+    var shared = KIN_sharedParents(graph, egoId, targetId);
+    base.full = shared.length >= 2;
+    base.halfVia = shared.length === 1 ? shared[0].parent_role : null;
+    base.elder = KIN_isElder(graph, targetId, egoId);
+    return base;
+  }
+
+  // A sibling of an ancestor: uncle, aunt, great-uncle.
+  if (down === 1) {
+    base.type = 'auncle';
+    base.generations = up - 1;
+    // The Malay title depends on where this person ranks among their own
+    // siblings, so the ranking is resolved here rather than at naming time.
+    base.birthOrder = KIN_birthOrder(graph, targetId);
+    base.siblingCount = KIN_siblingCount(graph, targetId);
+    base.linkParentId = lca.egoPath[up - 1];
+    return base;
+  }
+
+  // A descendant of a sibling: nephew, niece, great-nephew.
+  if (up === 1) {
+    base.type = 'nibling';
+    base.generations = down - 1;
+    base.linkSiblingId = lca.targetPath[down - 1];
+    return base;
+  }
+
+  // Cousins. Degree counts shared-ancestor distance, removal counts the
+  // generation gap between the two branches.
+  base.type = 'cousin';
+  base.degree = Math.min(up, down) - 1;
+  base.removed = Math.abs(up - down);
+  base.elderBranch = up > down;
+  // Which uncle or aunt this cousin descends from -- Arabic names cousins after
+  // that person ('ibn al-khal' is specifically a maternal uncle's son).
+  base.linkAuncleId = lca.targetPath[down - 1];
+  base.linkAuncle = graph.people[base.linkAuncleId] || null;
+  return base;
+}
+
+/* ------------------------------------------------------------------ *
+ * Relationships created by marriage
+ * ------------------------------------------------------------------ */
+
+function KIN_findInLaw(graph, egoId, targetId, egoMap, targetMap) {
+  var target = graph.people[targetId];
+
+  // The target is married to a blood relative of mine.
+  var targetSpouses = KIN_spousesOf(graph, targetId);
+  for (var i = 0; i < targetSpouses.length; i++) {
+    var spouseId = targetSpouses[i].personId;
+    var viaMap = KIN_ancestorMap(graph, spouseId);
+    var lca = KIN_commonAncestor(egoMap, viaMap);
+    if (lca) {
+      var viaRel = KIN_classifyBlood(graph, egoId, spouseId, lca);
+      return {
+        kind: 'in_law',
+        direction: 'spouse_of_relative',
+        gender: target.gender,
+        via: viaRel,
+        viaPersonId: spouseId,
+        target: targetId
+      };
+    }
+  }
+
+  // The target is a blood relative of the person I am married to.
+  var mySpouses = KIN_spousesOf(graph, egoId);
+  for (var k = 0; k < mySpouses.length; k++) {
+    var mySpouseId = mySpouses[k].personId;
+    var spouseMap = KIN_ancestorMap(graph, mySpouseId);
+    var lca2 = KIN_commonAncestor(spouseMap, targetMap);
+    if (lca2) {
+      var rel2 = KIN_classifyBlood(graph, mySpouseId, targetId, lca2);
+      return {
+        kind: 'in_law',
+        direction: 'relative_of_spouse',
+        gender: target.gender,
+        via: rel2,
+        viaPersonId: mySpouseId,
+        target: targetId
+      };
+    }
+  }
+
+  // The target is married to a relative of the person I am married to. Two men
+  // married to two sisters are biras to each other -- a relationship Malay
+  // names, English cannot, and which the Salim family's own trip manifest had
+  // to leave blank because a flat list has nowhere to put it.
+  for (var m = 0; m < mySpouses.length; m++) {
+    var mySpouseMap = KIN_ancestorMap(graph, mySpouses[m].personId);
+    for (var t = 0; t < targetSpouses.length; t++) {
+      if (targetSpouses[t].personId === egoId) continue;
+      var theirMap = KIN_ancestorMap(graph, targetSpouses[t].personId);
+      var lca3 = KIN_commonAncestor(mySpouseMap, theirMap);
+      if (lca3) {
+        return {
+          kind: 'in_law',
+          direction: 'spouse_of_spouses_relative',
+          gender: target.gender,
+          via: KIN_classifyBlood(graph, mySpouses[m].personId,
+                                 targetSpouses[t].personId, lca3),
+          viaPersonId: targetSpouses[t].personId,
+          target: targetId
+        };
+      }
+    }
+  }
+
+  // The target is a parent of my child's spouse. Malay names this pair
+  // relationship 'besan'; English has no word for it at all.
+  var myChildren = KIN_childrenOf(graph, egoId);
+  for (var c = 0; c < myChildren.length; c++) {
+    var childSpouses = KIN_spousesOf(graph, myChildren[c]);
+    for (var s = 0; s < childSpouses.length; s++) {
+      var inLawParents = KIN_parentsOf(graph, childSpouses[s].personId);
+      for (var p = 0; p < inLawParents.length; p++) {
+        if (inLawParents[p] === targetId) {
+          return {
+            kind: 'in_law',
+            direction: 'co_parent_in_law',
+            gender: target.gender,
+            target: targetId
+          };
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+function KIN_findStep(graph, egoId, targetId) {
+  var target = graph.people[targetId];
+
+  // Married to one of my parents, but not a parent of mine.
+  var myParents = KIN_parentsOf(graph, egoId);
+  for (var i = 0; i < myParents.length; i++) {
+    var spouses = KIN_spousesOf(graph, myParents[i]);
+    for (var j = 0; j < spouses.length; j++) {
+      if (spouses[j].personId === targetId) {
+        return { kind: 'step', type: 'parent', gender: target.gender, target: targetId };
+      }
+    }
+  }
+
+  // A child of my spouse, but not a child of mine.
+  var mySpouses = KIN_spousesOf(graph, egoId);
+  var myChildren = KIN_childrenOf(graph, egoId);
+  for (var k = 0; k < mySpouses.length; k++) {
+    var theirChildren = KIN_childrenOf(graph, mySpouses[k].personId);
+    for (var m = 0; m < theirChildren.length; m++) {
+      if (theirChildren[m] === targetId && myChildren.indexOf(targetId) === -1) {
+        return { kind: 'step', type: 'child', gender: target.gender, target: targetId };
+      }
+    }
+  }
+
+  // A child of my step-parent, sharing no parent with me.
+  for (var n = 0; n < myParents.length; n++) {
+    var parentSpouses = KIN_spousesOf(graph, myParents[n]);
+    for (var q = 0; q < parentSpouses.length; q++) {
+      var stepParentId = parentSpouses[q].personId;
+      if (myParents.indexOf(stepParentId) !== -1) continue;
+      var stepSibs = KIN_childrenOf(graph, stepParentId);
+      if (stepSibs.indexOf(targetId) !== -1) {
+        return {
+          kind: 'step',
+          type: 'sibling',
+          gender: target.gender,
+          elder: KIN_isElder(graph, targetId, egoId),
+          target: targetId
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
+/* ------------------------------------------------------------------ *
+ * Graph helpers
+ * ------------------------------------------------------------------ */
+
+function KIN_parentsOf(graph, personId) {
+  var links = graph.parentsOf[personId] || [];
+  var out = [];
+  for (var i = 0; i < links.length; i++) {
+    if (links[i].relation_type === 'biological' || links[i].relation_type === 'adoptive') {
+      out.push(links[i].parent_id);
+    }
+  }
+  return out;
+}
+
+function KIN_childrenOf(graph, personId) {
+  var links = graph.childrenOf[personId] || [];
+  var out = [];
+  for (var i = 0; i < links.length; i++) {
+    if (links[i].relation_type === 'biological' || links[i].relation_type === 'adoptive') {
+      out.push(links[i].child_id);
+    }
+  }
+  return out;
+}
+
+function KIN_sharedParents(graph, aId, bId) {
+  var aLinks = graph.parentsOf[aId] || [];
+  var bParents = KIN_parentsOf(graph, bId);
+  var shared = [];
+  for (var i = 0; i < aLinks.length; i++) {
+    if (bParents.indexOf(aLinks[i].parent_id) !== -1) shared.push(aLinks[i]);
+  }
+  return shared;
+}
+
+function KIN_spousesOf(graph, personId) {
+  var unions = graph.unionsOf[personId] || [];
+  var out = [];
+  for (var i = 0; i < unions.length; i++) {
+    var u = unions[i];
+    var other = u.partner_a_id === personId ? u.partner_b_id : u.partner_a_id;
+    if (other) out.push({ personId: other, union: u, status: u.status });
+  }
+  return out;
+}
+
+function KIN_unionBetween(graph, aId, bId) {
+  var unions = graph.unionsOf[aId] || [];
+  for (var i = 0; i < unions.length; i++) {
+    var u = unions[i];
+    if (u.partner_a_id === bId || u.partner_b_id === bId) return u;
+  }
+  return null;
+}
+
+/** Full siblings, plus half siblings, ordered by birth. */
+function KIN_siblingsOf(graph, personId) {
+  var parents = KIN_parentsOf(graph, personId);
+  var seen = {};
+  var out = [];
+  for (var i = 0; i < parents.length; i++) {
+    var kids = KIN_childrenOf(graph, parents[i]);
+    for (var j = 0; j < kids.length; j++) {
+      if (kids[j] !== personId && !seen[kids[j]]) {
+        seen[kids[j]] = true;
+        out.push(kids[j]);
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Where a person ranks among their siblings, counting from 1.
+ *
+ * This is what decides whether an uncle is Pak Long or Pak Su, and it is the one
+ * piece of the Malay title system that the tree shape cannot supply. Recorded
+ * order wins; otherwise it is inferred from birth dates. For a grandparents'
+ * generation, where dates are often unknown, this returns null and the app falls
+ * back to the generic Pak Cik / Mak Cik.
+ */
+function KIN_birthOrder(graph, personId) {
+  var person = graph.people[personId];
+  if (!person) return null;
+  if (person.birth_order_source === 'manual' && person.birth_order) {
+    return Number(person.birth_order);
+  }
+
+  var group = KIN_siblingsOf(graph, personId).concat([personId]);
+  var dated = [];
+  for (var i = 0; i < group.length; i++) {
+    var p = graph.people[group[i]];
+    if (!p) continue;
+    var order = p.birth_order ? Number(p.birth_order) : null;
+    var date = p.birth_date ? String(p.birth_date) : null;
+    if (!order && !date) return null; // One unknown sibling makes the whole ranking unsafe.
+    dated.push({ id: group[i], order: order, date: date });
+  }
+
+  dated.sort(function (a, b) {
+    if (a.order && b.order) return a.order - b.order;
+    if (a.order) return -1;
+    if (b.order) return 1;
+    return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0);
+  });
+
+  for (var k = 0; k < dated.length; k++) {
+    if (dated[k].id === personId) return k + 1;
+  }
+  return null;
+}
+
+function KIN_siblingCount(graph, personId) {
+  return KIN_siblingsOf(graph, personId).length + 1;
+}
+
+/** True when `aId` was born before `bId`. Null when it cannot be determined. */
+function KIN_isElder(graph, aId, bId) {
+  var a = graph.people[aId];
+  var b = graph.people[bId];
+  if (!a || !b) return null;
+  if (a.birth_order && b.birth_order) return Number(a.birth_order) < Number(b.birth_order);
+  if (a.birth_date && b.birth_date) return String(a.birth_date) < String(b.birth_date);
+  return null;
+}
+
+
+/* ===== 07_Titles.gs ===== */
+/**
+ * Naming the relationship.
+ *
+ * KIN_relate() works out the structure; this file puts a word to it in Malay,
+ * English or Arabic. The three languages do not carve up the family the same
+ * way, which is exactly why naming is separated from classification:
+ *
+ *   - Malay grades a parent's siblings by BIRTH ORDER. Pak Long is the eldest
+ *     uncle, Pak Su the youngest, and the word changes with his rank among his
+ *     own siblings -- not with his relationship to you.
+ *   - Arabic grades them by SIDE. Your father's brother is 'Amm, your mother's
+ *     brother is Khal, and there is no word that covers both.
+ *   - English grades them by neither. Both are "uncle".
+ *
+ * A single stored fact therefore yields "Pak Su", "Khal" and "Uncle" depending
+ * only on who is reading.
+ */
+
+/* Malay birth-order titles, eldest first. The family's own sequence overrides
+ * this from Settings; the youngest is always 'Su' regardless of the list. */
+var TTL_DEFAULT_BIRTH_ORDER = ['Long', 'Ngah', 'Alang', 'Anjang', 'Andak', 'Uda', 'Uteh'];
+
+var TTL_MS = {
+  ancestor: ['', 'Ayah', 'Atuk', 'Moyang', 'Datuk Moyang'],
+  ancestorF: ['', 'Ibu', 'Nenek', 'Moyang', 'Nenek Moyang'],
+  descendant: ['', 'Anak', 'Cucu', 'Cicit', 'Piut', 'Anggah'],
+  cousinDegree: ['', 'Sepupu', 'Dua Pupu', 'Tiga Pupu', 'Empat Pupu']
+};
+
+var TTL_EN = {
+  ordinal: ['', 'First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth'],
+  removed: ['', 'once removed', 'twice removed', 'three times removed']
+};
+
+/**
+ * The public entry point: what does `egoId` call `targetId`?
+ *
+ * Returns { label, script, code, source, detail }. `script` carries Arabic in
+ * its own alphabet where relevant; `source` is 'custom' when the family's own
+ * name for someone has overridden the computed one.
+ */
+function TTL_title(graph, egoId, targetId, lang, settings) {
+  lang = lang || 'ms';
+
+  var custom = TTL_customTitle(graph, egoId, targetId, lang);
+  if (custom) {
+    return { label: custom, script: '', code: 'custom', source: 'custom', detail: null };
+  }
+
+  var rel = KIN_relate(graph, egoId, targetId);
+  var named = TTL_name(graph, rel, lang, settings);
+  named.source = 'computed';
+  named.detail = rel;
+  return named;
+}
+
+/**
+ * A family's own name for someone beats anything an algorithm can work out.
+ * A title recorded against GLOBAL applies to every viewer, which covers the
+ * common case of one person the whole family calls by a particular name.
+ */
+function TTL_customTitle(graph, egoId, targetId, lang) {
+  var rows = graph.customTitles || [];
+  var globalHit = null;
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    if (row.to_person_id !== targetId) continue;
+    if (row.lang !== '*' && row.lang !== lang) continue;
+    if (row.from_person_id === egoId) return row.custom_label;
+    if (row.from_person_id === 'GLOBAL') globalHit = row.custom_label;
+  }
+  return globalHit;
+}
+
+function TTL_name(graph, rel, lang, settings) {
+  if (lang === 'en') return TTL_english(graph, rel);
+  if (lang === 'ar') return TTL_arabic(graph, rel);
+  return TTL_malay(graph, rel, settings);
+}
+
+function TTL_wrap(label, script, code) {
+  return { label: label, script: script || '', code: code || '' };
+}
+
+/* ------------------------------------------------------------------ *
+ * Malay
+ * ------------------------------------------------------------------ */
+
+function TTL_malay(graph, rel, settings) {
+  var m = rel.gender === 'F' ? 'F' : (rel.gender === 'M' ? 'M' : 'U');
+
+  switch (rel.kind) {
+    case 'self':
+      return TTL_wrap('Saya', '', 'self');
+
+    case 'spouse':
+      if (rel.unionStatus === 'divorced') return TTL_wrap(m === 'F' ? 'Bekas Isteri' : 'Bekas Suami', '', 'ex_spouse');
+      if (rel.unionStatus === 'widowed') return TTL_wrap(m === 'F' ? 'Arwah Isteri' : 'Arwah Suami', '', 'late_spouse');
+      return TTL_wrap(m === 'F' ? 'Isteri' : 'Suami', '', 'spouse');
+
+    case 'blood':
+      return TTL_malayBlood(graph, rel, settings);
+
+    case 'in_law':
+      return TTL_malayInLaw(graph, rel, settings);
+
+    case 'step':
+      if (rel.type === 'parent') return TTL_wrap(m === 'F' ? 'Ibu Tiri' : 'Ayah Tiri', '', 'step_parent');
+      if (rel.type === 'child') return TTL_wrap(m === 'F' ? 'Anak Perempuan Tiri' : 'Anak Lelaki Tiri', '', 'step_child');
+      if (rel.type === 'sibling') {
+        if (rel.elder === true) return TTL_wrap(m === 'F' ? 'Kakak Tiri' : 'Abang Tiri', '', 'step_sibling');
+        if (rel.elder === false) return TTL_wrap('Adik Tiri', '', 'step_sibling');
+        return TTL_wrap('Adik-beradik Tiri', '', 'step_sibling');
+      }
+      return TTL_wrap('Keluarga Tiri', '', 'step');
+
+    default:
+      return TTL_wrap('Ahli Keluarga', '', 'unrelated');
+  }
+}
+
+function TTL_malayBlood(graph, rel, settings) {
+  var isF = rel.gender === 'F';
+  var g = rel.generations;
+
+  if (rel.type === 'ancestor') {
+    var up = isF ? TTL_MS.ancestorF : TTL_MS.ancestor;
+    if (g < up.length) return TTL_wrap(up[g], '', 'ancestor_' + g);
+    return TTL_wrap('Moyang ke-' + (g - 1), '', 'ancestor_' + g);
+  }
+
+  if (rel.type === 'descendant') {
+    if (g < TTL_MS.descendant.length) {
+      var word = TTL_MS.descendant[g];
+      if (g === 1) word = isF ? 'Anak Perempuan' : (rel.gender === 'M' ? 'Anak Lelaki' : 'Anak');
+      return TTL_wrap(word, '', 'descendant_' + g);
+    }
+    return TTL_wrap('Keturunan ke-' + g, '', 'descendant_' + g);
+  }
+
+  if (rel.type === 'sibling') {
+    var suffix = '';
+    if (!rel.full) suffix = rel.halfVia === 'mother' ? ' Seibu' : ' Sebapa';
+    if (rel.elder === true) return TTL_wrap((isF ? 'Kakak' : 'Abang') + suffix, '', 'sibling_elder');
+    if (rel.elder === false) return TTL_wrap('Adik' + suffix, '', 'sibling_younger');
+    return TTL_wrap('Adik-beradik' + suffix, '', 'sibling');
+  }
+
+  if (rel.type === 'auncle') {
+    if (rel.generations === 1) {
+      return TTL_wrap(TTL_malayAuncle(rel, isF, settings), '', 'auncle_1');
+    }
+    if (rel.generations === 2) return TTL_wrap(isF ? 'Nenek Saudara' : 'Atuk Saudara', '', 'auncle_2');
+    return TTL_wrap(isF ? 'Moyang Saudara' : 'Moyang Saudara', '', 'auncle_' + rel.generations);
+  }
+
+  if (rel.type === 'nibling') {
+    if (rel.generations === 1) return TTL_wrap('Anak Saudara', '', 'nibling_1');
+    if (rel.generations === 2) return TTL_wrap('Cucu Saudara', '', 'nibling_2');
+    return TTL_wrap('Cicit Saudara', '', 'nibling_' + rel.generations);
+  }
+
+  if (rel.type === 'cousin') {
+    var base = rel.degree < TTL_MS.cousinDegree.length
+      ? TTL_MS.cousinDegree[rel.degree]
+      : rel.degree + ' Pupu';
+    if (!rel.removed) return TTL_wrap(base, '', 'cousin_' + rel.degree);
+    if (!rel.elderBranch) {
+      // The cousin's child, or grandchild.
+      var down = ['', 'Anak ', 'Cucu ', 'Cicit '][Math.min(rel.removed, 3)];
+      return TTL_wrap(down + base, '', 'cousin_' + rel.degree + '_r' + rel.removed);
+    }
+    var upWord = rel.removed === 1 ? 'Ibu Bapa' : 'Atuk Nenek';
+    return TTL_wrap(base + ' ' + upWord, '', 'cousin_' + rel.degree + '_r' + rel.removed);
+  }
+
+  return TTL_wrap('Saudara', '', 'blood');
+}
+
+/**
+ * Pak Long, Mak Ngah, Pak Su.
+ *
+ * The rank is the person's own position among their siblings, so the eldest of
+ * five brothers is Pak Long to every one of his nieces and nephews. The youngest
+ * is always Su whatever the list says. Where the family has not recorded enough
+ * birth dates to rank the generation, this falls back to the generic Pak Cik /
+ * Mak Cik rather than guessing -- calling the eldest uncle Pak Su is worse than
+ * calling him Pak Cik.
+ */
+function TTL_malayAuncle(rel, isF, settings) {
+  var prefix = isF ? 'Mak' : 'Pak';
+  var order = rel.birthOrder;
+  var count = rel.siblingCount;
+
+  if (!order || !count) return prefix + ' Cik';
+  if (count > 1 && order === count) return prefix + ' Su';
+
+  var list = TTL_birthOrderList(settings);
+  if (order - 1 < list.length) return prefix + ' ' + list[order - 1];
+  return prefix + ' Cik';
+}
+
+function TTL_birthOrderList(settings) {
+  if (settings && settings.birth_order_titles) {
+    var parts = String(settings.birth_order_titles).split(',');
+    var out = [];
+    for (var i = 0; i < parts.length; i++) {
+      var trimmed = parts[i].replace(/^\s+|\s+$/g, '');
+      if (trimmed) out.push(trimmed);
+    }
+    if (out.length) return out;
+  }
+  return TTL_DEFAULT_BIRTH_ORDER;
+}
+
+function TTL_malayInLaw(graph, rel, settings) {
+  var isF = rel.gender === 'F';
+  var via = rel.via;
+
+  if (rel.direction === 'co_parent_in_law') return TTL_wrap('Besan', '', 'besan');
+
+  if (rel.direction === 'relative_of_spouse' && via) {
+    if (via.type === 'ancestor' && via.generations === 1) {
+      return TTL_wrap(isF ? 'Ibu Mertua' : 'Bapa Mertua', '', 'parent_in_law');
+    }
+    if (via.type === 'ancestor' && via.generations === 2) {
+      return TTL_wrap(isF ? 'Nenek Mertua' : 'Atuk Mertua', '', 'grandparent_in_law');
+    }
+    if (via.type === 'sibling') {
+      if (via.elder === true) return TTL_wrap(isF ? 'Kakak Ipar' : 'Abang Ipar', '', 'sibling_in_law');
+      if (via.elder === false) return TTL_wrap('Adik Ipar', '', 'sibling_in_law');
+      return TTL_wrap('Ipar', '', 'sibling_in_law');
+    }
+    if (via.type === 'auncle' && via.generations === 1) {
+      // Your spouse's uncle keeps his own birth-order title.
+      return TTL_wrap(TTL_malayAuncle(via, isF, settings) + ' (sebelah pasangan)', '', 'auncle_in_law');
+    }
+    if (via.type === 'nibling') {
+      // Your spouse's nephew is your nephew. Malay does not mark the distinction.
+      return TTL_wrap(via.generations === 1 ? 'Anak Saudara' : 'Cucu Saudara', '', 'nibling_in_law');
+    }
+    if (via.type === 'descendant') {
+      return TTL_wrap(isF ? 'Anak Perempuan Tiri' : 'Anak Lelaki Tiri', '', 'step_child');
+    }
+    if (via.type === 'cousin') return TTL_wrap('Sepupu Ipar', '', 'cousin_in_law');
+    return TTL_wrap('Keluarga Mertua', '', 'in_law');
+  }
+
+  if (rel.direction === 'spouse_of_spouses_relative' && via) {
+    // Married to your spouse's sibling.
+    if (via.type === 'sibling') return TTL_wrap('Biras', '', 'biras');
+    if (via.type === 'cousin') return TTL_wrap('Biras Sepupu', '', 'biras');
+    if (via.type === 'auncle') return TTL_wrap(TTL_malayAuncle(via, isF, settings), '', 'auncle_by_marriage');
+    return TTL_wrap('Keluarga Semenda', '', 'in_law');
+  }
+
+  if (rel.direction === 'spouse_of_relative' && via) {
+    if (via.type === 'descendant' && via.generations === 1) {
+      return TTL_wrap('Menantu', '', 'child_in_law');
+    }
+    if (via.type === 'sibling') {
+      if (via.elder === true) return TTL_wrap(isF ? 'Kakak Ipar' : 'Abang Ipar', '', 'sibling_in_law');
+      if (via.elder === false) return TTL_wrap('Adik Ipar', '', 'sibling_in_law');
+      return TTL_wrap('Ipar', '', 'sibling_in_law');
+    }
+    if (via.type === 'auncle' && via.generations === 1) {
+      // The wife of Pak Long is Mak Long. The title follows the marriage.
+      return TTL_wrap(TTL_malayAuncle(via, isF, settings), '', 'auncle_by_marriage');
+    }
+    if (via.type === 'cousin') return TTL_wrap('Ipar Sepupu', '', 'cousin_in_law');
+    if (via.type === 'nibling') return TTL_wrap('Menantu Saudara', '', 'nibling_in_law');
+    return TTL_wrap('Keluarga Semenda', '', 'in_law');
+  }
+
+  return TTL_wrap('Keluarga Semenda', '', 'in_law');
+}
+
+/* ------------------------------------------------------------------ *
+ * English
+ * ------------------------------------------------------------------ */
+
+function TTL_english(graph, rel) {
+  var isF = rel.gender === 'F';
+
+  switch (rel.kind) {
+    case 'self': return TTL_wrap('You', '', 'self');
+    case 'spouse':
+      if (rel.unionStatus === 'divorced') return TTL_wrap(isF ? 'Ex-wife' : 'Ex-husband', '', 'ex_spouse');
+      if (rel.unionStatus === 'widowed') return TTL_wrap(isF ? 'Late wife' : 'Late husband', '', 'late_spouse');
+      return TTL_wrap(isF ? 'Wife' : 'Husband', '', 'spouse');
+    case 'blood': return TTL_englishBlood(rel);
+    case 'in_law': return TTL_englishInLaw(rel);
+    case 'step':
+      if (rel.type === 'parent') return TTL_wrap(isF ? 'Stepmother' : 'Stepfather', '', 'step_parent');
+      if (rel.type === 'child') return TTL_wrap(isF ? 'Stepdaughter' : 'Stepson', '', 'step_child');
+      if (rel.type === 'sibling') return TTL_wrap(isF ? 'Stepsister' : 'Stepbrother', '', 'step_sibling');
+      return TTL_wrap('Step-relative', '', 'step');
+    default: return TTL_wrap('Relative', '', 'unrelated');
+  }
+}
+
+function TTL_englishBlood(rel) {
+  var isF = rel.gender === 'F';
+  var g = rel.generations;
+
+  if (rel.type === 'ancestor') {
+    if (g === 1) return TTL_wrap(isF ? 'Mother' : 'Father', '', 'ancestor_1');
+    var base = isF ? 'Grandmother' : 'Grandfather';
+    return TTL_wrap(TTL_prefixGreat(g - 2, base), '', 'ancestor_' + g);
+  }
+
+  if (rel.type === 'descendant') {
+    if (g === 1) return TTL_wrap(isF ? 'Daughter' : 'Son', '', 'descendant_1');
+    var d = isF ? 'Granddaughter' : 'Grandson';
+    return TTL_wrap(TTL_prefixGreat(g - 2, d), '', 'descendant_' + g);
+  }
+
+  if (rel.type === 'sibling') {
+    var word = isF ? 'Sister' : 'Brother';
+    if (!rel.full) return TTL_wrap('Half-' + word.toLowerCase(), '', 'half_sibling');
+    if (rel.elder === true) return TTL_wrap('Older ' + word.toLowerCase(), '', 'sibling_elder');
+    if (rel.elder === false) return TTL_wrap('Younger ' + word.toLowerCase(), '', 'sibling_younger');
+    return TTL_wrap(word, '', 'sibling');
+  }
+
+  if (rel.type === 'auncle') {
+    return TTL_wrap(TTL_prefixGreat(rel.generations - 1, isF ? 'Aunt' : 'Uncle'), '', 'auncle_' + rel.generations);
+  }
+
+  if (rel.type === 'nibling') {
+    return TTL_wrap(TTL_prefixGreat(rel.generations - 1, isF ? 'Niece' : 'Nephew'), '', 'nibling_' + rel.generations);
+  }
+
+  if (rel.type === 'cousin') {
+    var ord = rel.degree < TTL_EN.ordinal.length ? TTL_EN.ordinal[rel.degree] : rel.degree + 'th';
+    var label = ord + ' cousin';
+    if (rel.removed) {
+      label += ' ' + (rel.removed < TTL_EN.removed.length
+        ? TTL_EN.removed[rel.removed]
+        : rel.removed + ' times removed');
+    }
+    return TTL_wrap(label, '', 'cousin_' + rel.degree + '_r' + rel.removed);
+  }
+
+  return TTL_wrap('Relative', '', 'blood');
+}
+
+function TTL_prefixGreat(greats, base) {
+  if (greats <= 0) return base;
+  var prefix = '';
+  for (var i = 0; i < greats; i++) prefix += 'Great-';
+  return prefix + base.toLowerCase();
+}
+
+function TTL_englishInLaw(rel) {
+  var isF = rel.gender === 'F';
+  var via = rel.via;
+
+  if (rel.direction === 'co_parent_in_law') return TTL_wrap("Child's parent-in-law", '', 'besan');
+
+  if (via && via.type === 'ancestor' && via.generations === 1 && rel.direction === 'relative_of_spouse') {
+    return TTL_wrap(isF ? 'Mother-in-law' : 'Father-in-law', '', 'parent_in_law');
+  }
+  if (via && via.type === 'descendant' && via.generations === 1 && rel.direction === 'spouse_of_relative') {
+    return TTL_wrap(isF ? 'Daughter-in-law' : 'Son-in-law', '', 'child_in_law');
+  }
+  if (via && via.type === 'sibling') {
+    return TTL_wrap(isF ? 'Sister-in-law' : 'Brother-in-law', '', 'sibling_in_law');
+  }
+  if (via && via.type === 'auncle') {
+    return TTL_wrap(isF ? 'Aunt by marriage' : 'Uncle by marriage', '', 'auncle_in_law');
+  }
+  if (via && via.type === 'nibling' && rel.direction === 'relative_of_spouse') {
+    return TTL_wrap(isF ? 'Niece by marriage' : 'Nephew by marriage', '', 'nibling_in_law');
+  }
+  if (via && via.type === 'descendant' && rel.direction === 'relative_of_spouse') {
+    return TTL_wrap(isF ? 'Stepdaughter' : 'Stepson', '', 'step_child');
+  }
+  if (rel.direction === 'spouse_of_spouses_relative') {
+    // English has no word for this: the people married to your spouse's
+    // siblings. Speakers reach for brother- or sister-in-law and leave the
+    // distinction unsaid.
+    return TTL_wrap(isF ? 'Sister-in-law' : 'Brother-in-law', '', 'biras');
+  }
+  return TTL_wrap('In-law', '', 'in_law');
+}
+
+/* ------------------------------------------------------------------ *
+ * Arabic
+ * ------------------------------------------------------------------ */
+
+function TTL_arabic(graph, rel) {
+  var isF = rel.gender === 'F';
+
+  switch (rel.kind) {
+    case 'self': return TTL_wrap('Ana', 'أنا', 'self');
+    case 'spouse': return TTL_wrap(isF ? 'Zawjah' : 'Zawj', isF ? 'زوجة' : 'زوج', 'spouse');
+    case 'blood': return TTL_arabicBlood(graph, rel);
+    case 'in_law': return TTL_arabicInLaw(rel);
+    case 'step':
+      if (rel.type === 'parent') return TTL_wrap(isF ? "Zawjat al-Ab" : "Zawj al-Umm", isF ? 'زوجة الأب' : 'زوج الأم', 'step_parent');
+      if (rel.type === 'child') return TTL_wrap(isF ? 'Rabibah' : 'Rabib', isF ? 'ربيبة' : 'ربيب', 'step_child');
+      return TTL_wrap('Qarib bil-musaharah', 'قريب بالمصاهرة', 'step');
+    default: return TTL_wrap('Qarib', 'قريب', 'unrelated');
+  }
+}
+
+function TTL_arabicBlood(graph, rel) {
+  var isF = rel.gender === 'F';
+  var g = rel.generations;
+
+  if (rel.type === 'ancestor') {
+    if (g === 1) return TTL_wrap(isF ? 'Umm' : 'Ab', isF ? 'أم' : 'أب', 'ancestor_1');
+    if (g === 2) return TTL_wrap(isF ? 'Jaddah' : 'Jadd', isF ? 'جدة' : 'جد', 'ancestor_2');
+    return TTL_wrap((isF ? 'Jaddah' : 'Jadd') + " al-'ulya", isF ? 'جدة عليا' : 'جد أعلى', 'ancestor_' + g);
+  }
+
+  if (rel.type === 'descendant') {
+    if (g === 1) return TTL_wrap(isF ? 'Bint' : 'Ibn', isF ? 'بنت' : 'ابن', 'descendant_1');
+    if (g === 2) return TTL_wrap(isF ? 'Hafidah' : 'Hafid', isF ? 'حفيدة' : 'حفيد', 'descendant_2');
+    return TTL_wrap((isF ? 'Bint al-Hafid' : 'Ibn al-Hafid'), isF ? 'بنت الحفيد' : 'ابن الحفيد', 'descendant_' + g);
+  }
+
+  if (rel.type === 'sibling') {
+    return TTL_wrap(isF ? 'Ukht' : 'Akh', isF ? 'أخت' : 'أخ', 'sibling');
+  }
+
+  if (rel.type === 'auncle') {
+    var maternal = rel.side === 'maternal';
+    if (rel.generations === 1) {
+      if (maternal) return TTL_wrap(isF ? 'Khalah' : 'Khal', isF ? 'خالة' : 'خال', 'auncle_1');
+      return TTL_wrap(isF ? "'Ammah" : "'Amm", isF ? 'عمة' : 'عم', 'auncle_1');
+    }
+    if (maternal) return TTL_wrap(isF ? 'Khalat al-Ab' : 'Khal al-Ab', isF ? 'خالة الأب' : 'خال الأب', 'auncle_2');
+    return TTL_wrap(isF ? "'Ammat al-Ab" : "'Amm al-Ab", isF ? 'عمة الأب' : 'عم الأب', 'auncle_2');
+  }
+
+  if (rel.type === 'nibling') {
+    if (rel.generations >= 2) {
+      return TTL_wrap(isF ? 'Hafidat al-Akh' : 'Hafid al-Akh',
+                      isF ? 'حفيدة الأخ' : 'حفيد الأخ', 'nibling_' + rel.generations);
+    }
+    return TTL_wrap(isF ? 'Bint al-Akh' : 'Ibn al-Akh', isF ? 'بنت الأخ' : 'ابن الأخ', 'nibling_1');
+  }
+
+  if (rel.type === 'cousin') {
+    return TTL_arabicCousin(rel, isF);
+  }
+
+  return TTL_wrap('Qarib', 'قريب', 'blood');
+}
+
+/**
+ * Arabic names a cousin after the uncle or aunt they descend from, so the term
+ * encodes both the side of the family and that linking person's gender. Four
+ * distinct words where English has one.
+ */
+function TTL_arabicCousin(rel, isF) {
+  var link = rel.linkAuncle;
+  var maternal = rel.side === 'maternal';
+  var linkIsF = link && link.gender === 'F';
+
+  var parentWord, parentScript;
+  if (maternal) {
+    parentWord = linkIsF ? 'al-Khalah' : 'al-Khal';
+    parentScript = linkIsF ? 'الخالة' : 'الخال';
+  } else {
+    parentWord = linkIsF ? "al-'Ammah" : "al-'Amm";
+    parentScript = linkIsF ? 'العمة' : 'العم';
+  }
+
+  var self = isF ? 'Bint' : 'Ibn';
+  var selfScript = isF ? 'بنت' : 'ابن';
+
+  var label = self + ' ' + parentWord;
+  var script = selfScript + ' ' + parentScript;
+  if (rel.degree > 1) label += ' (darajah ' + rel.degree + ')';
+  return TTL_wrap(label, script, 'cousin_' + rel.degree + '_r' + rel.removed);
+}
+
+function TTL_arabicInLaw(rel) {
+  var isF = rel.gender === 'F';
+  var via = rel.via;
+
+  if (rel.direction === 'co_parent_in_law') return TTL_wrap('Nasib', 'نسيب', 'besan');
+
+  if (via && via.type === 'ancestor' && via.generations === 1 && rel.direction === 'relative_of_spouse') {
+    return TTL_wrap(isF ? 'Hamah' : 'Ham', isF ? 'حماة' : 'حم', 'parent_in_law');
+  }
+  if (via && via.type === 'descendant' && via.generations === 1 && rel.direction === 'spouse_of_relative') {
+    return TTL_wrap(isF ? 'Kannah' : 'Sihr', isF ? 'كنة' : 'صهر', 'child_in_law');
+  }
+  if (via && via.type === 'sibling' && rel.direction !== 'spouse_of_spouses_relative') {
+    return TTL_wrap(isF ? 'Salifah' : 'Sihr', isF ? 'سليفة' : 'صهر', 'sibling_in_law');
+  }
+  if (rel.direction === 'spouse_of_spouses_relative') {
+    return TTL_wrap(isF ? 'Silfah' : 'Silf', isF ? 'سلفة' : 'سلف', 'biras');
+  }
+  if (via && via.type === 'nibling') {
+    return TTL_wrap(isF ? 'Bint al-Akh' : 'Ibn al-Akh', isF ? 'بنت الأخ' : 'ابن الأخ', 'nibling_in_law');
+  }
+  return TTL_wrap('Qarib bil-musaharah', 'قريب بالمصاهرة', 'in_law');
+}
+
+
+/* ===== 13_Layout.gs ===== */
+/**
+ * Laying the family out on a canvas.
+ *
+ * A me-centred list answers "who is around me". A canvas answers a different
+ * question -- "how does all of this fit together" -- and families reach for a
+ * wall chart precisely when the list stops being enough.
+ *
+ * The hard part is not drawing lines. It is that a family is not a tree: people
+ * marry, so two chains of descent join and a node can have two parents on
+ * different branches. Laying that out means placing couples as units, centring
+ * each couple over their children, and then pushing apart whatever collides --
+ * repeatedly, because fixing one generation disturbs the next.
+ *
+ * Positions produced here are a starting point, not a verdict. Families
+ * rearrange their own chart, so every card can be dragged and the result saved;
+ * this only has to be good enough that nobody starts from a pile.
+ *
+ * Plain ES5 with no Apps Script APIs, so the browser and the Node tests run the
+ * same code.
+ */
+
+var LAY = {
+  NODE_W: 176,
+  NODE_H: 74,
+  GAP_X: 28,
+  GAP_Y: 128,
+  COUPLE_GAP: 18,   // Between two spouses, tighter than between strangers.
+  DROP: 30,         // From a couple down to the point their children hang from.
+  RISE: 28,         // From the bus line down into a child's head.
+  PASSES: 5
+};
+
+/**
+ * Works out where everybody goes.
+ *
+ * @return { nodes: {id:{x,y,gen}}, units: [...], generations: {id:gen}, bounds }
+ *         where x,y is the centre of each card.
+ */
+function LAY_compute(graph, options) {
+  var opts = options || {};
+  var metrics = LAY_metrics(opts);
+
+  var gens = LAY_generations(graph);
+  var units = LAY_units(graph);
+  var order = LAY_order(graph, units, gens);
+
+  var nodes = {};
+  for (var id in gens) {
+    if (!Object.prototype.hasOwnProperty.call(gens, id)) continue;
+    nodes[id] = {
+      x: order.slot[id] * (metrics.NODE_W + metrics.GAP_X),
+      y: gens[id] * (metrics.NODE_H + metrics.GAP_Y),
+      gen: gens[id]
+    };
+  }
+
+  // Recorded on the map itself so the overlap pass can tell a married couple
+  // from two people who merely stand next to each other.
+  var partners = {};
+  for (var u = 0; u < units.length; u++) {
+    if (units[u].partners.length === 2) {
+      partners[units[u].partners[0] + '|' + units[u].partners[1]] = true;
+    }
+  }
+  nodes.__partners = partners;
+
+  LAY_balance(graph, units, nodes, gens, metrics);
+  LAY_pairCouples(units, nodes, metrics);
+  LAY_spread(nodes, gens, metrics);
+  LAY_settle(units, nodes, gens, metrics);
+
+  return {
+    nodes: nodes,
+    units: units,
+    generations: gens,
+    bounds: LAY_bounds(nodes, metrics),
+    metrics: metrics
+  };
+}
+
+function LAY_metrics(opts) {
+  var m = {};
+  for (var key in LAY) {
+    if (Object.prototype.hasOwnProperty.call(LAY, key)) m[key] = LAY[key];
+  }
+  for (var over in opts) {
+    if (Object.prototype.hasOwnProperty.call(opts, over)) m[over] = opts[over];
+  }
+  return m;
+}
+
+/* ------------------------------------------------------------------ *
+ * Generations
+ * ------------------------------------------------------------------ */
+
+/**
+ * Which row each person belongs on.
+ *
+ * Walked outward rather than derived from ancestry depth, because a family with
+ * two trees joined by a marriage has no single root to count from. Spouses are
+ * pulled onto the same row as each other, which is what makes a couple read as
+ * a couple; the first assignment wins, so a marriage between distant cousins
+ * bends one person's row rather than deadlocking.
+ */
+function LAY_generations(graph) {
+  var gens = {};
+  var ids = LAY_sortedIds(graph);
+
+  for (var i = 0; i < ids.length; i++) {
+    if (gens[ids[i]] !== undefined) continue;
+
+    var component = [];
+    gens[ids[i]] = 0;
+    var queue = [ids[i]];
+
+    while (queue.length) {
+      var current = queue.shift();
+      component.push(current);
+      var level = gens[current];
+
+      var parents = KIN_parentsOf(graph, current);
+      for (var p = 0; p < parents.length; p++) {
+        if (gens[parents[p]] === undefined) {
+          gens[parents[p]] = level - 1;
+          queue.push(parents[p]);
+        }
+      }
+
+      var children = KIN_childrenOf(graph, current);
+      for (var c = 0; c < children.length; c++) {
+        if (gens[children[c]] === undefined) {
+          gens[children[c]] = level + 1;
+          queue.push(children[c]);
+        }
+      }
+
+      var spouses = KIN_spousesOf(graph, current);
+      for (var s = 0; s < spouses.length; s++) {
+        if (gens[spouses[s].personId] === undefined) {
+          gens[spouses[s].personId] = level;
+          queue.push(spouses[s].personId);
+        }
+      }
+    }
+
+    // Each disconnected group is normalised on its own, so a second family
+    // entered from its youngest member does not float above the first.
+    var lowest = Infinity;
+    for (var k = 0; k < component.length; k++) lowest = Math.min(lowest, gens[component[k]]);
+    for (var n = 0; n < component.length; n++) gens[component[n]] -= lowest;
+  }
+
+  return gens;
+}
+
+/* ------------------------------------------------------------------ *
+ * Family units
+ * ------------------------------------------------------------------ */
+
+/**
+ * Couples, and the children hanging from them.
+ *
+ * A couple is one object on the chart: their children descend from the point
+ * between them, not from either parent individually, which is what makes a
+ * family tree readable rather than a web of crossing lines.
+ */
+function LAY_units(graph) {
+  var units = [];
+  var seenUnion = {};
+  var placedChild = {};
+
+  var ids = LAY_sortedIds(graph);
+
+  for (var i = 0; i < ids.length; i++) {
+    var id = ids[i];
+    var unions = graph.unionsOf[id] || [];
+
+    for (var u = 0; u < unions.length; u++) {
+      var union = unions[u];
+      if (seenUnion[union.union_id]) continue;
+      seenUnion[union.union_id] = true;
+
+      var a = union.partner_a_id;
+      var b = union.partner_b_id;
+      var shared = LAY_sharedChildren(graph, a, b);
+      for (var s = 0; s < shared.length; s++) placedChild[shared[s]] = true;
+
+      units.push({
+        id: 'u:' + union.union_id,
+        partners: [a, b],
+        children: shared,
+        union: union
+      });
+    }
+  }
+
+  // A parent with children but no recorded marriage still anchors their
+  // children, otherwise those lines would have nowhere to start.
+  for (var j = 0; j < ids.length; j++) {
+    var person = ids[j];
+    var kids = KIN_childrenOf(graph, person);
+    var orphaned = [];
+    for (var k = 0; k < kids.length; k++) {
+      if (!placedChild[kids[k]]) orphaned.push(kids[k]);
+    }
+    if (orphaned.length) {
+      for (var o = 0; o < orphaned.length; o++) placedChild[orphaned[o]] = true;
+      units.push({ id: 's:' + person, partners: [person], children: orphaned, union: null });
+    }
+  }
+
+  return units;
+}
+
+function LAY_sharedChildren(graph, aId, bId) {
+  var aKids = KIN_childrenOf(graph, aId);
+  var bKids = KIN_childrenOf(graph, bId);
+  var out = [];
+  for (var i = 0; i < aKids.length; i++) {
+    if (bKids.indexOf(aKids[i]) !== -1) out.push(aKids[i]);
+  }
+  return out;
+}
+
+/* ------------------------------------------------------------------ *
+ * Left-to-right order
+ * ------------------------------------------------------------------ */
+
+/**
+ * Walks the family from its oldest members down, giving each person a slot.
+ *
+ * Depth-first rather than generation-by-generation: following one branch to its
+ * end before starting the next is what keeps a household's descendants together
+ * instead of interleaved with their cousins'.
+ */
+function LAY_order(graph, units, gens) {
+  var slot = {};
+  var next = {};
+  var placed = {};
+
+  function take(id) {
+    if (placed[id]) return;
+    var gen = gens[id];
+    if (next[gen] === undefined) next[gen] = 0;
+    slot[id] = next[gen]++;
+    placed[id] = true;
+  }
+
+  var unitsByPartner = {};
+  for (var i = 0; i < units.length; i++) {
+    for (var p = 0; p < units[i].partners.length; p++) {
+      var key = units[i].partners[p];
+      if (!unitsByPartner[key]) unitsByPartner[key] = [];
+      unitsByPartner[key].push(units[i]);
+    }
+  }
+
+  var visitedUnit = {};
+  function walk(unit) {
+    if (visitedUnit[unit.id]) return;
+    visitedUnit[unit.id] = true;
+
+    for (var p = 0; p < unit.partners.length; p++) take(unit.partners[p]);
+
+    var kids = unit.children.slice();
+    kids.sort(function (a, b) {
+      return REL_compareBirth(graph.people[a], graph.people[b]);
+    });
+
+    for (var c = 0; c < kids.length; c++) {
+      take(kids[c]);
+      var theirUnits = unitsByPartner[kids[c]] || [];
+      for (var t = 0; t < theirUnits.length; t++) walk(theirUnits[t]);
+    }
+  }
+
+  // Start from units whose partners have no parents recorded -- the tops of
+  // the tree -- then sweep up anything left in a cycle-free but rootless group.
+  var roots = [];
+  for (var r = 0; r < units.length; r++) {
+    var rootish = true;
+    for (var q = 0; q < units[r].partners.length; q++) {
+      if (KIN_parentsOf(graph, units[r].partners[q]).length) rootish = false;
+    }
+    if (rootish) roots.push(units[r]);
+  }
+  roots.sort(function (a, b) { return gens[a.partners[0]] - gens[b.partners[0]]; });
+
+  for (var rr = 0; rr < roots.length; rr++) walk(roots[rr]);
+  for (var uu = 0; uu < units.length; uu++) walk(units[uu]);
+
+  var all = LAY_sortedIds(graph);
+  for (var a = 0; a < all.length; a++) take(all[a]);
+
+  return { slot: slot };
+}
+
+/* ------------------------------------------------------------------ *
+ * Tidying
+ * ------------------------------------------------------------------ */
+
+/**
+ * Pulls each couple over the middle of their children, repeatedly.
+ *
+ * One pass is never enough: moving a couple to sit above their children shifts
+ * them relative to their own parents, so the generation above now needs moving
+ * too. Running bottom-up then top-down a few times settles it.
+ */
+function LAY_balance(graph, units, nodes, gens, metrics) {
+  var byDepth = units.slice().sort(function (a, b) {
+    return gens[b.partners[0]] - gens[a.partners[0]];
+  });
+
+  for (var pass = 0; pass < metrics.PASSES; pass++) {
+    // Bottom-up: parents follow their children.
+    for (var i = 0; i < byDepth.length; i++) {
+      var unit = byDepth[i];
+      if (!unit.children.length) continue;
+      var centre = LAY_centreOf(unit.children, nodes);
+      if (centre === null) continue;
+      LAY_moveUnit(unit, nodes, centre);
+    }
+    LAY_spread(nodes, gens, metrics);
+
+    // Top-down: children gather under their parents where there is room.
+    for (var j = byDepth.length - 1; j >= 0; j--) {
+      var down = byDepth[j];
+      if (down.children.length < 2) continue;
+      var parentCentre = LAY_centreOf(down.partners, nodes);
+      var childCentre = LAY_centreOf(down.children, nodes);
+      if (parentCentre === null || childCentre === null) continue;
+      var shift = parentCentre - childCentre;
+      for (var c = 0; c < down.children.length; c++) {
+        if (nodes[down.children[c]]) nodes[down.children[c]].x += shift;
+      }
+    }
+    LAY_spread(nodes, gens, metrics);
+  }
+}
+
+function LAY_centreOf(ids, nodes) {
+  var total = 0;
+  var count = 0;
+  for (var i = 0; i < ids.length; i++) {
+    if (ids[i] === '__partners' || !nodes[ids[i]]) continue;
+    total += nodes[ids[i]].x;
+    count++;
+  }
+  return count ? total / count : null;
+}
+
+function LAY_moveUnit(unit, nodes, centre) {
+  var current = LAY_centreOf(unit.partners, nodes);
+  if (current === null) return;
+  var shift = centre - current;
+  for (var i = 0; i < unit.partners.length; i++) {
+    if (nodes[unit.partners[i]]) nodes[unit.partners[i]].x += shift;
+  }
+}
+
+/** Puts married couples side by side, closer than unrelated neighbours. */
+function LAY_pairCouples(units, nodes, metrics) {
+  for (var i = 0; i < units.length; i++) {
+    var unit = units[i];
+    if (unit.partners.length !== 2) continue;
+    var a = nodes[unit.partners[0]];
+    var b = nodes[unit.partners[1]];
+    if (!a || !b) continue;
+
+    var mid = (a.x + b.x) / 2;
+    var half = (metrics.NODE_W + metrics.COUPLE_GAP) / 2;
+    if (a.x <= b.x) { a.x = mid - half; b.x = mid + half; }
+    else { b.x = mid - half; a.x = mid + half; }
+  }
+}
+
+/**
+ * A last pass to sit each couple over the middle of their children.
+ *
+ * The earlier passes each end by pushing overlaps apart, which nudges a row
+ * rightwards and leaves the generation above looking off-centre. This runs
+ * oldest first, after everything else, and only moves parents -- so the
+ * children it is aligning to have already stopped moving.
+ */
+function LAY_settle(units, nodes, gens, metrics) {
+  var ordered = units.slice().sort(function (a, b) {
+    return gens[a.partners[0]] - gens[b.partners[0]];
+  });
+
+  for (var i = 0; i < ordered.length; i++) {
+    var unit = ordered[i];
+    if (!unit.children.length) continue;
+    var centre = LAY_centreOf(unit.children, nodes);
+    if (centre === null) continue;
+    LAY_moveUnit(unit, nodes, centre);
+    LAY_spread(nodes, gens, metrics);
+  }
+}
+
+/**
+ * Pushes apart anything overlapping on the same row.
+ *
+ * Resolving person by person let a third person slide between a married couple:
+ * each card was individually far enough from its neighbours, so nothing was
+ * technically overlapping, and Rahim ended up two places away from his own
+ * wife with his sister in between.
+ *
+ * So the row is resolved over blocks instead, where a married pair is one rigid
+ * block that cannot be entered. Nothing can come between two spouses because
+ * there is no gap between them to come into.
+ *
+ * The row is also recentred on where it started. Resolving left to right and
+ * stopping there walks every row steadily rightwards, leaving each generation
+ * offset from the one above it.
+ */
+function LAY_spread(nodes, gens, metrics) {
+  var rows = {};
+  for (var id in nodes) {
+    if (!Object.prototype.hasOwnProperty.call(nodes, id)) continue;
+    if (id === '__partners') continue;
+    var gen = nodes[id].gen;
+    if (!rows[gen]) rows[gen] = [];
+    rows[gen].push(id);
+  }
+
+  for (var g in rows) {
+    if (!Object.prototype.hasOwnProperty.call(rows, g)) continue;
+    LAY_spreadRow(nodes, rows[g], metrics);
+  }
+}
+
+function LAY_spreadRow(nodes, rowIds, metrics) {
+  var before = LAY_centreOf(rowIds, nodes);
+  var blocks = LAY_blocks(nodes, rowIds, metrics);
+
+  blocks.sort(function (a, b) { return a.x - b.x; });
+  for (var i = 1; i < blocks.length; i++) {
+    var needed = (blocks[i - 1].width + blocks[i].width) / 2 + metrics.GAP_X;
+    if (blocks[i].x - blocks[i - 1].x < needed) {
+      blocks[i].x = blocks[i - 1].x + needed;
+    }
+  }
+
+  for (var b = 0; b < blocks.length; b++) LAY_writeBlock(blocks[b], nodes, metrics);
+
+  var after = LAY_centreOf(rowIds, nodes);
+  if (before !== null && after !== null && after !== before) {
+    var correction = before - after;
+    for (var k = 0; k < rowIds.length; k++) nodes[rowIds[k]].x += correction;
+  }
+}
+
+/**
+ * Groups a row into things that move together.
+ *
+ * A married pair is one block; everybody else is their own. Somebody married
+ * twice belongs to the first pair found and their other spouse becomes a
+ * singleton beside them, because a person cannot be rigidly attached to two
+ * people in opposite directions.
+ */
+function LAY_blocks(nodes, rowIds, metrics) {
+  var partners = nodes.__partners || {};
+  var present = {};
+  for (var i = 0; i < rowIds.length; i++) present[rowIds[i]] = true;
+
+  var taken = {};
+  var blocks = [];
+
+  for (var key in partners) {
+    if (!Object.prototype.hasOwnProperty.call(partners, key)) continue;
+    var pair = key.split('|');
+    if (!present[pair[0]] || !present[pair[1]]) continue;
+    if (taken[pair[0]] || taken[pair[1]]) continue;
+
+    taken[pair[0]] = true;
+    taken[pair[1]] = true;
+    var ordered = nodes[pair[0]].x <= nodes[pair[1]].x ? pair : [pair[1], pair[0]];
+    blocks.push({
+      members: ordered,
+      width: metrics.NODE_W * 2 + metrics.COUPLE_GAP,
+      x: (nodes[pair[0]].x + nodes[pair[1]].x) / 2
+    });
+  }
+
+  for (var j = 0; j < rowIds.length; j++) {
+    if (taken[rowIds[j]]) continue;
+    blocks.push({ members: [rowIds[j]], width: metrics.NODE_W, x: nodes[rowIds[j]].x });
+  }
+
+  return blocks;
+}
+
+function LAY_writeBlock(block, nodes, metrics) {
+  if (block.members.length === 1) {
+    nodes[block.members[0]].x = block.x;
+    return;
+  }
+  var half = (metrics.NODE_W + metrics.COUPLE_GAP) / 2;
+  nodes[block.members[0]].x = block.x - half;
+  nodes[block.members[1]].x = block.x + half;
+}
+
+function LAY_bounds(nodes, metrics) {
+  var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (var id in nodes) {
+    if (!Object.prototype.hasOwnProperty.call(nodes, id)) continue;
+    if (id === '__partners') continue;
+    minX = Math.min(minX, nodes[id].x - metrics.NODE_W / 2);
+    maxX = Math.max(maxX, nodes[id].x + metrics.NODE_W / 2);
+    minY = Math.min(minY, nodes[id].y - metrics.NODE_H / 2);
+    maxY = Math.max(maxY, nodes[id].y + metrics.NODE_H / 2);
+  }
+  if (minX === Infinity) return { minX: 0, maxX: 0, minY: 0, maxY: 0, width: 0, height: 0 };
+  return { minX: minX, maxX: maxX, minY: minY, maxY: maxY,
+           width: maxX - minX, height: maxY - minY };
+}
+
+function LAY_sortedIds(graph) {
+  var ids = [];
+  for (var id in graph.people) {
+    if (Object.prototype.hasOwnProperty.call(graph.people, id)) ids.push(id);
+  }
+  ids.sort();
+  return ids;
+}
+
+/* ------------------------------------------------------------------ *
+ * The lines between them
+ * ------------------------------------------------------------------ */
+
+/**
+ * Builds the connectors from wherever the cards currently are.
+ *
+ * Derived fresh from live positions rather than stored, so a card dragged
+ * across the canvas takes its lines with it and nothing has to be invalidated.
+ *
+ * Takes the units and the positions and nothing else: the relationships were
+ * already resolved when the units were built, so this does not need the graph.
+ *
+ * Marriages are drawn as a plain horizontal join. Descent runs from the point
+ * between the couple, down to a bus line above the children, along it, and into
+ * each child's head -- one shared trunk instead of a separate diagonal to every
+ * child, which is the difference between a family tree and a cat's cradle.
+ */
+function LAY_edges(units, positions, metrics) {
+  var m = metrics || LAY;
+  var edges = [];
+
+  for (var i = 0; i < units.length; i++) {
+    var unit = units[i];
+    var anchor = LAY_unitAnchor(unit, positions, m);
+    if (!anchor) continue;
+
+    if (unit.partners.length === 2) {
+      var a = positions[unit.partners[0]];
+      var b = positions[unit.partners[1]];
+      if (a && b) {
+        var left = a.x < b.x ? a : b;
+        var right = a.x < b.x ? b : a;
+        edges.push({
+          kind: 'union',
+          unionId: unit.union ? unit.union.union_id : '',
+          status: unit.union ? unit.union.status : 'current',
+          x1: left.x + m.NODE_W / 2, y1: left.y,
+          x2: right.x - m.NODE_W / 2, y2: right.y,
+          midX: (left.x + right.x) / 2,
+          midY: (left.y + right.y) / 2
+        });
+      }
+    }
+
+    if (!unit.children.length) continue;
+
+    var present = [];
+    for (var c = 0; c < unit.children.length; c++) {
+      if (positions[unit.children[c]]) present.push(unit.children[c]);
+    }
+    if (!present.length) continue;
+
+    // The bus sits above the highest child, so the drop into each head is the
+    // same length however uneven the row has been dragged.
+    var topChildY = Infinity;
+    for (var t = 0; t < present.length; t++) {
+      topChildY = Math.min(topChildY, positions[present[t]].y);
+    }
+    var busY = topChildY - m.NODE_H / 2 - m.RISE;
+    if (busY < anchor.y + 8) busY = anchor.y + 8;
+
+    edges.push({
+      kind: 'stem',
+      x1: anchor.x, y1: anchor.y, x2: anchor.x, y2: busY
+    });
+
+    for (var k = 0; k < present.length; k++) {
+      var child = positions[present[k]];
+      edges.push({
+        kind: 'descent',
+        childId: present[k],
+        fromX: anchor.x, fromY: busY,
+        toX: child.x, toY: child.y - m.NODE_H / 2,
+        busY: busY
+      });
+    }
+  }
+
+  return edges;
+}
+
+/** The point children hang from: between the couple, or below a lone parent. */
+function LAY_unitAnchor(unit, positions, metrics) {
+  if (unit.partners.length === 2) {
+    var a = positions[unit.partners[0]];
+    var b = positions[unit.partners[1]];
+    if (!a || !b) {
+      var only = a || b;
+      return only ? { x: only.x, y: only.y + metrics.NODE_H / 2 } : null;
+    }
+    return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 + metrics.NODE_H / 2 };
+  }
+  var single = positions[unit.partners[0]];
+  return single ? { x: single.x, y: single.y + metrics.NODE_H / 2 } : null;
+}
+
+/** An SVG path for one descent line: down, across, down into the child. */
+function LAY_descentPath(edge, radius) {
+  var r = radius === undefined ? 10 : radius;
+  var dx = edge.toX - edge.fromX;
+  if (Math.abs(dx) < 1) {
+    return 'M ' + edge.fromX + ' ' + edge.fromY + ' L ' + edge.toX + ' ' + edge.toY;
+  }
+  var turn = Math.min(r, Math.abs(dx) / 2, Math.abs(edge.toY - edge.busY) / 2);
+  var dir = dx > 0 ? 1 : -1;
+  return 'M ' + edge.fromX + ' ' + edge.fromY +
+    ' L ' + (edge.toX - turn * dir) + ' ' + edge.busY +
+    ' Q ' + edge.toX + ' ' + edge.busY + ' ' + edge.toX + ' ' + (edge.busY + turn) +
+    ' L ' + edge.toX + ' ' + edge.toY;
+}
+
+</script>
+<script>
+var SETTINGS = { birth_order_titles: 'Long,Ngah,Alang,Anjang,Andak,Uda,Uteh' };
+var graph = REL_buildGraph(FAMILY);
+var layout = LAY_compute(graph, {});
+var M = layout.metrics;
+var PAD = 90;
+
+var state = { ego: 'S04', lang: 'ms', selected: null, scale: 1, tx: 0, ty: 0 };
+var pos = {};           // Live card centres, in world coordinates.
+var nodeEls = {};
+
+var READERS = [
+  ['S04', 'Karim'], ['S11', 'Aqilah'], ['S01', 'Atok Salim'],
+  ['S03', "Su'aidah"], ['S18', 'Umar']
+];
+
+var STORE_KEY = 'pokokPositions.v1';
+
+/* ---------- positions ---------- */
+
+function resetPositions() {
+  pos = {};
+  for (var id in layout.nodes) {
+    if (id === '__partners' || !layout.nodes.hasOwnProperty(id)) continue;
+    pos[id] = {
+      x: layout.nodes[id].x - layout.bounds.minX + PAD,
+      y: layout.nodes[id].y - layout.bounds.minY + PAD
+    };
+  }
+}
+
+/* Positions are a per-viewer convenience: they belong to whoever arranged this
+   chart on this device, and the page has to render correctly without them. */
+function savePositions() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(pos)); } catch (e) {}
+}
+function loadPositions() {
+  try {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (!raw) return false;
+    var saved = JSON.parse(raw);
+    var count = 0;
+    for (var id in pos) {
+      if (pos.hasOwnProperty(id) && saved[id] &&
+          typeof saved[id].x === 'number' && typeof saved[id].y === 'number') {
+        pos[id] = { x: saved[id].x, y: saved[id].y };
+        count++;
+      }
+    }
+    return count > 0;
+  } catch (e) { return false; }
+}
+
+/* ---------- drawing ---------- */
+
+function esc(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+  .replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function shortName(full){
+  var parts = String(full).split(' ');
+  var stop = parts.findIndex(function(w){ return /^(BIN|BINTE|BINTI|BTE|BT)$/i.test(w); });
+  var own = stop > 0 ? parts.slice(0, stop) : parts.slice(0, 2);
+  return own.map(function(w){ return w.charAt(0) + w.slice(1).toLowerCase(); }).join(' ');
+}
+function titleFor(id){ return TTL_title(graph, state.ego, id, state.lang, SETTINGS); }
+
+function buildNodes() {
+  var world = document.getElementById('world');
+  Array.prototype.slice.call(world.querySelectorAll('.node')).forEach(function(n){ n.remove(); });
+  nodeEls = {};
+
+  for (var id in pos) {
+    if (!pos.hasOwnProperty(id)) continue;
+    var p = graph.people[id];
+    var el = document.createElement('div');
+    el.className = 'node ' + (p.gender === 'F' ? 'f' : p.gender === 'M' ? 'm' : '');
+    el.dataset.id = id;
+    world.appendChild(el);
+    nodeEls[id] = el;
+  }
+  paintNodes();
+  placeNodes();
+}
+
+function paintNodes() {
+  for (var id in nodeEls) {
+    if (!nodeEls.hasOwnProperty(id)) continue;
+    var p = graph.people[id];
+    var t = titleFor(id);
+    var you = id === state.ego;
+    var ar = state.lang === 'ar' && t.script;
+    var label = you ? (state.lang === 'en' ? 'You' : state.lang === 'ar' ? 'أنا' : 'Saya')
+                    : (ar ? t.script : t.label);
+
+    nodeEls[id].innerHTML =
+      '<div class="ttl' + (ar || (you && state.lang === 'ar') ? ' ar' : '') + '">' +
+        esc(label) + '</div>' +
+      '<div class="nm">' + esc(shortName(p.display_name)) + '</div>' +
+      '<div class="yr">' + esc(String(p.birth_date).slice(0, 4)) + '</div>';
+
+    nodeEls[id].classList.toggle('you', you);
+  }
+  highlight();
+}
+
+function placeNodes() {
+  for (var id in nodeEls) {
+    if (!nodeEls.hasOwnProperty(id)) continue;
+    nodeEls[id].style.left = (pos[id].x - M.NODE_W / 2) + 'px';
+    nodeEls[id].style.top  = (pos[id].y - M.NODE_H / 2) + 'px';
+  }
+  drawWires();
+}
+
+/**
+ * The lines are rebuilt from wherever the cards are right now, which is what
+ * lets a dragged card take its connections with it without anything being
+ * recalculated or invalidated.
+ */
+function drawWires() {
+  var edges = LAY_edges(layout.units, pos, M);
+  var maxX = 0, maxY = 0;
+  for (var id in pos) {
+    if (!pos.hasOwnProperty(id)) continue;
+    maxX = Math.max(maxX, pos[id].x + M.NODE_W);
+    maxY = Math.max(maxY, pos[id].y + M.NODE_H);
+  }
+
+  var parts = ['<defs>' +
+    '<marker id="ar" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" ' +
+      'orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="var(--wire)"/></marker>' +
+    '<marker id="arLit" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" ' +
+      'orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="var(--wire-strong)"/></marker>' +
+    '</defs>'];
+
+  var near = neighbourhood();
+
+  for (var i = 0; i < edges.length; i++) {
+    var e = edges[i];
+    var lit = near && ((e.childId && near[e.childId]) ||
+      (e.kind === 'union' && near.__union && near.__union[e.unionId]));
+    var stroke = lit ? 'var(--wire-strong)' : 'var(--wire)';
+    var width = lit ? 2.4 : 1.6;
+    var fade = near && !lit ? ' opacity="0.3"' : '';
+
+    if (e.kind === 'union') {
+      parts.push('<path d="M ' + e.x1 + ' ' + e.y1 + ' L ' + e.x2 + ' ' + e.y2 +
+        '" stroke="' + (lit ? 'var(--brass)' : 'var(--brass)') + '" stroke-width="' +
+        (lit ? 3.4 : 2.4) + '" fill="none" stroke-linecap="round"' + fade + '/>');
+      parts.push('<circle cx="' + e.midX + '" cy="' + e.midY + '" r="' + (lit ? 5 : 4) +
+        '" fill="var(--brass)"' + fade + '/>');
+    } else if (e.kind === 'stem') {
+      parts.push('<path d="M ' + e.x1 + ' ' + e.y1 + ' L ' + e.x2 + ' ' + e.y2 +
+        '" stroke="' + stroke + '" stroke-width="' + width + '" fill="none"' + fade + '/>');
+    } else {
+      parts.push('<path d="' + LAY_descentPath(e, 12) + '" stroke="' + stroke +
+        '" stroke-width="' + width + '" fill="none" stroke-linejoin="round" ' +
+        'marker-end="url(#' + (lit ? 'arLit' : 'ar') + ')"' + fade + '/>');
+    }
+  }
+
+  var svg = document.getElementById('wires');
+  svg.setAttribute('width', maxX + PAD);
+  svg.setAttribute('height', maxY + PAD);
+  svg.innerHTML = parts.join('');
+}
+
+/** Everyone directly connected to the selected card, for dimming the rest. */
+function neighbourhood() {
+  if (!state.selected) return null;
+  var near = {};
+  near[state.selected] = true;
+  near.__union = {};
+
+  KIN_parentsOf(graph, state.selected).forEach(function(id){ near[id] = true; });
+  KIN_childrenOf(graph, state.selected).forEach(function(id){ near[id] = true; });
+  KIN_spousesOf(graph, state.selected).forEach(function(s){
+    near[s.personId] = true;
+    near.__union[s.union.union_id] = true;
+  });
+  // A child's line is lit when either the child or one of its parents is chosen.
+  layout.units.forEach(function(u){
+    if (u.partners.indexOf(state.selected) !== -1) {
+      u.children.forEach(function(c){ near[c] = true; });
+      if (u.union) near.__union[u.union.union_id] = true;
+    }
+  });
+  return near;
+}
+
+function highlight() {
+  var near = neighbourhood();
+  for (var id in nodeEls) {
+    if (!nodeEls.hasOwnProperty(id)) continue;
+    nodeEls[id].classList.toggle('lit', !!(near && id === state.selected));
+    nodeEls[id].classList.toggle('dim', !!(near && !near[id]));
+  }
+}
+
+/* ---------- controls ---------- */
+
+function drawChips() {
+  document.getElementById('egoChips').innerHTML = READERS.map(function(r){
+    return '<button class="chip" data-ego="' + r[0] + '" aria-pressed="' +
+      (state.ego === r[0]) + '">' + esc(r[1]) + '</button>';
+  }).join('');
+  Array.prototype.slice.call(document.querySelectorAll('[data-lang]')).forEach(function(b){
+    b.setAttribute('aria-pressed', String(state.lang === b.dataset.lang));
+  });
+}
+
+function applyTransform() {
+  document.getElementById('world').style.transform =
+    'translate(' + state.tx + 'px,' + state.ty + 'px) scale(' + state.scale + ')';
+}
+
+/* Below about this, the names on the cards stop being readable and the chart
+   becomes a diagram of itself. */
+var LEGIBLE = 0.62;
+
+function contentBox() {
+  var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (var id in pos) {
+    if (!pos.hasOwnProperty(id)) continue;
+    minX = Math.min(minX, pos[id].x - M.NODE_W / 2);
+    minY = Math.min(minY, pos[id].y - M.NODE_H / 2);
+    maxX = Math.max(maxX, pos[id].x + M.NODE_W / 2);
+    maxY = Math.max(maxY, pos[id].y + M.NODE_H / 2);
+  }
+  return { minX: minX, minY: minY, maxX: maxX, maxY: maxY,
+           w: maxX - minX + 48, h: maxY - minY + 48 };
+}
+
+/** The whole chart at once, however small that has to be. */
+function fit() {
+  var stage = document.getElementById('stage');
+  var box = contentBox();
+  state.scale = Math.max(0.14, Math.min(1.15,
+    Math.min(stage.clientWidth / box.w, stage.clientHeight / box.h)));
+  state.tx = (stage.clientWidth - box.w * state.scale) / 2 - (box.minX - 24) * state.scale;
+  state.ty = (stage.clientHeight - box.h * state.scale) / 2 - (box.minY - 24) * state.scale;
+  applyTransform();
+}
+
+/** One person, centred, at a size their name can actually be read at. */
+function focusOn(id, scale) {
+  var stage = document.getElementById('stage');
+  if (!pos[id]) return fit();
+  state.scale = scale || Math.max(state.scale, LEGIBLE);
+  state.tx = stage.clientWidth / 2 - pos[id].x * state.scale;
+  state.ty = stage.clientHeight / 2 - pos[id].y * state.scale;
+  applyTransform();
+}
+
+/**
+ * What to show on opening.
+ *
+ * Fitting eighteen people across three generations onto a phone leaves the
+ * names too small to read, so the chart opens on whoever is reading it and
+ * keeps the overview as a button. On a wide screen the whole thing fits
+ * legibly, so it starts there.
+ */
+function openingView() {
+  var stage = document.getElementById('stage');
+  var box = contentBox();
+  var fitScale = Math.min(stage.clientWidth / box.w, stage.clientHeight / box.h);
+  if (fitScale >= LEGIBLE) fit();
+  else focusOn(state.ego, 0.92);
+}
+
+function describe(id) {
+  var strip = document.getElementById('strip');
+  if (!id) {
+    strip.innerHTML = '<div class="who"><div class="nm">Tap a card</div>' +
+      '<div class="why">Drag cards to rearrange. Change who is reading, above, ' +
+      'and every label changes with them.</div></div>';
+    return;
+  }
+  var p = graph.people[id];
+  var t = titleFor(id);
+  var ar = state.lang === 'ar' && t.script;
+  var rel = KIN_relate(graph, state.ego, id);
+  var me = shortName(graph.people[state.ego].display_name).split(' ')[0];
+
+  var why;
+  if (id === state.ego) {
+    why = 'This is you. Every label on the chart is worked out from here.';
+  } else if (rel.kind === 'blood' && rel.type === 'auncle' && rel.birthOrder) {
+    why = '<b>' + rel.birthOrder + ' of ' + rel.siblingCount + '</b> among their own ' +
+      'siblings, which is what picks the Malay word — and on your ' +
+      (rel.side === 'maternal' ? 'mother’s' : 'father’s') +
+      ' side, which is what picks the Arabic one.';
+  } else if (rel.kind === 'in_law' && rel.direction === 'spouse_of_spouses_relative') {
+    why = 'Married to ' + me + '’s sibling. Malay calls this <b>biras</b>; ' +
+      'English has no word for it and borrows brother-in-law.';
+  } else if (rel.kind === 'in_law' && rel.direction === 'co_parent_in_law') {
+    why = 'Your child married theirs. Malay calls this <b>besan</b>.';
+  } else if (rel.kind === 'blood' && rel.type === 'cousin' && rel.linkAuncle) {
+    why = 'Descends from ' + shortName(rel.linkAuncle.display_name).split(' ')[0] +
+      '. Arabic names cousins after that person, so the word carries which side.';
+  } else if (rel.kind === 'blood' && rel.type === 'sibling') {
+    why = rel.elder ? 'Older than ' + me + ' — Malay grades siblings by seniority.'
+                    : 'Younger than ' + me + '.';
+  } else {
+    why = 'Born ' + String(p.birth_date).slice(0, 4) + '. ' +
+      TTL_title(graph, state.ego, id, 'en', SETTINGS).label + ' in English.';
+  }
+
+  strip.innerHTML =
+    '<span class="badge' + (ar ? ' ar' : '') + '">' + esc(ar ? t.script : t.label) + '</span>' +
+    '<div class="who"><div class="nm">' + esc(shortName(p.display_name)) + '</div>' +
+    '<div class="why">' + why + '</div></div>';
+}
+
+/* ---------- interaction ---------- */
+
+var drag = null, pan = null, pinch = null;
+
+document.getElementById('stage').addEventListener('pointerdown', function(e){
+  var node = e.target.closest('.node');
+  if (node) {
+    drag = {
+      id: node.dataset.id, pointer: e.pointerId,
+      dx: e.clientX / state.scale - pos[node.dataset.id].x,
+      dy: e.clientY / state.scale - pos[node.dataset.id].y,
+      moved: false
+    };
+    node.classList.add('dragging');
+    node.setPointerCapture(e.pointerId);
+    return;
+  }
+  pan = { x: e.clientX - state.tx, y: e.clientY - state.ty, pointer: e.pointerId };
+  this.classList.add('panning');
+  this.setPointerCapture(e.pointerId);
+});
+
+document.getElementById('stage').addEventListener('pointermove', function(e){
+  if (drag && e.pointerId === drag.pointer) {
+    pos[drag.id].x = e.clientX / state.scale - drag.dx;
+    pos[drag.id].y = e.clientY / state.scale - drag.dy;
+    drag.moved = true;
+    nodeEls[drag.id].style.left = (pos[drag.id].x - M.NODE_W / 2) + 'px';
+    nodeEls[drag.id].style.top  = (pos[drag.id].y - M.NODE_H / 2) + 'px';
+    drawWires();
+    return;
+  }
+  if (pan && e.pointerId === pan.pointer) {
+    state.tx = e.clientX - pan.x;
+    state.ty = e.clientY - pan.y;
+    applyTransform();
+  }
+});
+
+function endPointer(e) {
+  if (drag && e.pointerId === drag.pointer) {
+    nodeEls[drag.id].classList.remove('dragging');
+    if (!drag.moved) {
+      state.selected = state.selected === drag.id ? null : drag.id;
+      highlight(); drawWires(); describe(state.selected);
+    } else {
+      savePositions();
+    }
+    drag = null;
+  }
+  if (pan && e.pointerId === pan.pointer) {
+    pan = null;
+    document.getElementById('stage').classList.remove('panning');
+  }
+}
+document.getElementById('stage').addEventListener('pointerup', endPointer);
+document.getElementById('stage').addEventListener('pointercancel', endPointer);
+
+document.getElementById('stage').addEventListener('wheel', function(e){
+  e.preventDefault();
+  var rect = this.getBoundingClientRect();
+  var mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  var factor = Math.exp(-e.deltaY * 0.0015);
+  var next = Math.max(0.12, Math.min(2.2, state.scale * factor));
+  state.tx = mx - (mx - state.tx) * (next / state.scale);
+  state.ty = my - (my - state.ty) * (next / state.scale);
+  state.scale = next;
+  applyTransform();
+}, { passive: false });
+
+// Pinch, for phones.
+var touches = {};
+document.getElementById('stage').addEventListener('touchstart', function(e){
+  if (e.touches.length === 2) {
+    pinch = {
+      dist: touchDistance(e.touches),
+      scale: state.scale,
+      cx: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+      cy: (e.touches[0].clientY + e.touches[1].clientY) / 2,
+      tx: state.tx, ty: state.ty
+    };
+    drag = null; pan = null;
+  }
+}, { passive: true });
+
+document.getElementById('stage').addEventListener('touchmove', function(e){
+  if (pinch && e.touches.length === 2) {
+    e.preventDefault();
+    var rect = this.getBoundingClientRect();
+    var ratio = touchDistance(e.touches) / pinch.dist;
+    var next = Math.max(0.12, Math.min(2.2, pinch.scale * ratio));
+    var mx = pinch.cx - rect.left, my = pinch.cy - rect.top;
+    state.tx = mx - (mx - pinch.tx) * (next / pinch.scale);
+    state.ty = my - (my - pinch.ty) * (next / pinch.scale);
+    state.scale = next;
+    applyTransform();
+  }
+}, { passive: false });
+
+document.getElementById('stage').addEventListener('touchend', function(e){
+  if (e.touches.length < 2) pinch = null;
+}, { passive: true });
+
+function touchDistance(t) {
+  var dx = t[0].clientX - t[1].clientX, dy = t[0].clientY - t[1].clientY;
+  return Math.sqrt(dx * dx + dy * dy) || 1;
+}
+
+document.addEventListener('click', function(e){
+  var ego = e.target.closest('[data-ego]');
+  if (ego) {
+    state.ego = ego.dataset.ego;
+    drawChips(); paintNodes(); describe(state.selected);
+    // Move to whoever is now reading, or the labels change under a part of the
+    // chart they are not even looking at.
+    if (state.scale >= LEGIBLE) focusOn(state.ego);
+    return;
+  }
+  var lang = e.target.closest('[data-lang]');
+  if (lang) { state.lang = lang.dataset.lang; drawChips(); paintNodes(); describe(state.selected); return; }
+  if (e.target.id === 'fit') fit();
+  if (e.target.id === 'me') focusOn(state.ego, Math.max(state.scale, 0.92));
+  if (e.target.id === 'arrange') {
+    resetPositions(); savePositions(); placeNodes(); openingView();
+  }
+});
+
+window.addEventListener('resize', function(){ drawWires(); });
+
+/* ---------- start ---------- */
+
+resetPositions();
+loadPositions();
+drawChips();
+buildNodes();
+describe(null);
+document.getElementById('subtitle').textContent =
+  'Salim family · ' + Object.keys(graph.people).length + ' people · three generations';
+requestAnimationFrame(openingView);
+</script>

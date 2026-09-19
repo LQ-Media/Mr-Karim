@@ -45,7 +45,8 @@ var SCHEMA = {
     'birth_precision', 'birth_place', 'birth_order', 'birth_order_source',
     'is_living', 'death_date', 'death_precision', 'death_place', 'burial_place',
     'email', 'mobile', 'address', 'country', 'occupation', 'notes',
-    'photo_file_id', 'photo_thumb_id', 'status', 'merged_into_id',
+    'photo_file_id', 'photo_thumb_id', 'map_x', 'map_y',
+    'status', 'merged_into_id',
     'created_by', 'created_at', 'updated_by', 'updated_at'],
 
   Parentage: ['link_id', 'child_id', 'parent_id', 'parent_role', 'relation_type',

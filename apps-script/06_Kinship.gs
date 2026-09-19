@@ -150,13 +150,15 @@ function KIN_relate(graph, egoId, targetId) {
     return KIN_classifyBlood(graph, egoId, targetId, lca);
   }
 
-  // 3. Related through a marriage.
-  var inLaw = KIN_findInLaw(graph, egoId, targetId, egoMap, targetMap);
-  if (inLaw) return inLaw;
-
-  // 4. Related through a step-parent or step-child.
+  // 3. A step relationship. Checked before the general in-law search because a
+  //    spouse's child is a step-child specifically, not merely somebody related
+  //    to the person you married.
   var step = KIN_findStep(graph, egoId, targetId);
   if (step) return step;
+
+  // 4. Related through a marriage.
+  var inLaw = KIN_findInLaw(graph, egoId, targetId, egoMap, targetMap);
+  if (inLaw) return inLaw;
 
   return { kind: 'unrelated', target: targetId, gender: target.gender };
 }
@@ -275,6 +277,30 @@ function KIN_findInLaw(graph, egoId, targetId, egoMap, targetMap) {
         viaPersonId: mySpouseId,
         target: targetId
       };
+    }
+  }
+
+  // The target is married to a relative of the person I am married to. Two men
+  // married to two sisters are biras to each other -- a relationship Malay
+  // names, English cannot, and which the Salim family's own trip manifest had
+  // to leave blank because a flat list has nowhere to put it.
+  for (var m = 0; m < mySpouses.length; m++) {
+    var mySpouseMap = KIN_ancestorMap(graph, mySpouses[m].personId);
+    for (var t = 0; t < targetSpouses.length; t++) {
+      if (targetSpouses[t].personId === egoId) continue;
+      var theirMap = KIN_ancestorMap(graph, targetSpouses[t].personId);
+      var lca3 = KIN_commonAncestor(mySpouseMap, theirMap);
+      if (lca3) {
+        return {
+          kind: 'in_law',
+          direction: 'spouse_of_spouses_relative',
+          gender: target.gender,
+          via: KIN_classifyBlood(graph, mySpouses[m].personId,
+                                 targetSpouses[t].personId, lca3),
+          viaPersonId: targetSpouses[t].personId,
+          target: targetId
+        };
+      }
     }
   }
 

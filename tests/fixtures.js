@@ -109,3 +109,48 @@ function buildFamily() {
 }
 
 module.exports = { buildFamily, person, parent, union };
+
+/**
+ * A second family, shaped like a real one that exposed gaps the first missed:
+ * a man whose own parents are not recorded, married into a family of four
+ * siblings who are themselves all married with children.
+ *
+ * It exercises the relationships that only exist through marriage, which is
+ * where kinship engines quietly give up and print "relative".
+ */
+function buildInLawFamily() {
+  const people = [
+    person('X01', 'Salim bin Ali', 'M', '1960-05-24'),
+    person('X02', 'Sadiah binti Alimon', 'F', '1962-07-09'),
+
+    // Their four children, eldest first.
+    person('X03', 'Suaidah binti Salim', 'F', '1986-12-31'),
+    person('X05', 'Syahirah binti Salim', 'F', '1990-08-03'),
+    person('X07', 'Azwan bin Salim', 'M', '1992-06-03'),
+    person('X09', 'Syazwani binti Salim', 'F', '1998-05-30'),
+
+    // The four people who married in. None are related to each other by blood.
+    person('X04', 'Karim bin Kamaruddin', 'M', '1988-03-24'),
+    person('X06', 'Afiq bin Anuar', 'M', '1990-10-26'),
+    person('X08', 'Farihin binti Kamal', 'F', '1992-09-29'),
+    person('X10', 'Nazrul bin Abdolah', 'M', '1998-09-24'),
+
+    // The youngest generation.
+    person('X11', 'Aqilah binti Karim', 'F', '2013-03-20'),
+    person('X15', 'Abbas binti Karim', 'M', '2022-06-05'),
+    person('X14', 'Bilal bin Azwan', 'M', '2021-04-29'),
+    person('X16', 'Hadi bin Afiq', 'M', '2024-01-10')
+  ];
+
+  const parentage = [];
+  const unions = [];
+  couple(people, parentage, unions, 'X01', 'X02', ['X03', 'X05', 'X07', 'X09']);
+  couple(people, parentage, unions, 'X04', 'X03', ['X11', 'X15']);
+  couple(people, parentage, unions, 'X06', 'X05', ['X16']);
+  couple(people, parentage, unions, 'X07', 'X08', ['X14']);
+  unions.push(union('X09', 'X10'));
+
+  return { people, parentage, unions, customTitles: [] };
+}
+
+module.exports.buildInLawFamily = buildInLawFamily;

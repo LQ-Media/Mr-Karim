@@ -43,6 +43,13 @@ position becomes their birth order. That is the one fact the shape of a tree can
 never supply and the one Malay titles depend on, collected as a side effect of
 the way people naturally talk about their family.
 
+**Two ways to look at it.** A me-centred screen answers "who is around me" and
+stays usable at any size. A pan-and-zoom chart answers "how does all of this
+fit together", which is what a family reaches for a wall chart to settle. Both
+label every card from whoever is reading, and on the chart the cards can be
+dragged -- no layout algorithm knows how a family thinks of itself, so an admin
+can arrange one and save it for everyone.
+
 **Three languages plus your own.** Every computed title can render in Malay,
 English or Arabic/Islamic terms, switchable per user. Families also keep private
 names that no algorithm can guess — the one particular aunt everyone calls
@@ -76,7 +83,7 @@ father, which catches most duplicate entries on its own.
 
     apps-script/     The deployable Apps Script project
     docs/            Setup and design documentation
-    tests/           204 assertions, run with `npm test`
+    tests/           285 assertions, run with `npm test`
     tools/           Prototype builder and other local helpers
 
 ## Tests
@@ -92,3 +99,4 @@ in-memory stand-in for the spreadsheet so the write paths are covered too:
 | `matching` | duplicate detection, in both failure directions |
 | `settings` | configured, shortened and absent birth-order sequences |
 | `writes` | creating, batch entry, reordering, merging, permissions |
+| `layout` | generations, couple adjacency, collisions, connector geometry |

@@ -235,7 +235,23 @@ function TTL_malayInLaw(graph, rel, settings) {
       // Your spouse's uncle keeps his own birth-order title.
       return TTL_wrap(TTL_malayAuncle(via, isF, settings) + ' (sebelah pasangan)', '', 'auncle_in_law');
     }
+    if (via.type === 'nibling') {
+      // Your spouse's nephew is your nephew. Malay does not mark the distinction.
+      return TTL_wrap(via.generations === 1 ? 'Anak Saudara' : 'Cucu Saudara', '', 'nibling_in_law');
+    }
+    if (via.type === 'descendant') {
+      return TTL_wrap(isF ? 'Anak Perempuan Tiri' : 'Anak Lelaki Tiri', '', 'step_child');
+    }
+    if (via.type === 'cousin') return TTL_wrap('Sepupu Ipar', '', 'cousin_in_law');
     return TTL_wrap('Keluarga Mertua', '', 'in_law');
+  }
+
+  if (rel.direction === 'spouse_of_spouses_relative' && via) {
+    // Married to your spouse's sibling.
+    if (via.type === 'sibling') return TTL_wrap('Biras', '', 'biras');
+    if (via.type === 'cousin') return TTL_wrap('Biras Sepupu', '', 'biras');
+    if (via.type === 'auncle') return TTL_wrap(TTL_malayAuncle(via, isF, settings), '', 'auncle_by_marriage');
+    return TTL_wrap('Keluarga Semenda', '', 'in_law');
   }
 
   if (rel.direction === 'spouse_of_relative' && via) {
@@ -354,6 +370,18 @@ function TTL_englishInLaw(rel) {
   if (via && via.type === 'auncle') {
     return TTL_wrap(isF ? 'Aunt by marriage' : 'Uncle by marriage', '', 'auncle_in_law');
   }
+  if (via && via.type === 'nibling' && rel.direction === 'relative_of_spouse') {
+    return TTL_wrap(isF ? 'Niece by marriage' : 'Nephew by marriage', '', 'nibling_in_law');
+  }
+  if (via && via.type === 'descendant' && rel.direction === 'relative_of_spouse') {
+    return TTL_wrap(isF ? 'Stepdaughter' : 'Stepson', '', 'step_child');
+  }
+  if (rel.direction === 'spouse_of_spouses_relative') {
+    // English has no word for this: the people married to your spouse's
+    // siblings. Speakers reach for brother- or sister-in-law and leave the
+    // distinction unsaid.
+    return TTL_wrap(isF ? 'Sister-in-law' : 'Brother-in-law', '', 'biras');
+  }
   return TTL_wrap('In-law', '', 'in_law');
 }
 
@@ -462,8 +490,14 @@ function TTL_arabicInLaw(rel) {
   if (via && via.type === 'descendant' && via.generations === 1 && rel.direction === 'spouse_of_relative') {
     return TTL_wrap(isF ? 'Kannah' : 'Sihr', isF ? 'كنة' : 'صهر', 'child_in_law');
   }
-  if (via && via.type === 'sibling') {
+  if (via && via.type === 'sibling' && rel.direction !== 'spouse_of_spouses_relative') {
     return TTL_wrap(isF ? 'Salifah' : 'Sihr', isF ? 'سليفة' : 'صهر', 'sibling_in_law');
+  }
+  if (rel.direction === 'spouse_of_spouses_relative') {
+    return TTL_wrap(isF ? 'Silfah' : 'Silf', isF ? 'سلفة' : 'سلف', 'biras');
+  }
+  if (via && via.type === 'nibling') {
+    return TTL_wrap(isF ? 'Bint al-Akh' : 'Ibn al-Akh', isF ? 'بنت الأخ' : 'ابن الأخ', 'nibling_in_law');
   }
   return TTL_wrap('Qarib bil-musaharah', 'قريب بالمصاهرة', 'in_law');
 }

@@ -98,6 +98,32 @@ say who knew this, not who clicked yes.
 - **A field a client should not write.** Only known fields survive sanitising,
   so nothing submitted can reach `role`, `status` or a merge pointer.
 
+## The canvas
+
+`13_Layout.gs` places people on a chart and derives the connectors. Three things
+about it are worth knowing.
+
+**A family is not a tree.** People marry, so two lines of descent join and a
+node can have parents on different branches. Generations are therefore assigned
+by walking outward from each person rather than counting depth from a root --
+there is no single root once two families join through a marriage — and spouses
+are pulled onto the same row as each other.
+
+**Couples are laid out as one object.** Children descend from the point between
+their parents, not from either individually. The overlap pass works over blocks,
+where a married pair is one rigid block that nothing can be placed inside: when
+it resolved person by person, a sibling could slide between two spouses without
+technically overlapping either of them.
+
+**The connectors are derived, never stored.** `LAY_edges` builds them from
+wherever the cards are at that instant, so a dragged card takes its lines with
+it and nothing has to be invalidated.
+
+Positions are a starting point, not a verdict. No layout algorithm knows how a
+family thinks of itself, so every card can be dragged; a member's arrangement
+stays in their own browser, and an admin can commit one for everybody
+(`map_x`/`map_y` on the People tab).
+
 ## What a merge does, and deliberately does not do
 
 Merging is the most destructive operation here, so it is built to be survivable.
@@ -130,6 +156,7 @@ states what it knows; the family adds the rest.
 | `06_Kinship.gs` | classifying a pair into a relationship |
 | `07_Titles.gs` | naming it, in Malay, English or Arabic |
 | `08_Matching.gs` | duplicate detection |
+| `13_Layout.gs` | placing the family on a canvas, and the lines between them |
 | `09_Merge.gs` | folding two records into one |
 | `10_Admin.gs` | approvals, invitations, access |
 | `11_Api.gs` | the call surface |

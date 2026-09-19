@@ -956,6 +956,7 @@ function runSearch(q) {
  * ------------------------------------------------------------------ */
 
 document.getElementById('btnHome').onclick = function () { loadView(null); };
+document.getElementById('btnMap').onclick = openMap;
 document.getElementById('btnMenu').onclick = openSettings;
 document.getElementById('btnAdmin').onclick = openAdmin;
 
@@ -1233,6 +1234,432 @@ function wireAdmin() {
       toast('Found ' + r.added + ' new to check.'); openAdmin();
     }).catch(function (e) { busy(rescan, false); fail(e); });
   };
+}
+
+/* ------------------------------------------------------------------ *
+ * The whole tree, as a chart
+ * ------------------------------------------------------------------ */
+
+/**
+ * A second way to look at the same family.
+ *
+ * The me-centred screen answers "who is around me" and scales to any number of
+ * people. It cannot answer "how does all of this fit together", which is the
+ * question a family reaches for a wall chart to settle -- so this draws one,
+ * with the cards still labelled from whoever is reading.
+ *
+ * Cards are draggable because no layout algorithm knows how a family thinks of
+ * itself. An admin can save an arrangement for everyone; anyone else's stays in
+ * their own browser.
+ */
+var MAP = {
+  on: false, data: null, pos: {}, els: {}, sel: null,
+  scale: 1, tx: 0, ty: 0, dirty: false, M: null
+};
+
+var MAP_LEGIBLE = 0.62;
+var MAP_PAD = 90;
+var MAP_STORE = 'familyTreeMapPositions';
+
+function openMap() {
+  if (document.getElementById('mapwrap')) return;
+
+  var wrap = document.createElement('div');
+  wrap.className = 'mapwrap';
+  wrap.id = 'mapwrap';
+  wrap.innerHTML =
+    '<div class="maptop">' +
+      '<button class="icon-btn" id="mapClose" title="Back">&#8592;</button>' +
+      '<div class="ttl">Whole family</div>' +
+      '<button class="icon-btn" id="mapMe" title="Find me">&#9673;</button>' +
+      '<button class="icon-btn" id="mapFit" title="Fit everyone">&#9635;</button>' +
+      '<button class="icon-btn" id="mapTidy" title="Re-arrange">&#8634;</button>' +
+    '</div>' +
+    '<div class="stage" id="stage"><div class="world" id="world">' +
+      '<svg id="wires"></svg></div></div>' +
+    '<div class="mapfoot" id="mapfoot"><div class="who">' +
+      '<div class="nm">Loading&hellip;</div></div></div>';
+  document.body.appendChild(wrap);
+  MAP.on = true;
+
+  document.getElementById('mapClose').onclick = closeMap;
+  document.getElementById('mapFit').onclick = mapFit;
+  document.getElementById('mapMe').onclick = function () {
+    mapFocus(MAP.data.viewerPersonId, Math.max(MAP.scale, 0.92));
+  };
+  document.getElementById('mapTidy').onclick = mapTidy;
+  mapBindStage();
+
+  call('api_map').then(function (data) {
+    MAP.data = data;
+    MAP.M = data.metrics;
+    mapResetPositions();
+    mapLoadPositions();
+    mapBuild();
+    mapDescribe(null);
+    requestAnimationFrame(mapOpeningView);
+  }).catch(function (e) { closeMap(); fail(e); });
+}
+
+function closeMap() {
+  var wrap = document.getElementById('mapwrap');
+  if (wrap) wrap.remove();
+  MAP.on = false;
+  MAP.els = {};
+  MAP.sel = null;
+}
+
+function mapResetPositions() {
+  var minX = Infinity, minY = Infinity;
+  for (var id in MAP.data.positions) {
+    if (!MAP.data.positions.hasOwnProperty(id)) continue;
+    minX = Math.min(minX, MAP.data.positions[id].x);
+    minY = Math.min(minY, MAP.data.positions[id].y);
+  }
+  MAP.pos = {};
+  for (var k in MAP.data.positions) {
+    if (!MAP.data.positions.hasOwnProperty(k)) continue;
+    MAP.pos[k] = {
+      x: MAP.data.positions[k].x - minX + MAP_PAD,
+      y: MAP.data.positions[k].y - minY + MAP_PAD
+    };
+  }
+}
+
+/* A member's own arrangement is a per-viewer convenience: it stays in their
+ * browser, and the chart has to render correctly when it is not there. */
+function mapSavePositions() {
+  try { localStorage.setItem(MAP_STORE, JSON.stringify(MAP.pos)); } catch (e) {}
+}
+
+function mapLoadPositions() {
+  try {
+    var raw = localStorage.getItem(MAP_STORE);
+    if (!raw) return;
+    var saved = JSON.parse(raw);
+    for (var id in MAP.pos) {
+      if (MAP.pos.hasOwnProperty(id) && saved[id] &&
+          typeof saved[id].x === 'number' && typeof saved[id].y === 'number') {
+        MAP.pos[id] = { x: saved[id].x, y: saved[id].y };
+      }
+    }
+  } catch (e) { /* render from the computed layout instead */ }
+}
+
+function mapBuild() {
+  var world = document.getElementById('world');
+  Array.prototype.slice.call(world.querySelectorAll('.mnode')).forEach(function (n) { n.remove(); });
+  MAP.els = {};
+
+  for (var i = 0; i < MAP.data.people.length; i++) {
+    var p = MAP.data.people[i];
+    var el = document.createElement('div');
+    el.className = 'mnode ' + (p.gender === 'F' ? 'f' : p.gender === 'M' ? 'm' : '') +
+      (p.isYou ? ' you' : '');
+    el.setAttribute('data-id', p.personId);
+    el.innerHTML =
+      '<div class="t">' + esc(p.isYou ? 'You' : p.yourTitle) + '</div>' +
+      '<div class="n">' + esc(mapShortName(p.name)) + '</div>' +
+      '<div class="y">' + esc(year(p.birthDate)) + (p.isLiving ? '' : ' \u2013') + '</div>';
+    world.appendChild(el);
+    MAP.els[p.personId] = el;
+  }
+  mapPlace();
+}
+
+/** Malay names state the father after bin or binti; the card shows the part
+ *  that is actually the person's own name. */
+function mapShortName(full) {
+  var parts = String(full).split(/\s+/);
+  for (var i = 0; i < parts.length; i++) {
+    if (/^(bin|binte|binti|bte|bt)\.?$/i.test(parts[i])) return parts.slice(0, i).join(' ');
+  }
+  return parts.slice(0, 3).join(' ');
+}
+
+function mapPlace() {
+  for (var id in MAP.els) {
+    if (!MAP.els.hasOwnProperty(id)) continue;
+    MAP.els[id].style.left = (MAP.pos[id].x - MAP.M.NODE_W / 2) + 'px';
+    MAP.els[id].style.top = (MAP.pos[id].y - MAP.M.NODE_H / 2) + 'px';
+  }
+  mapWires();
+}
+
+/** Connectors are derived from where the cards are now, so a dragged card
+ *  takes its lines with it and nothing needs invalidating. */
+function mapWires() {
+  var edges = LAY_edges(MAP.data.units, MAP.pos, MAP.M);
+
+  var near = mapNeighbourhood();
+  var maxX = 0, maxY = 0;
+  for (var id in MAP.pos) {
+    if (!MAP.pos.hasOwnProperty(id)) continue;
+    maxX = Math.max(maxX, MAP.pos[id].x + MAP.M.NODE_W);
+    maxY = Math.max(maxY, MAP.pos[id].y + MAP.M.NODE_H);
+  }
+
+  var out = ['<defs><marker id="mar" viewBox="0 0 8 8" refX="7" refY="4" ' +
+    'markerWidth="7" markerHeight="7" orient="auto">' +
+    '<path d="M0 0 L8 4 L0 8 z" fill="currentColor"/></marker></defs>'];
+
+  for (var i = 0; i < edges.length; i++) {
+    var e = edges[i];
+    var lit = near && ((e.childId && near[e.childId]) ||
+      (e.kind === 'union' && near.__union[e.unionId]));
+    var fade = near && !lit ? ' opacity="0.28"' : '';
+
+    if (e.kind === 'union') {
+      out.push('<path d="M ' + e.x1 + ' ' + e.y1 + ' L ' + e.x2 + ' ' + e.y2 +
+        '" stroke="var(--warn)" stroke-width="' + (lit ? 3.4 : 2.4) +
+        '" fill="none" stroke-linecap="round"' + fade + '/>');
+      out.push('<circle cx="' + e.midX + '" cy="' + e.midY + '" r="4" ' +
+        'fill="var(--warn)"' + fade + '/>');
+    } else if (e.kind === 'stem') {
+      out.push('<path d="M ' + e.x1 + ' ' + e.y1 + ' L ' + e.x2 + ' ' + e.y2 +
+        '" stroke="currentColor" stroke-width="' + (lit ? 2.4 : 1.6) +
+        '" fill="none"' + fade + '/>');
+    } else {
+      out.push('<path d="' + LAY_descentPath(e, 12) + '" stroke="currentColor" ' +
+        'stroke-width="' + (lit ? 2.4 : 1.6) + '" fill="none" stroke-linejoin="round" ' +
+        'marker-end="url(#mar)"' + fade + '/>');
+    }
+  }
+
+  var svg = document.getElementById('wires');
+  svg.setAttribute('width', maxX + MAP_PAD);
+  svg.setAttribute('height', maxY + MAP_PAD);
+  svg.style.color = MAP.sel ? 'var(--accent)' : 'var(--ink-3)';
+  svg.innerHTML = out.join('');
+}
+
+function mapNeighbourhood() {
+  if (!MAP.sel) return null;
+  var near = { __union: {} };
+  near[MAP.sel] = true;
+  for (var i = 0; i < MAP.data.units.length; i++) {
+    var u = MAP.data.units[i];
+    if (u.partners.indexOf(MAP.sel) !== -1) {
+      near.__union[u.unionId] = true;
+      for (var p = 0; p < u.partners.length; p++) near[u.partners[p]] = true;
+      for (var c = 0; c < u.children.length; c++) near[u.children[c]] = true;
+    }
+    if (u.children.indexOf(MAP.sel) !== -1) {
+      near.__union[u.unionId] = true;
+      for (var q = 0; q < u.partners.length; q++) near[u.partners[q]] = true;
+      for (var k = 0; k < u.children.length; k++) near[u.children[k]] = true;
+    }
+  }
+  return near;
+}
+
+function mapHighlight() {
+  var near = mapNeighbourhood();
+  for (var id in MAP.els) {
+    if (!MAP.els.hasOwnProperty(id)) continue;
+    MAP.els[id].classList.toggle('lit', !!(near && id === MAP.sel));
+    MAP.els[id].classList.toggle('dim', !!(near && !near[id]));
+  }
+}
+
+/* ---- viewport ---- */
+
+function mapTransform() {
+  document.getElementById('world').style.transform =
+    'translate(' + MAP.tx + 'px,' + MAP.ty + 'px) scale(' + MAP.scale + ')';
+}
+
+function mapBox() {
+  var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (var id in MAP.pos) {
+    if (!MAP.pos.hasOwnProperty(id)) continue;
+    minX = Math.min(minX, MAP.pos[id].x - MAP.M.NODE_W / 2);
+    minY = Math.min(minY, MAP.pos[id].y - MAP.M.NODE_H / 2);
+    maxX = Math.max(maxX, MAP.pos[id].x + MAP.M.NODE_W / 2);
+    maxY = Math.max(maxY, MAP.pos[id].y + MAP.M.NODE_H / 2);
+  }
+  return { minX: minX, minY: minY, w: maxX - minX + 48, h: maxY - minY + 48 };
+}
+
+function mapFit() {
+  var stage = document.getElementById('stage');
+  var box = mapBox();
+  MAP.scale = Math.max(0.1, Math.min(1.15,
+    Math.min(stage.clientWidth / box.w, stage.clientHeight / box.h)));
+  MAP.tx = (stage.clientWidth - box.w * MAP.scale) / 2 - (box.minX - 24) * MAP.scale;
+  MAP.ty = (stage.clientHeight - box.h * MAP.scale) / 2 - (box.minY - 24) * MAP.scale;
+  mapTransform();
+}
+
+function mapFocus(id, scale) {
+  var stage = document.getElementById('stage');
+  if (!MAP.pos[id]) return mapFit();
+  MAP.scale = scale || Math.max(MAP.scale, MAP_LEGIBLE);
+  MAP.tx = stage.clientWidth / 2 - MAP.pos[id].x * MAP.scale;
+  MAP.ty = stage.clientHeight / 2 - MAP.pos[id].y * MAP.scale;
+  mapTransform();
+}
+
+/**
+ * Fitting a large family onto a phone leaves the names too small to read, so
+ * the chart opens on the person reading it and keeps the overview as a button.
+ */
+function mapOpeningView() {
+  var stage = document.getElementById('stage');
+  var box = mapBox();
+  var fitScale = Math.min(stage.clientWidth / box.w, stage.clientHeight / box.h);
+  if (fitScale >= MAP_LEGIBLE) mapFit();
+  else mapFocus(MAP.data.viewerPersonId, 0.92);
+}
+
+function mapTidy() {
+  if (MAP.data.canSaveLayout && MAP.dirty) {
+    if (confirm('Save this arrangement for the whole family?')) return mapCommit();
+  }
+  try { localStorage.removeItem(MAP_STORE); } catch (e) {}
+  mapResetPositions();
+  mapPlace();
+  mapOpeningView();
+  toast('Back to the suggested layout.');
+}
+
+function mapCommit() {
+  call('api_saveMapLayout', MAP.pos).then(function (r) {
+    MAP.dirty = false;
+    toast('Layout saved for everyone (' + r.count + ' cards).');
+  }).catch(fail);
+}
+
+function mapDescribe(id) {
+  var foot = document.getElementById('mapfoot');
+  if (!id) {
+    foot.innerHTML = '<div class="who"><div class="nm">Tap a card</div>' +
+      '<div class="sub2">Drag to rearrange' +
+      (MAP.data && MAP.data.canSaveLayout ? ', then save it for everyone' : '') +
+      '. Pinch or scroll to zoom.</div></div>';
+    return;
+  }
+  var p = null;
+  for (var i = 0; i < MAP.data.people.length; i++) {
+    if (MAP.data.people[i].personId === id) p = MAP.data.people[i];
+  }
+  if (!p) return;
+
+  foot.innerHTML =
+    '<div class="who"><div class="nm">' + esc(p.name) + '</div>' +
+    '<div class="sub2">You call them <strong>' + esc(p.yourTitle) + '</strong>' +
+    (p.birthDate ? ' \u00b7 born ' + esc(year(p.birthDate)) : '') + '</div></div>' +
+    '<button class="btn sm" id="mapOpen">Open</button>' +
+    (MAP.data.canSaveLayout && MAP.dirty
+      ? '<button class="btn sm ghost" id="mapSave">Save layout</button>' : '');
+
+  document.getElementById('mapOpen').onclick = function () { openPerson(id); };
+  var save = document.getElementById('mapSave');
+  if (save) save.onclick = mapCommit;
+}
+
+/* ---- pointer handling ---- */
+
+function mapBindStage() {
+  var stage = document.getElementById('stage');
+  var drag = null, pan = null, pinch = null;
+
+  stage.addEventListener('pointerdown', function (e) {
+    var node = e.target.closest('.mnode');
+    if (node) {
+      var id = node.getAttribute('data-id');
+      drag = { id: id, pointer: e.pointerId, moved: false,
+               dx: e.clientX / MAP.scale - MAP.pos[id].x,
+               dy: e.clientY / MAP.scale - MAP.pos[id].y };
+      node.classList.add('dragging');
+      node.setPointerCapture(e.pointerId);
+      return;
+    }
+    pan = { x: e.clientX - MAP.tx, y: e.clientY - MAP.ty, pointer: e.pointerId };
+    stage.classList.add('panning');
+    stage.setPointerCapture(e.pointerId);
+  });
+
+  stage.addEventListener('pointermove', function (e) {
+    if (drag && e.pointerId === drag.pointer) {
+      MAP.pos[drag.id].x = e.clientX / MAP.scale - drag.dx;
+      MAP.pos[drag.id].y = e.clientY / MAP.scale - drag.dy;
+      drag.moved = true;
+      MAP.els[drag.id].style.left = (MAP.pos[drag.id].x - MAP.M.NODE_W / 2) + 'px';
+      MAP.els[drag.id].style.top = (MAP.pos[drag.id].y - MAP.M.NODE_H / 2) + 'px';
+      mapWires();
+      return;
+    }
+    if (pan && e.pointerId === pan.pointer) {
+      MAP.tx = e.clientX - pan.x;
+      MAP.ty = e.clientY - pan.y;
+      mapTransform();
+    }
+  });
+
+  function release(e) {
+    if (drag && e.pointerId === drag.pointer) {
+      MAP.els[drag.id].classList.remove('dragging');
+      if (drag.moved) {
+        MAP.dirty = true;
+        mapSavePositions();
+        mapDescribe(MAP.sel);
+      } else {
+        MAP.sel = MAP.sel === drag.id ? null : drag.id;
+        mapHighlight(); mapWires(); mapDescribe(MAP.sel);
+      }
+      drag = null;
+    }
+    if (pan && e.pointerId === pan.pointer) {
+      pan = null;
+      stage.classList.remove('panning');
+    }
+  }
+  stage.addEventListener('pointerup', release);
+  stage.addEventListener('pointercancel', release);
+
+  stage.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    var rect = stage.getBoundingClientRect();
+    var mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    var next = Math.max(0.1, Math.min(2.2, MAP.scale * Math.exp(-e.deltaY * 0.0015)));
+    MAP.tx = mx - (mx - MAP.tx) * (next / MAP.scale);
+    MAP.ty = my - (my - MAP.ty) * (next / MAP.scale);
+    MAP.scale = next;
+    mapTransform();
+  }, { passive: false });
+
+  stage.addEventListener('touchstart', function (e) {
+    if (e.touches.length === 2) {
+      pinch = { dist: mapTouchGap(e.touches), scale: MAP.scale,
+                cx: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+                cy: (e.touches[0].clientY + e.touches[1].clientY) / 2,
+                tx: MAP.tx, ty: MAP.ty };
+      drag = null; pan = null;
+    }
+  }, { passive: true });
+
+  stage.addEventListener('touchmove', function (e) {
+    if (!pinch || e.touches.length !== 2) return;
+    e.preventDefault();
+    var rect = stage.getBoundingClientRect();
+    var next = Math.max(0.1, Math.min(2.2,
+      pinch.scale * (mapTouchGap(e.touches) / pinch.dist)));
+    var mx = pinch.cx - rect.left, my = pinch.cy - rect.top;
+    MAP.tx = mx - (mx - pinch.tx) * (next / pinch.scale);
+    MAP.ty = my - (my - pinch.ty) * (next / pinch.scale);
+    MAP.scale = next;
+    mapTransform();
+  }, { passive: false });
+
+  stage.addEventListener('touchend', function (e) {
+    if (e.touches.length < 2) pinch = null;
+  }, { passive: true });
+}
+
+function mapTouchGap(t) {
+  var dx = t[0].clientX - t[1].clientX, dy = t[0].clientY - t[1].clientY;
+  return Math.sqrt(dx * dx + dy * dy) || 1;
 }
 
 /* ------------------------------------------------------------------ *

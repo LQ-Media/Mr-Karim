@@ -176,6 +176,128 @@ function api_person(idToken, personId) {
   });
 }
 
+/**
+ * The whole family as a chart: where each card sits, and what joins them.
+ *
+ * A me-centred list answers "who is around me"; this answers "how does all of
+ * this fit together", which is the question families reach for a wall chart to
+ * settle. Titles are still worked out for whoever is reading, so the same chart
+ * says Atuk to one person and Bapa Mertua to another.
+ *
+ * Positions saved by an admin come back as they were arranged. Anyone the
+ * family has not placed by hand is positioned by the layout engine, so a person
+ * added this morning appears somewhere sensible rather than at the origin.
+ */
+function api_map(idToken) {
+  return API_run(idToken, function (session) {
+    AUTH_requireActive(session);
+    var graph = ST_graph();
+    var settings = ST_settings();
+    var layout = LAY_compute(graph, {});
+
+    var people = [];
+    var positions = {};
+
+    for (var id in graph.people) {
+      if (!Object.prototype.hasOwnProperty.call(graph.people, id)) continue;
+      var person = graph.people[id];
+      var title = TTL_title(graph, session.personId, id, session.lang, settings);
+
+      people.push({
+        personId: id,
+        name: person.display_name,
+        gender: person.gender,
+        birthDate: person.birth_date,
+        isLiving: person.is_living !== 'FALSE',
+        hasPhoto: !!person.photo_thumb_id,
+        yourTitle: title.label,
+        titleScript: title.script,
+        isYou: id === session.personId
+      });
+
+      var savedX = Number(person.map_x);
+      var savedY = Number(person.map_y);
+      var placed = person.map_x !== '' && person.map_y !== '' &&
+                   !isNaN(savedX) && !isNaN(savedY);
+      positions[id] = placed
+        ? { x: savedX, y: savedY }
+        : { x: layout.nodes[id].x, y: layout.nodes[id].y };
+    }
+
+    var units = [];
+    for (var u = 0; u < layout.units.length; u++) {
+      units.push({
+        partners: layout.units[u].partners,
+        children: layout.units[u].children,
+        unionId: layout.units[u].union ? layout.units[u].union.union_id : '',
+        unionStatus: layout.units[u].union ? layout.units[u].union.status : ''
+      });
+    }
+
+    return {
+      people: people,
+      positions: positions,
+      units: units,
+      metrics: layout.metrics,
+      viewerPersonId: session.personId,
+      canSaveLayout: session.isAdmin
+    };
+  });
+}
+
+/**
+ * Saves an arrangement for the whole family.
+ *
+ * Restricted to admins because there is one chart and it is shared: a relative
+ * tidying their own corner should not rearrange everyone else's. Members drag
+ * freely and their arrangement stays in their own browser until an admin
+ * commits one.
+ */
+function api_saveMapLayout(idToken, positions) {
+  return API_run(idToken, function (session) {
+    AUTH_requireAdmin(session);
+    var graph = ST_graph();
+    var saved = 0;
+
+    for (var id in positions) {
+      if (!Object.prototype.hasOwnProperty.call(positions, id)) continue;
+      if (!graph.people[id]) continue;
+
+      var x = Number(positions[id].x);
+      var y = Number(positions[id].y);
+      if (isNaN(x) || isNaN(y)) continue;
+      // A card dragged far outside any plausible canvas is a bug, not a choice.
+      if (Math.abs(x) > 500000 || Math.abs(y) > 500000) continue;
+
+      ST_update('People', 'person_id', id, {
+        map_x: Math.round(x), map_y: Math.round(y)
+      });
+      saved++;
+    }
+
+    ST_audit(session.email, 'save_map_layout', 'People', '', { count: saved });
+    ST_invalidate();
+    return { status: 'saved', count: saved };
+  });
+}
+
+/** Clears the saved arrangement so the layout engine places everyone again. */
+function api_resetMapLayout(idToken) {
+  return API_run(idToken, function (session) {
+    AUTH_requireAdmin(session);
+    var people = ST_readAll('People');
+    var cleared = 0;
+    for (var i = 0; i < people.length; i++) {
+      if (people[i].map_x === '' && people[i].map_y === '') continue;
+      ST_update('People', 'person_id', people[i].person_id, { map_x: '', map_y: '' });
+      cleared++;
+    }
+    ST_audit(session.email, 'reset_map_layout', 'People', '', { count: cleared });
+    ST_invalidate();
+    return { status: 'reset', count: cleared };
+  });
+}
+
 function api_search(idToken, query) {
   return API_run(idToken, function (session) {
     AUTH_requireActive(session);

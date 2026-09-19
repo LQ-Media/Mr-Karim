@@ -1,0 +1,9 @@
+{
+  "name": "pokok-keluarga",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Collaborative family tree web app on Google Apps Script",
+  "scripts": {
+    "test": "node tests/run.js"
+  }
+}

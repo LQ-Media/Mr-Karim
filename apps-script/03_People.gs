@@ -438,3 +438,190 @@ function PPL_explainSignals(signals) {
   }
   return out;
 }
+
+/* ------------------------------------------------------------------ *
+ * Entering several people at once
+ * ------------------------------------------------------------------ */
+
+var PPL_BATCH_LIMIT = 25;
+
+/**
+ * Adds a whole set of children, or a whole set of siblings, in one go.
+ *
+ * Entering a family of two hundred one person at a time is the thing most
+ * likely to kill a project like this before the tree is ever interesting, and
+ * families do not recall themselves one person at a time. They recite a
+ * generation in order: the eldest is Osman, then Fatimah, then Rahim.
+ *
+ * So the rows arrive oldest first and their position becomes their birth order,
+ * which is exactly the fact the Malay titles need and the one thing the shape of
+ * the tree can never supply. Capturing it as a side effect of how people
+ * naturally list their family is far more reliable than asking for it.
+ *
+ * Every row is still checked against the tree. Where a row might already exist
+ * nothing is written at all and the whole batch comes back for the author to
+ * resolve, so a half-applied batch can never leave the tree in a state nobody
+ * intended.
+ */
+function PPL_addBatch(session, anchorId, relationship, rows, decisions) {
+  AUTH_requireActive(session);
+  if (relationship !== 'child_of' && relationship !== 'sibling_of') {
+    throw new Error('Only children or siblings can be added in a batch.');
+  }
+  if (!rows || !rows.length) throw new Error('Nobody was entered.');
+  if (rows.length > PPL_BATCH_LIMIT) {
+    throw new Error('Please add at most ' + PPL_BATCH_LIMIT + ' people at a time.');
+  }
+
+  var graph = ST_graph();
+  var anchor = graph.people[anchorId];
+  if (!anchor) throw new Error('The person you are adding to no longer exists.');
+
+  var settings = ST_settings();
+  var threshold = Number(settings.match_suggest_threshold) || 55;
+  var cleaned = [];
+  var needsReview = false;
+
+  for (var i = 0; i < rows.length; i++) {
+    var clean = PPL_sanitise(rows[i]);
+    if (!clean.display_name) continue;
+
+    var decision = (decisions && decisions[String(i)]) || null;
+    var entry = { index: i, data: clean, decision: decision, candidates: [] };
+
+    if (!decision) {
+      entry.candidates = PPL_describeCandidates(
+        graph, session, MTC_findCandidates(graph, clean, threshold, 4));
+      if (entry.candidates.length) needsReview = true;
+    }
+    cleaned.push(entry);
+  }
+
+  if (!cleaned.length) throw new Error('Nobody was entered.');
+  if (needsReview) {
+    return {
+      status: 'possible_duplicate',
+      rows: cleaned.map(function (e) {
+        return { index: e.index, name: e.data.display_name, candidates: e.candidates };
+      })
+    };
+  }
+
+  if (!AUTH_canEditDirectly(session, graph, anchorId)) {
+    var change = PPL_queueChange(session, 'add_batch', anchorId,
+      { anchorId: anchorId, relationship: relationship, rows: cleaned },
+      'Add ' + cleaned.length + ' ' + (relationship === 'child_of' ? 'children' : 'siblings') +
+      ' to ' + anchor.display_name);
+    return { status: 'pending_approval', changeId: change.change_id };
+  }
+
+  return PPL_applyBatch(session.email, anchorId, relationship, cleaned);
+}
+
+function PPL_applyBatch(actorEmail, anchorId, relationship, entries) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var created = [];
+    var linked = 0;
+    var skipped = 0;
+
+    // Continue the numbering from whoever is already recorded, so a generation
+    // entered in two sittings still ends up in one sequence.
+    var startOrder = PPL_highestBirthOrder(anchorId, relationship);
+
+    for (var i = 0; i < entries.length; i++) {
+      var entry = entries[i];
+      var action = entry.decision ? entry.decision.action : 'create';
+
+      if (action === 'skip') { skipped++; continue; }
+
+      if (action === 'link' && entry.decision.personId) {
+        PPL_link(actorEmail, anchorId, entry.decision.personId, relationship, entry.data);
+        linked++;
+        continue;
+      }
+
+      var data = entry.data;
+      if (!data.birth_order) {
+        data = PPL_withBirthOrder(data, startOrder + created.length + 1);
+      }
+      var person = PPL_applyCreate(actorEmail, anchorId, relationship, data);
+      created.push(person.person_id);
+    }
+
+    ST_audit(actorEmail, 'add_batch', 'People', anchorId,
+      { created: created.length, linked: linked, skipped: skipped });
+    ST_invalidate();
+
+    return { status: 'created', created: created.length, linked: linked, skipped: skipped };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function PPL_withBirthOrder(data, order) {
+  var copy = {};
+  for (var key in data) {
+    if (Object.prototype.hasOwnProperty.call(data, key)) copy[key] = data[key];
+  }
+  copy.birth_order = order;
+  return copy;
+}
+
+/** The highest rank already recorded among the siblings this batch joins. */
+function PPL_highestBirthOrder(anchorId, relationship) {
+  var graph = ST_graph();
+  var existing = relationship === 'child_of'
+    ? KIN_childrenOf(graph, anchorId)
+    : KIN_siblingsOf(graph, anchorId).concat([anchorId]);
+
+  var highest = 0;
+  for (var i = 0; i < existing.length; i++) {
+    var person = graph.people[existing[i]];
+    var order = person ? Number(person.birth_order) : 0;
+    if (order && order > highest) highest = order;
+  }
+  return highest || existing.length;
+}
+
+/**
+ * Re-ranks a set of siblings.
+ *
+ * A generation entered out of order produces wrong titles -- the eldest uncle
+ * called Pak Su -- and the family will notice immediately, because these words
+ * are used daily. This is the correction, and it is deliberately a direct
+ * statement of the order rather than an edit of one person's number, since the
+ * ranks only mean anything relative to each other.
+ */
+function PPL_reorderSiblings(session, parentId, orderedIds) {
+  AUTH_requireActive(session);
+  var graph = ST_graph();
+  if (!graph.people[parentId]) throw new Error('That person is no longer in the tree.');
+  if (!AUTH_canEditDirectly(session, graph, parentId)) {
+    throw new Error('Only a family tree admin, or someone closer to this family, can reorder them.');
+  }
+
+  var children = KIN_childrenOf(graph, parentId);
+  for (var i = 0; i < orderedIds.length; i++) {
+    if (children.indexOf(orderedIds[i]) === -1) {
+      throw new Error('That person is not a child of ' + graph.people[parentId].display_name + '.');
+    }
+  }
+  if (orderedIds.length !== children.length) {
+    throw new Error('Every child must be included when reordering.');
+  }
+
+  for (var k = 0; k < orderedIds.length; k++) {
+    ST_update('People', 'person_id', orderedIds[k], {
+      birth_order: k + 1,
+      birth_order_source: 'manual',
+      updated_by: session.email,
+      updated_at: ST_now()
+    });
+  }
+
+  ST_audit(session.email, 'reorder_siblings', 'People', parentId, { order: orderedIds });
+  ST_invalidate();
+  return { status: 'reordered', count: orderedIds.length };
+}

@@ -134,6 +134,68 @@ relatives from **☰ → Invite a relative**.
 
 ---
 
+## Getting two hundred people in
+
+This is the part that decides whether the project works. The kinship engine is
+worthless on a tree nobody finished entering, and two hundred people entered one
+form at a time is a weekend nobody has.
+
+### Build outward from yourself
+
+Every person is added through someone already in the tree, so the order you work
+in decides whether it stays in one piece:
+
+1. **Yourself**, then **your parents**, then **their parents** — as far up as you
+   can name. Stop where your memory does; someone else will know more.
+2. **Your parents' brothers and sisters**, entered *oldest first*. This is the
+   generation that produces Pak Long, Mak Ngah and Pak Su, so the order here is
+   worth a phone call to get right.
+3. **Their spouses**, then **their children** — your cousins.
+4. **Your spouse**, then **their parents**. That begins the second tree; the two
+   sides join through your marriage and the app works out the in-law titles from
+   there.
+5. **Your children**, and their families.
+
+The app shows a hint on your own record suggesting the next step, until the tree
+is big enough not to need it.
+
+### Add a whole generation at once
+
+On **Children** and **Brothers and sisters**, the card at the end of the row says
+**Add several**. It gives you a short list — name, son or daughter, birth year —
+and a new row appears as you type, so nine children take one screen rather than
+nine forms.
+
+**List them oldest first.** Their position becomes their birth order, which is
+exactly what decides whether an uncle ends up as Pak Long or Pak Su. Collecting
+it this way means you never have to think about it: you recite the family the way
+you already would, and the hardest fact in the system comes along for free.
+
+Got it wrong? **Reorder** in the Children section header fixes it in ten seconds.
+
+### What you can safely skip
+
+A name and a gender is enough to create someone. Birth dates, places and photos
+can be filled in later by whoever actually knows them — and that is the point of
+letting relatives in. Your job is the *shape* of the family; theirs is the detail.
+
+One exception: **enter the full name with bin or binti where you know it.**
+"Ahmad bin Ismail" tells the app who his father was, and that single fact is what
+stops your cousin from creating a second Ahmad next month.
+
+### Set your family's sibling titles first
+
+Before anyone else starts entering, open **⚙ → Settings** and check the sibling
+sequence. The default is `Long, Ngah, Alang, Anjang, Andak, Uda, Uteh`, with the
+youngest always `Su`, but families and regions differ — some use Teh in the third
+position, some a shorter run. The panel previews the titles as you type them.
+
+Get this right on day one. Relatives use these words daily, and a family shown
+the wrong name for an uncle they have called Pak Ngah their whole life will stop
+trusting everything else the app tells them.
+
+---
+
 ## Inviting people
 
 An invitation is tied to an email address, not to a secret link. The person must

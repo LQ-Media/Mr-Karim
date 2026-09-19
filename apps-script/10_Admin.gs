@@ -84,6 +84,9 @@ function ADM_applyChange(session, change, payload) {
     case 'add_union':
       PPL_addUnion(author, payload.aId, payload.bId, payload.data || {});
       return;
+    case 'add_batch':
+      PPL_applyBatch(author, payload.anchorId, payload.relationship, payload.rows);
+      return;
     case 'upload_photo':
       PHO_store(author, payload.personId, payload.payload);
       return;
@@ -288,6 +291,96 @@ function ADM_setCustomTitle(session, toPersonId, label, scope, lang) {
   });
   ST_invalidate();
   return { status: 'created', label: clean };
+}
+
+/* ------------------------------------------------------------------ *
+ * Settings
+ * ------------------------------------------------------------------ */
+
+/* Only these may be changed from the interface. Everything else on the Settings
+ * tab is either derived at install or too easy to break from a phone. */
+var ADM_EDITABLE_SETTINGS = {
+  family_name: 'text',
+  birth_order_titles: 'titles',
+  default_lang: 'lang',
+  allow_member_invites: 'bool',
+  merge_queue_threshold: 'score',
+  match_suggest_threshold: 'score'
+};
+
+function ADM_settings(session) {
+  AUTH_requireAdmin(session);
+  var current = ST_settings();
+  var out = {};
+  for (var key in ADM_EDITABLE_SETTINGS) {
+    if (Object.prototype.hasOwnProperty.call(ADM_EDITABLE_SETTINGS, key)) {
+      out[key] = current[key];
+    }
+  }
+  out.defaults = { birth_order_titles: DEFAULT_SETTINGS.birth_order_titles };
+  return out;
+}
+
+/**
+ * Saves the settings an admin may change.
+ *
+ * The birth-order sequence is the one that matters most. Long, Ngah, Alang and
+ * the rest vary by family and by region -- some use Alang third, some Teh, some
+ * a shorter run entirely -- and a family that sees the wrong word for an uncle
+ * they have called Pak Ngah their whole life will not trust anything else the
+ * app says. The youngest is always Su and is not part of the list.
+ */
+function ADM_saveSettings(session, changes) {
+  AUTH_requireAdmin(session);
+  var applied = {};
+
+  for (var key in changes) {
+    if (!Object.prototype.hasOwnProperty.call(changes, key)) continue;
+    var kind = ADM_EDITABLE_SETTINGS[key];
+    if (!kind) continue;
+
+    var value = ADM_cleanSetting(kind, changes[key]);
+    if (value === null) continue;
+    ST_setSetting(key, value);
+    applied[key] = value;
+  }
+
+  ST_audit(session.email, 'save_settings', 'Settings', '', applied);
+  ST_invalidate();
+  return { status: 'saved', applied: applied };
+}
+
+function ADM_cleanSetting(kind, raw) {
+  if (kind === 'text') {
+    var text = String(raw || '').replace(/^\s+|\s+$/g, '').substring(0, 80);
+    return text || null;
+  }
+
+  if (kind === 'titles') {
+    var parts = String(raw || '').split(',');
+    var titles = [];
+    for (var i = 0; i < parts.length && titles.length < 12; i++) {
+      // Titles are words, not markup: anything else would be rendered straight
+      // into a label next to somebody's name.
+      var word = parts[i].replace(/[^A-Za-z' -]/g, '').replace(/^\s+|\s+$/g, '');
+      if (word) titles.push(word.substring(0, 20));
+    }
+    return titles.length ? titles.join(',') : null;
+  }
+
+  if (kind === 'lang') return CFG.LANGS.indexOf(raw) !== -1 ? raw : null;
+
+  if (kind === 'bool') {
+    return (raw === true || String(raw).toUpperCase() === 'TRUE') ? 'TRUE' : 'FALSE';
+  }
+
+  if (kind === 'score') {
+    var n = parseInt(raw, 10);
+    if (isNaN(n) || n < 40 || n > 99) return null;
+    return String(n);
+  }
+
+  return null;
 }
 
 function ADM_parseJson(text) {

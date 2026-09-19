@@ -198,8 +198,47 @@ function renderView(v) {
   html += section('Brothers and sisters', v.siblings, v.centre, 'sibling_of', 'No siblings recorded');
   html += section('Children', v.children, v.centre, 'child_of', 'No children recorded');
 
+  html += nextStep(v);
+
   document.getElementById('view').innerHTML = html;
   wireCards();
+}
+
+/**
+ * What to enter next.
+ *
+ * Two hundred people is a lot of typing, and the order matters more than it
+ * looks: build upward and outward from yourself and every new person has
+ * somewhere to attach, which is what keeps the tree in one piece. Left to
+ * improvise, people add whoever comes to mind and end up with fragments.
+ *
+ * The hint only appears on your own record, and only while the tree is small
+ * enough for the advice to still be useful.
+ */
+function nextStep(v) {
+  if (!v.centre.isYou || S.me.treeSize > 60) return '';
+
+  var step = null;
+  if (!v.parents.length) {
+    step = 'Add <b>your parents</b> first, then their parents. Your side of the ' +
+           'family grows upward from you.';
+  } else if (!v.siblings.length && !v.spouses.length) {
+    step = 'Add <b>your brothers and sisters</b> &mdash; oldest first, so their ' +
+           'children get the right titles for them.';
+  } else if (!v.spouses.length) {
+    step = 'Add <b>your spouse</b>. Their family becomes the second tree, joined ' +
+           'to this one through your marriage.';
+  } else if (!v.children.length) {
+    step = 'Add <b>your children</b>, oldest first &mdash; and open your spouse to ' +
+           'add <b>their parents</b>, which starts their side of the family.';
+  } else {
+    step = 'Open <b>your spouse</b> and add <b>their parents</b> to build their side ' +
+           'of the family. Then work outward: each person&rsquo;s siblings, then their ' +
+           'children.';
+  }
+
+  return '<div class="nudge"><span class="mk">&#127793;</span>' +
+         '<span class="tx">' + step + '</span></div>';
 }
 
 function centreCard(p) {
@@ -238,13 +277,25 @@ function section(heading, people, centre, relationship, emptyText) {
     '</button>';
   });
 
+  // Children and siblings are entered a generation at a time, because that is
+  // how families recall themselves and because the order they are listed in is
+  // what the Malay titles need.
+  var batch = relationship === 'child_of' || relationship === 'sibling_of';
+
   if (centre.editable) {
-    cards.push('<button class="card add" data-add="' + relationship + '">' +
-      '<div class="plus">+</div><div class="nm">Add</div></button>');
+    cards.push('<button class="card add" data-add="' + relationship +
+      '" data-batch="' + (batch ? '1' : '0') + '">' +
+      '<div class="plus">+</div><div class="nm">' + (batch ? 'Add several' : 'Add') +
+      '</div></button>');
+  }
+
+  var tools = '';
+  if (relationship === 'child_of' && centre.editable && people.length > 1) {
+    tools = '<button class="add" data-reorder="1">Reorder</button>';
   }
 
   return '<div class="section">' +
-    '<div class="section-head"><h2>' + esc(heading) + '</h2></div>' +
+    '<div class="section-head"><h2>' + esc(heading) + '</h2>' + tools + '</div>' +
     (cards.length ? '<div class="row">' + cards.join('') + '</div>'
                   : '<div class="empty">' + esc(emptyText) + '</div>') +
   '</div>';
@@ -259,7 +310,14 @@ function wireCards() {
     el.onclick = function () { openPerson(el.getAttribute('data-open')); };
   });
   Array.prototype.forEach.call(view.querySelectorAll('[data-add]'), function (el) {
-    el.onclick = function () { openAdd(S.view.centre.personId, el.getAttribute('data-add')); };
+    el.onclick = function () {
+      var relationship = el.getAttribute('data-add');
+      if (el.getAttribute('data-batch') === '1') openBatch(S.view.centre.personId, relationship);
+      else openAdd(S.view.centre.personId, relationship);
+    };
+  });
+  Array.prototype.forEach.call(view.querySelectorAll('[data-reorder]'), function (el) {
+    el.onclick = function () { openReorder(); };
   });
 }
 
@@ -489,6 +547,214 @@ function showDuplicates(res, anchorId, relationship) {
     submitAdd(anchorId, relationship, true);
   };
   document.getElementById('sheet').scrollTop = 0;
+}
+
+/* ------------------------------------------------------------------ *
+ * Adding a generation at once
+ * ------------------------------------------------------------------ */
+
+var BATCH_WORDING = {
+  child_of: { title: 'Add children of ', noun: 'children' },
+  sibling_of: { title: 'Add brothers and sisters of ', noun: 'brothers and sisters' }
+};
+
+/**
+ * The fast path.
+ *
+ * Entering two hundred relatives one form at a time is what kills a family tree
+ * before it is worth looking at. Here a whole generation goes in at once, with
+ * only the three things somebody reliably knows off the top of their head: the
+ * name, whether they are a son or a daughter, and roughly when they were born.
+ *
+ * Listing them oldest first is not housekeeping. Their position becomes their
+ * birth order, which is precisely what decides whether an uncle is Pak Long or
+ * Pak Su -- so the app collects the hardest fact in the system as a side effect
+ * of the way people naturally recite a family.
+ */
+function openBatch(anchorId, relationship) {
+  var wording = BATCH_WORDING[relationship];
+  openSheet(
+    '<h2>' + wording.title + esc(S.view.centre.name) + '</h2>' +
+    '<div class="sub">List them <strong>oldest first</strong>. That order is what ' +
+      'decides their titles &mdash; Pak Long for the eldest, Pak Su for the youngest &mdash; ' +
+      'so it is worth getting right, and you can change it later.</div>' +
+    '<div id="batchRows"></div>' +
+    '<button class="btn ghost sm" id="addRow" style="width:100%;margin-top:4px">' +
+      '+ Another</button>' +
+    '<div class="btn-row"><button class="btn" id="batchSave">Add them</button>' +
+    '<button class="btn ghost" onclick="closeSheet()">Cancel</button></div>');
+
+  var rows = 0;
+  function addRow() {
+    rows++;
+    var i = rows;
+    var el = document.createElement('div');
+    el.className = 'batch-row';
+    el.innerHTML =
+      '<span class="ord">' + i + '</span>' +
+      '<input id="b_name_' + i + '" placeholder="Name" maxlength="120">' +
+      select('b_gender_' + i, [['U', '\u2014'], ['M', 'Son'], ['F', 'Daughter']], 'U') +
+      '<input id="b_year_' + i + '" type="number" placeholder="Year" min="1700" max="2100">';
+    document.getElementById('batchRows').appendChild(el);
+    if (i === 1) document.getElementById('b_name_1').focus();
+  }
+  for (var n = 0; n < 4; n++) addRow();
+
+  document.getElementById('addRow').onclick = addRow;
+  document.getElementById('batchSave').onclick = function () {
+    submitBatch(anchorId, relationship, rows, null);
+  };
+
+  // Typing in the last row adds another, so entering nine children never means
+  // stopping to press a button.
+  document.getElementById('batchRows').addEventListener('input', function (e) {
+    if (e.target.id === 'b_name_' + rows && e.target.value) addRow();
+  });
+}
+
+function readBatchRows(count) {
+  var rows = [];
+  for (var i = 1; i <= count; i++) {
+    var nameEl = document.getElementById('b_name_' + i);
+    if (!nameEl || !nameEl.value.trim()) continue;
+    var gender = document.getElementById('b_gender_' + i).value;
+    var yearEl = document.getElementById('b_year_' + i);
+    var row = { display_name: nameEl.value.trim(), full_name: nameEl.value.trim() };
+    if (gender !== 'U') row.gender = gender;
+    if (yearEl && yearEl.value) {
+      row.birth_date = yearEl.value + '-01-01';
+      row.birth_precision = 'year';
+    }
+    rows.push(row);
+  }
+  return rows;
+}
+
+function submitBatch(anchorId, relationship, rowCount, decisions) {
+  var rows = S.batchRows || readBatchRows(rowCount);
+  if (!rows.length) return toast('Enter at least one name.', true);
+  S.batchRows = rows;
+
+  var btn = document.getElementById('batchSave');
+  busy(btn, true);
+
+  call('api_addBatch', anchorId, relationship, rows, decisions).then(function (res) {
+    busy(btn, false);
+    if (res.status === 'possible_duplicate') {
+      return reviewBatch(res.rows, anchorId, relationship, rows);
+    }
+    S.batchRows = null;
+    closeSheet();
+    if (res.status === 'pending_approval') return toast('Sent to a family admin for approval.');
+    toast('Added ' + res.created + (res.linked ? ', linked ' + res.linked : '') + '.');
+    loadView(S.focusId);
+  }).catch(function (e) { busy(btn, false); S.batchRows = null; fail(e); });
+}
+
+/**
+ * Some of the batch might already be in the tree.
+ *
+ * Nothing was written -- a half-applied batch would leave the tree in a state
+ * nobody asked for -- so each uncertain row is settled here and the whole thing
+ * is sent again. Rows the app had no doubt about are not shown; there is nothing
+ * to decide about them.
+ */
+function reviewBatch(flagged, anchorId, relationship, rows) {
+  var uncertain = flagged.filter(function (r) { return r.candidates.length; });
+
+  openSheet(
+    '<h2>Some of these may already be here</h2>' +
+    '<div class="sub">Nothing has been saved yet. Link the ones you recognise, and ' +
+      'the rest will be added as new people.</div>' +
+    uncertain.map(function (row) {
+      return '<div class="dupe"><h3>' + esc(row.name) + '</h3>' +
+        row.candidates.map(function (c) {
+          return '<label class="match" style="cursor:pointer">' +
+            '<input type="radio" name="row' + row.index + '" value="' + c.personId +
+              '" style="width:auto;flex:none">' +
+            '<div class="who"><div class="nm">' + esc(c.fullName || c.name) + '</div>' +
+            '<div class="why">' + esc([c.fatherName ? 'father: ' + c.fatherName : '',
+              c.birthDate ? 'b. ' + year(c.birthDate) : '',
+              c.why.join(', ')].filter(Boolean).join(' \u00b7 ')) + '</div></div>' +
+            '<span class="score">' + c.score + '%</span></label>';
+        }).join('') +
+        '<label class="match" style="cursor:pointer">' +
+          '<input type="radio" name="row' + row.index + '" value="new" checked ' +
+            'style="width:auto;flex:none">' +
+          '<div class="who"><div class="nm">Add as a new person</div>' +
+          '<div class="why">None of the above is them</div></div></label>' +
+      '</div>';
+    }).join('') +
+    '<div class="btn-row"><button class="btn" id="batchSave">Save them</button>' +
+    '<button class="btn ghost" onclick="closeSheet();S.batchRows=null">Cancel</button></div>');
+
+  document.getElementById('batchSave').onclick = function () {
+    var decisions = {};
+    flagged.forEach(function (row) {
+      var picked = document.querySelector('input[name="row' + row.index + '"]:checked');
+      decisions[String(row.index)] = (!picked || picked.value === 'new')
+        ? { action: 'create' }
+        : { action: 'link', personId: picked.value };
+    });
+    // Rows the matcher was sure about still need a decision, or the server will
+    // treat the batch as unreviewed and ask again.
+    rows.forEach(function (_, i) {
+      if (!decisions[String(i)]) decisions[String(i)] = { action: 'create' };
+    });
+    submitBatch(anchorId, relationship, rows.length, decisions);
+  };
+}
+
+/**
+ * Putting a generation back in order.
+ *
+ * A family entered out of sequence gets the wrong titles, and since these words
+ * are used daily somebody will notice within the hour. The order is stated
+ * directly rather than by editing one person's number, because the ranks only
+ * mean anything relative to each other.
+ */
+function openReorder() {
+  var children = S.view.children.slice();
+  var parentId = S.view.centre.personId;
+
+  function draw() {
+    openSheet(
+      '<h2>Order of ' + esc(S.view.centre.name) + '\u2019s children</h2>' +
+      '<div class="sub">Oldest at the top. This is what decides Pak Long, Mak Ngah ' +
+        'and Pak Su for the next generation.</div>' +
+      '<div id="orderList">' + children.map(function (c, i) {
+        return '<div class="match">' +
+          '<span class="score">' + (i + 1) + '</span>' +
+          '<div class="who"><div class="nm">' + esc(c.name) + '</div>' +
+          '<div class="why">' + esc(c.birthDate ? 'b. ' + year(c.birthDate)
+                                                : 'no birth date recorded') + '</div></div>' +
+          '<button class="btn sm ghost" data-up="' + i + '" ' +
+            (i === 0 ? 'disabled' : '') + '>\u2191</button>' +
+          '<button class="btn sm ghost" data-down="' + i + '" ' +
+            (i === children.length - 1 ? 'disabled' : '') + '>\u2193</button>' +
+        '</div>';
+      }).join('') + '</div>' +
+      '<div class="btn-row"><button class="btn" id="orderSave">Save order</button>' +
+      '<button class="btn ghost" onclick="closeSheet()">Cancel</button></div>');
+
+    function swap(a, b) {
+      var tmp = children[a]; children[a] = children[b]; children[b] = tmp;
+      draw();
+    }
+    Array.prototype.forEach.call(document.querySelectorAll('[data-up]'), function (b) {
+      b.onclick = function () { var i = Number(b.getAttribute('data-up')); swap(i, i - 1); };
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-down]'), function (b) {
+      b.onclick = function () { var i = Number(b.getAttribute('data-down')); swap(i, i + 1); };
+    });
+    document.getElementById('orderSave').onclick = function () {
+      busy(this, true);
+      call('api_reorderSiblings', parentId, children.map(function (c) { return c.personId; }))
+        .then(function () { closeSheet(); toast('Order saved.'); loadView(S.focusId); })
+        .catch(function (e) { busy(null); fail(e); });
+    };
+  }
+  draw();
 }
 
 /* ------------------------------------------------------------------ *
@@ -750,12 +1016,14 @@ function openAdmin() {
         tabBtn('changes', 'Changes', q.changes.length) +
         tabBtn('merges', 'Duplicates', q.merges.length) +
         tabBtn('users', 'Access', q.users.length) +
+        tabBtn('settings', 'Settings', 0) +
       '</div><div id="adminBody"></div>');
 
     var panels = {
       changes: function () { return renderChanges(q.changes); },
       merges: function () { return renderMerges(q.merges); },
-      users: function () { return renderUsers(q.users); }
+      users: function () { return renderUsers(q.users); },
+      settings: function () { return '<div class="loading">Loading&hellip;</div>'; }
     };
 
     function openTab(name) {
@@ -763,7 +1031,8 @@ function openAdmin() {
         b.className = b.getAttribute('data-tab') === name ? 'on' : '';
       });
       document.getElementById('adminBody').innerHTML = panels[name]();
-      wireAdmin();
+      if (name === 'settings') loadSettings();
+      else wireAdmin();
     }
     Array.prototype.forEach.call(document.querySelectorAll('[data-tab]'), function (b) {
       b.onclick = function () { openTab(b.getAttribute('data-tab')); };
@@ -836,6 +1105,87 @@ function renderUsers(users) {
         '<button class="btn sm" data-admit="' + attr(u.email) + '">Let them in</button>' +
       '</div></div>';
   }).join('');
+}
+
+/**
+ * The settings an admin can change without opening the spreadsheet.
+ *
+ * The birth-order sequence is the one that earns its place here. Long, Ngah,
+ * Alang and the rest vary by family and by region, and a family shown the wrong
+ * word for an uncle they have called Pak Ngah their whole life will not trust
+ * anything else the app says. The preview shows the effect immediately, because
+ * the list of words on its own means nothing until you see the titles it makes.
+ */
+function loadSettings() {
+  call('api_settings').then(function (cfg) {
+    document.getElementById('adminBody').innerHTML =
+      field('Family name', '<input id="s_family_name" value="' + attr(cfg.family_name) +
+        '" maxlength="80">', 'Shown at the top of every screen.') +
+
+      field('Order of siblings, eldest first',
+        '<input id="s_birth_order_titles" value="' + attr(cfg.birth_order_titles) +
+          '" maxlength="140">',
+        'Separate with commas. The youngest is always Su and is not in this list. ' +
+        'Families and regions differ \u2014 use yours.') +
+      '<div class="preview" id="titlePreview"></div>' +
+      '<button class="btn ghost sm" id="resetTitles" style="margin-top:8px">' +
+        'Back to the common sequence</button>' +
+
+      field('Titles shown by default', select('s_default_lang',
+        [['ms', 'Bahasa Melayu'], ['en', 'English'], ['ar', 'Arabic']], cfg.default_lang),
+        'Each person can change this for themselves.') +
+
+      field('Who may invite', select('s_allow_member_invites',
+        [['TRUE', 'Anyone in the family'], ['FALSE', 'Admins only']],
+        String(cfg.allow_member_invites).toUpperCase() === 'TRUE' ? 'TRUE' : 'FALSE'),
+        'Letting relatives invite their own side is how a tree spreads without ' +
+        'you being the bottleneck.') +
+
+      field('Flag a possible duplicate above',
+        '<input id="s_merge_queue_threshold" type="number" min="40" max="99" value="' +
+          attr(cfg.merge_queue_threshold) + '">',
+        'Lower catches more duplicates and asks you more often.') +
+
+      '<div class="btn-row"><button class="btn" id="saveSettings">Save</button></div>';
+
+    var titlesInput = document.getElementById('s_birth_order_titles');
+
+    function preview() {
+      var list = titlesInput.value.split(',')
+        .map(function (t) { return t.replace(/[^A-Za-z' -]/g, '').trim(); })
+        .filter(Boolean).slice(0, 12);
+      var shown = list.map(function (t, i) {
+        return (i === 0 ? 'Pak ' : 'Mak ') + t;
+      });
+      shown.push('Pak Su');
+      document.getElementById('titlePreview').innerHTML =
+        '<span class="lbl">Your uncles and aunts would be called</span>' +
+        esc(shown.join(' \u00b7 ')) +
+        (list.length ? '' : ' \u2014 with no list, everyone is simply Pak Cik or Mak Cik');
+    }
+    titlesInput.oninput = preview;
+    preview();
+
+    document.getElementById('resetTitles').onclick = function () {
+      titlesInput.value = cfg.defaults.birth_order_titles;
+      preview();
+    };
+
+    document.getElementById('saveSettings').onclick = function () {
+      var changes = {};
+      ['family_name', 'birth_order_titles', 'default_lang', 'allow_member_invites',
+       'merge_queue_threshold'].forEach(function (key) {
+        var el = document.getElementById('s_' + key);
+        if (el) changes[key] = el.value;
+      });
+      busy(this, true);
+      call('api_saveSettings', changes).then(function () {
+        toast('Saved.');
+        closeSheet();
+        boot();
+      }).catch(function (e) { busy(null); fail(e); });
+    };
+  }).catch(fail);
 }
 
 function wireAdmin() {

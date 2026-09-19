@@ -283,6 +283,28 @@ function API_parentagePayload(graph, anchorId, relationship, otherId, data) {
   throw new Error('That connection cannot be made this way.');
 }
 
+/** Several children or siblings at once, entered oldest first. */
+function api_addBatch(idToken, anchorId, relationship, rows, decisions) {
+  return API_run(idToken, function (session) {
+    return PPL_addBatch(session, anchorId, relationship, rows, decisions);
+  });
+}
+
+/** Re-ranks a set of siblings, which is what decides their Malay titles. */
+function api_reorderSiblings(idToken, parentId, orderedIds) {
+  return API_run(idToken, function (session) {
+    return PPL_reorderSiblings(session, parentId, orderedIds);
+  });
+}
+
+function api_settings(idToken) {
+  return API_run(idToken, function (session) { return ADM_settings(session); });
+}
+
+function api_saveSettings(idToken, changes) {
+  return API_run(idToken, function (session) { return ADM_saveSettings(session, changes); });
+}
+
 function api_uploadPhoto(idToken, personId, payload) {
   return API_run(idToken, function (session) { return PHO_upload(session, personId, payload); });
 }

@@ -36,6 +36,13 @@ every card is labelled relative to them. The same man is `Abah` to his son,
 `Pak Long` to his nephew, `Atuk` to his grandson and `Abang` to his sister, from
 one stored fact.
 
+**A generation at a time.** Families do not recall themselves one person at a
+time; they recite a generation in order — the eldest is Osman, then Fatimah,
+then Rahim. Children and siblings are entered as a list, oldest first, and their
+position becomes their birth order. That is the one fact the shape of a tree can
+never supply and the one Malay titles depend on, collected as a side effect of
+the way people naturally talk about their family.
+
 **Three languages plus your own.** Every computed title can render in Malay,
 English or Arabic/Islamic terms, switchable per user. Families also keep private
 names that no algorithm can guess — the one particular aunt everyone calls
@@ -61,6 +68,7 @@ father, which catches most duplicate entries on its own.
 | [`docs/SETUP.md`](docs/SETUP.md) | Step-by-step deployment, start to finish |
 | [`docs/DATA-MODEL.md`](docs/DATA-MODEL.md) | Every sheet tab, every column |
 | [`docs/KINSHIP.md`](docs/KINSHIP.md) | How titles are computed, in all three languages |
+| [`tools/prototype.html`](tools/prototype.html) | A browser prototype, built from the real engine |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Request lifecycle, permissions, caching |
 
 ## Repository layout

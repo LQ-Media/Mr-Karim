@@ -159,6 +159,26 @@ in decides whether it stays in one piece:
 The app shows a hint on your own record suggesting the next step, until the tree
 is big enough not to need it.
 
+### Go one generation higher than you think you need
+
+Blood relationships are worked out by finding the closest ancestor two people
+share. That has a consequence worth knowing before you enter eighty people:
+
+**If your grandfather is the highest person in the tree, his brothers' families
+cannot connect to yours.** Your father's cousins, and their children, will show
+as unrelated or as in-laws, because there is no shared ancestor recorded above
+your grandfather for the app to find.
+
+The fix is one row. Add your **great-grandparents** — even with nothing but a
+name, or `Unknown` and a note — and attach your grandfather and his brothers to
+them. Every descendant of that couple is now correctly a cousin of some degree,
+and the Malay and Arabic titles fall out properly.
+
+So: for each side, enter the couple **one generation above the highest person
+whose family you actually want in the tree**. If you want your father's cousins
+in, your great-grandparents are the roots, not your grandparents. Unknown dates
+and missing details cost nothing; the link is what matters.
+
 ### Add a whole generation at once
 
 On **Children** and **Brothers and sisters**, the card at the end of the row says

@@ -1,0 +1,29 @@
+# Your real messages go here. Copy this file to test/real.txt and replace the
+# contents. If test/real.txt exists, the triage test uses it instead of the
+# invented samples in samples.jsonl.
+#
+# Format: optional headers, then --- , then the message body.
+# Separate messages with a line of ===
+#
+# Source can be: gmail, wa_business, wa_personal
+# Everything except the body is optional.
+#
+# test/real.txt is gitignored — nothing you put there is committed or pushed.
+
+From: IRAS <noreply@iras.gov.sg>
+Subject: Notice of Assessment - YA2026
+Source: gmail
+---
+Dear Taxpayer, your Notice of Assessment is available. Amount payable:
+SGD 4,820.00. Payment due by 31 October 2026.
+===
+From: Nurul (+6591234567)
+Source: wa_business
+---
+Assalamualaikum ustaz, my daughter is 7 this year. Do you still have places
+for the Saturday morning class? And how much is the monthly fee?
+===
+From: Mak (+6590001111)
+Source: wa_personal
+---
+Karim, dinner at our place this Sunday? Bring the kids ya

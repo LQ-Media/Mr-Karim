@@ -19,7 +19,7 @@ import Anthropic, {
 } from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -59,10 +59,55 @@ interface Sample {
 
 const rules = readFileSync(join(here, "..", "settings", "rules.md"), "utf8");
 
-const samples: Sample[] = readFileSync(join(here, "samples.jsonl"), "utf8")
-  .split("\n")
-  .filter((line) => line.trim().length > 0)
-  .map((line) => JSON.parse(line) as Sample);
+/**
+ * Parses the plain-text format used by test/real.txt: optional headers, then
+ * `---`, then the body; messages separated by a line of `===`. Far less
+ * fiddly than JSON when you are pasting real messages out of Mail or WhatsApp.
+ */
+function parsePlainText(raw: string): Sample[] {
+  return raw
+    .split(/^===\s*$/m)
+    .map((chunk) =>
+      chunk
+        .split("\n")
+        .filter((l) => !l.startsWith("#"))
+        .join("\n")
+        .trim(),
+    )
+    .filter((chunk) => chunk.length > 0)
+    .map((chunk) => {
+      const split = chunk.match(/^([\s\S]*?)\n---\n([\s\S]*)$/);
+      const headerText = split ? split[1] : "";
+      const body = (split ? split[2] : chunk).trim();
+
+      const header = (name: string) =>
+        headerText.match(new RegExp(`^${name}:\\s*(.+)$`, "im"))?.[1]?.trim();
+
+      const from = header("From") ?? "unknown";
+      // "Nurul (+6591234567)" or "IRAS <noreply@iras.gov.sg>" or a bare address
+      const addr = from.match(/[<(]([^>)]+)[>)]/)?.[1] ?? from;
+      const name = from.replace(/\s*[<(][^>)]+[>)]\s*/, "").trim();
+
+      return {
+        source: header("Source") ?? "gmail",
+        account: header("Account") ?? "unspecified",
+        sender: addr,
+        sender_name: name.length > 0 ? name : null,
+        subject: header("Subject") ?? null,
+        body,
+      } satisfies Sample;
+    });
+}
+
+const realPath = join(here, "real.txt");
+const usingReal = existsSync(realPath);
+
+const samples: Sample[] = usingReal
+  ? parsePlainText(readFileSync(realPath, "utf8"))
+  : readFileSync(join(here, "samples.jsonl"), "utf8")
+      .split("\n")
+      .filter((line) => line.trim().length > 0)
+      .map((line) => JSON.parse(line) as Sample);
 
 const SYSTEM = `You triage incoming messages for the operator described below.
 
@@ -95,7 +140,9 @@ let cost = 0;
 let mismatches = 0;
 
 console.log(
-  `\nTriaging ${samples.length} messages with ${TRIAGE_MODEL}\n${"─".repeat(72)}`,
+  `\nTriaging ${samples.length} messages with ${TRIAGE_MODEL}` +
+    `\nSource: ${usingReal ? "test/real.txt (your messages)" : "test/samples.jsonl (invented samples)"}` +
+    `\n${"─".repeat(72)}`,
 );
 
 for (const s of samples) {

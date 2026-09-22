@@ -7,3 +7,6 @@ dist/
 
 # WhatsApp linked-device session credentials — never commit
 bridge/auth/
+
+# Your own real messages — never committed
+test/real.txt

@@ -304,6 +304,7 @@ var ADM_EDITABLE_SETTINGS = {
   birth_order_titles: 'titles',
   default_lang: 'lang',
   allow_member_invites: 'bool',
+  enable_google_photos: 'bool',
   merge_queue_threshold: 'score',
   match_suggest_threshold: 'score'
 };
@@ -318,6 +319,7 @@ function ADM_settings(session) {
     }
   }
   out.defaults = { birth_order_titles: DEFAULT_SETTINGS.birth_order_titles };
+  out.photosConfigured = !!ST_props().getProperty('OAUTH_CLIENT_SECRET');
   return out;
 }
 

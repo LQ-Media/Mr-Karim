@@ -35,6 +35,7 @@ function api_me(idToken) {
       isPending: session.isPending,
       canInvite: session.canInvite,
       familyName: settings.family_name,
+      googlePhotos: String(settings.enable_google_photos).toUpperCase() === 'TRUE',
       personId: session.personId,
       needsBinding: !session.isPending && !session.personId,
       treeSize: Object.keys(graph.people).length
@@ -429,6 +430,22 @@ function api_saveSettings(idToken, changes) {
 
 function api_uploadPhoto(idToken, personId, payload) {
   return API_run(idToken, function (session) { return PHO_upload(session, personId, payload); });
+}
+
+/* ---- Google Photos ---- */
+
+function api_photosStart(idToken, personId) {
+  return API_run(idToken, function (session) { return PIK_start(session, personId); });
+}
+
+function api_photosPoll(idToken, sessionId) {
+  return API_run(idToken, function (session) { return PIK_poll(session, sessionId); });
+}
+
+function api_photosImport(idToken, sessionId, personId) {
+  return API_run(idToken, function (session) {
+    return PIK_import(session, sessionId, personId);
+  });
 }
 
 function api_setLanguage(idToken, lang) {

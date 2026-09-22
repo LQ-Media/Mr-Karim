@@ -27,6 +27,11 @@ var AUTH_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 var AUTH_SESSION_HOURS = 12;
 var AUTH_STATE_MINUTES = 120;
 
+/* Reading someone's Google Photos needs its own consent, asked for only when
+ * they actually reach for it. Signing in to look at the family tree should not
+ * demand access to a person's photo library. */
+var AUTH_PHOTOS_SCOPE = 'https://www.googleapis.com/auth/photospicker.mediaitems.readonly';
+
 /* ------------------------------------------------------------------ *
  * The sign-in round trip
  * ------------------------------------------------------------------ */
@@ -49,12 +54,32 @@ function AUTH_redirectUri() {
  * sign-in they did not start.
  */
 function AUTH_signInUrl() {
+  return AUTH_buildAuthUrl('openid email profile', { purpose: 'signin' });
+}
+
+/**
+ * Consent to read the photos this person picks.
+ *
+ * Asked for separately, and only at the moment somebody chooses to add a photo
+ * from Google Photos. The state carries which person the photo is for, so the
+ * app can carry on where it left off when Google sends them back.
+ *
+ * No session token goes into this URL. It would travel through Google's
+ * redirect and land in browser history; the browser already holds the session
+ * and picks it up again when the page reloads.
+ */
+function AUTH_photosAuthUrl(personId) {
+  return AUTH_buildAuthUrl('openid email ' + AUTH_PHOTOS_SCOPE,
+    { purpose: 'photos', personId: String(personId || '') });
+}
+
+function AUTH_buildAuthUrl(scope, statePayload) {
   var params = {
     client_id: AUTH_clientId(),
     redirect_uri: AUTH_redirectUri(),
     response_type: 'code',
-    scope: 'openid email profile',
-    state: AUTH_makeState(),
+    scope: scope,
+    state: AUTH_makeState(statePayload),
     include_granted_scopes: 'true'
   };
   var parts = [];
@@ -66,8 +91,12 @@ function AUTH_signInUrl() {
   return AUTH_AUTH_ENDPOINT + '?' + parts.join('&');
 }
 
-function AUTH_makeState() {
-  return AUTH_sign({ n: Utilities.getUuid(), exp: AUTH_epoch() + AUTH_STATE_MINUTES * 60 });
+function AUTH_makeState(payload) {
+  var state = { n: Utilities.getUuid(), exp: AUTH_epoch() + AUTH_STATE_MINUTES * 60 };
+  for (var key in (payload || {})) {
+    if (Object.prototype.hasOwnProperty.call(payload, key)) state[key] = payload[key];
+  }
+  return AUTH_sign(state);
 }
 
 /**
@@ -81,27 +110,9 @@ function AUTH_makeState() {
 function AUTH_completeSignIn(code, state) {
   var checkedState = AUTH_verify(state);
   if (!checkedState) throw new Error('That sign-in link has expired. Please try again.');
+  if (checkedState.purpose === 'photos') throw new Error('That link was for photos, not sign-in.');
 
-  var secret = ST_props().getProperty('OAUTH_CLIENT_SECRET');
-  if (!secret) throw new Error('Sign-in is not configured yet. See docs/SETUP.md.');
-
-  var response = UrlFetchApp.fetch(AUTH_TOKEN_ENDPOINT, {
-    method: 'post',
-    muteHttpExceptions: true,
-    payload: {
-      code: code,
-      client_id: AUTH_clientId(),
-      client_secret: secret,
-      redirect_uri: AUTH_redirectUri(),
-      grant_type: 'authorization_code'
-    }
-  });
-
-  if (response.getResponseCode() !== 200) {
-    throw new Error('Google did not accept that sign-in. Please try again.');
-  }
-
-  var body = JSON.parse(response.getContentText());
+  var body = AUTH_exchangeCode(code);
   if (!body.id_token) throw new Error('Google did not return an identity.');
 
   var claims = AUTH_readIdToken(body.id_token);
@@ -124,6 +135,63 @@ function AUTH_readIdToken(idToken) {
   var payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
   while (payload.length % 4) payload += '=';
   return JSON.parse(Utilities.newBlob(Utilities.base64Decode(payload)).getDataAsString());
+}
+
+/**
+ * Completes the Google Photos consent and keeps the resulting access token.
+ *
+ * Held in the cache against the person's email for slightly less than its own
+ * lifetime, and never written to the spreadsheet: it is a key to somebody's
+ * entire photo library and has no business outliving the few minutes it is
+ * needed for.
+ */
+function AUTH_completePhotosGrant(code, state) {
+  var checked = AUTH_verify(state);
+  if (!checked || checked.purpose !== 'photos') {
+    throw new Error('That link has expired. Please try again.');
+  }
+
+  var body = AUTH_exchangeCode(code);
+  if (!body.access_token) throw new Error('Google did not grant access to your photos.');
+  if (!body.id_token) throw new Error('Google did not say who granted it.');
+
+  var claims = AUTH_readIdToken(body.id_token);
+  if (claims.aud !== AUTH_clientId()) throw new Error('Sign-in rejected.');
+
+  var email = String(claims.email).toLowerCase();
+  var lifetime = Math.max(60, Math.min(Number(body.expires_in || 3600) - 120, 3000));
+  CacheService.getUserCache().put('photos_tok_' + email, body.access_token, lifetime);
+  CacheService.getScriptCache().put('photos_tok_' + email, body.access_token, lifetime);
+
+  return { email: email, personId: checked.personId || '' };
+}
+
+/** The Photos access token for this caller, if the consent is still live. */
+function AUTH_photosToken(email) {
+  var key = 'photos_tok_' + String(email).toLowerCase();
+  return CacheService.getUserCache().get(key) ||
+         CacheService.getScriptCache().get(key) || null;
+}
+
+function AUTH_exchangeCode(code) {
+  var secret = ST_props().getProperty('OAUTH_CLIENT_SECRET');
+  if (!secret) throw new Error('Sign-in is not configured yet. See docs/SETUP.md.');
+
+  var response = UrlFetchApp.fetch(AUTH_TOKEN_ENDPOINT, {
+    method: 'post',
+    muteHttpExceptions: true,
+    payload: {
+      code: code,
+      client_id: AUTH_clientId(),
+      client_secret: secret,
+      redirect_uri: AUTH_redirectUri(),
+      grant_type: 'authorization_code'
+    }
+  });
+  if (response.getResponseCode() !== 200) {
+    throw new Error('Google did not accept that. Please try again.');
+  }
+  return JSON.parse(response.getContentText());
 }
 
 /* ------------------------------------------------------------------ *

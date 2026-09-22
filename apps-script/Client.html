@@ -93,6 +93,12 @@ function boot() {
     if (me.needsBinding) return claimGate(me.unclaimed || []);
 
     gate('app');
+    // Google has just sent them back from granting access to their photos.
+    if (typeof RESUME_PHOTOS_FOR === 'string' && RESUME_PHOTOS_FOR) {
+      var resumeFor = RESUME_PHOTOS_FOR;
+      RESUME_PHOTOS_FOR = '';
+      setTimeout(function () { startGooglePhotos(resumeFor); }, 400);
+    }
     if (me.isAdmin) {
       var n = (me.adminCounts.pendingChanges || 0) + (me.adminCounts.pendingUsers || 0) +
               (me.adminCounts.mergeQueue || 0);
@@ -383,9 +389,16 @@ function openPerson(personId) {
       '<div class="facts">' + (facts.join('') || '<div class="empty">Nothing recorded yet.</div>') + '</div>' +
       '<div class="btn-row">' +
         (p.editable ? '<button class="btn" id="editBtn">Edit</button>' +
-                      '<button class="btn ghost" id="photoBtn">Photo</button>' : '') +
+                      '<button class="btn ghost" id="photoBtn">Upload photo</button>' : '') +
         '<button class="btn ghost" id="titleBtn">Rename title</button>' +
       '</div>' +
+      (p.editable && S.me.googlePhotos
+        ? '<button class="btn ghost" id="gphotoBtn" style="margin-top:8px">' +
+          'Choose from Google Photos</button>' +
+          '<div class="hint" style="margin-top:6px">The picture is copied into the ' +
+          'family album, so every relative can see it \u2014 a Google Photos link on ' +
+          'its own only works for you, and only for an hour.</div>'
+        : '') +
       '<input type="file" id="photoInput" accept="image/*" class="sr">';
 
     openSheet(html);
@@ -398,6 +411,8 @@ function openPerson(personId) {
       document.getElementById('photoInput').onchange = function (e) {
         if (e.target.files[0]) uploadPhoto(personId, e.target.files[0]);
       };
+      var gphoto = document.getElementById('gphotoBtn');
+      if (gphoto) gphoto.onclick = function () { startGooglePhotos(personId); };
     }
     document.getElementById('titleBtn').onclick = function () { openTitle(p); };
   }).catch(fail);
@@ -914,6 +929,110 @@ function downscale(file, maxEdge, quality) {
 }
 
 /* ------------------------------------------------------------------ *
+ * Google Photos
+ * ------------------------------------------------------------------ */
+
+/**
+ * Choosing a portrait from Google Photos.
+ *
+ * Three steps, because that is how the Picker API works and because the middle
+ * one happens in Google's own app rather than in ours: the server opens a
+ * picking session, the person picks in Google Photos, and the server copies
+ * what they picked into the family's Drive.
+ *
+ * That copy is the point. A Google Photos link works for its owner and expires
+ * within the hour; a copy in the family album is visible to every relative for
+ * as long as the tree exists.
+ */
+var PHOTOS = { poll: null, sessionId: null, personId: null, deadline: 0 };
+
+function startGooglePhotos(personId) {
+  openSheet('<h2>Google Photos</h2><div class="loading">Asking Google&hellip;</div>');
+
+  call('api_photosStart', personId).then(function (res) {
+    if (res.status === 'needs_consent') return askPhotosConsent(res.url, personId);
+    PHOTOS.sessionId = res.sessionId;
+    PHOTOS.personId = personId;
+    PHOTOS.deadline = Date.now() + (res.expiresIn || 600) * 1000;
+
+    openSheet(
+      '<h2>Pick the photo</h2>' +
+      '<div class="sub">Google Photos will open in a new tab. Choose one picture, ' +
+        'confirm, then come back here \u2014 this page is watching for it.</div>' +
+      '<a class="btn" id="openPicker" href="' + attr(res.pickerUri) + '" target="_blank" ' +
+        'rel="noopener" style="text-decoration:none">Open Google Photos</a>' +
+      '<div class="loading" id="photoWait" style="padding:22px 0">' +
+        '<span class="spinner" style="border-color:rgba(0,0,0,.15);' +
+        'border-top-color:var(--accent)"></span></div>' +
+      '<div class="hint" id="photoStatus" style="text-align:center">' +
+        'Waiting for you to choose&hellip;</div>' +
+      '<button class="btn ghost" onclick="stopGooglePhotos()">Cancel</button>');
+
+    document.getElementById('openPicker').click();
+    pollGooglePhotos(res.pollMillis || 3000);
+  }).catch(function (e) { closeSheet(); fail(e); });
+}
+
+/**
+ * Reading somebody's photo library needs its own permission, which the app asks
+ * for only at this moment rather than bundling into signing in. Granting it
+ * reloads the page, so it says so plainly first.
+ */
+function askPhotosConsent(url, personId) {
+  openSheet(
+    '<h2>Allow access to your photos</h2>' +
+    '<div class="sub">Google will ask whether this family tree may see the photos ' +
+      '<strong>you pick</strong>. It never gets your library \u2014 only the ' +
+      'pictures you hand over, one at a time.</div>' +
+    '<div class="dupe"><p style="margin:0">This reloads the page. You will come ' +
+      'straight back to the photo picker.</p></div>' +
+    '<a class="btn" href="' + attr(url) + '" target="_top" style="text-decoration:none">' +
+      'Continue to Google</a>' +
+    '<button class="btn ghost" onclick="closeSheet()" style="margin-top:8px">Not now</button>');
+}
+
+function pollGooglePhotos(interval) {
+  clearTimeout(PHOTOS.poll);
+  PHOTOS.poll = setTimeout(function () {
+    if (!PHOTOS.sessionId) return;
+    if (Date.now() > PHOTOS.deadline) {
+      stopGooglePhotos();
+      return toast('That took too long. Try again when you are ready.', true);
+    }
+
+    call('api_photosPoll', PHOTOS.sessionId).then(function (res) {
+      if (!PHOTOS.sessionId) return;
+      if (res.status === 'needs_consent') return askPhotosConsent(res.url, PHOTOS.personId);
+      if (res.status !== 'ready') return pollGooglePhotos(res.pollMillis || interval);
+      finishGooglePhotos();
+    }).catch(function (e) { stopGooglePhotos(); fail(e); });
+  }, interval);
+}
+
+function finishGooglePhotos() {
+  var status = document.getElementById('photoStatus');
+  if (status) status.textContent = 'Copying it into the family album\u2026';
+
+  call('api_photosImport', PHOTOS.sessionId, PHOTOS.personId).then(function (res) {
+    var personId = PHOTOS.personId;
+    stopGooglePhotos();
+    closeSheet();
+    if (res.status === 'pending_approval') return toast('Photo sent for approval.');
+    delete S.thumbs[personId];
+    toast('Photo added. Everyone in the family can see it.');
+    loadView(S.focusId);
+  }).catch(function (e) { stopGooglePhotos(); fail(e); });
+}
+
+function stopGooglePhotos() {
+  clearTimeout(PHOTOS.poll);
+  PHOTOS.poll = null;
+  PHOTOS.sessionId = null;
+  PHOTOS.personId = null;
+  if (document.getElementById('photoWait')) closeSheet();
+}
+
+/* ------------------------------------------------------------------ *
  * Search
  * ------------------------------------------------------------------ */
 
@@ -1144,6 +1263,13 @@ function loadSettings() {
         'Letting relatives invite their own side is how a tree spreads without ' +
         'you being the bottleneck.') +
 
+      field('Google Photos', select('s_enable_google_photos',
+        [['FALSE', 'Off \u2014 upload files only'], ['TRUE', 'On \u2014 allow picking from Google Photos']],
+        String(cfg.enable_google_photos).toUpperCase() === 'TRUE' ? 'TRUE' : 'FALSE'),
+        'Picked photos are copied into the family album so every relative can ' +
+        'see them. Turning this on adds a sensitive permission to your Google ' +
+        'sign-in screen \u2014 read docs/GOOGLE-PHOTOS.md before you do.') +
+
       field('Flag a possible duplicate above',
         '<input id="s_merge_queue_threshold" type="number" min="40" max="99" value="' +
           attr(cfg.merge_queue_threshold) + '">',
@@ -1179,7 +1305,7 @@ function loadSettings() {
     document.getElementById('saveSettings').onclick = function () {
       var changes = {};
       ['family_name', 'birth_order_titles', 'default_lang', 'allow_member_invites',
-       'merge_queue_threshold'].forEach(function (key) {
+       'enable_google_photos', 'merge_queue_threshold'].forEach(function (key) {
         var el = document.getElementById('s_' + key);
         if (el) changes[key] = el.value;
       });
@@ -1501,14 +1627,19 @@ function mapFocus(id, scale) {
 }
 
 /**
- * Fitting a large family onto a phone leaves the names too small to read, so
- * the chart opens on the person reading it and keeps the overview as a button.
+ * What to show when the chart opens.
+ *
+ * On a wide screen the shape of the family is worth seeing even when the names
+ * get small, because you can zoom into any part of it. On a phone that same
+ * view is a diagram of a diagram, so it opens on the person reading instead and
+ * keeps the overview as a button.
  */
 function mapOpeningView() {
   var stage = document.getElementById('stage');
   var box = mapBox();
   var fitScale = Math.min(stage.clientWidth / box.w, stage.clientHeight / box.h);
-  if (fitScale >= MAP_LEGIBLE) mapFit();
+  var floor = stage.clientWidth >= 700 ? 0.34 : MAP_LEGIBLE;
+  if (fitScale >= floor) mapFit();
   else mapFocus(MAP.data.viewerPersonId, 0.92);
 }
 

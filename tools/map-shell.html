@@ -2,38 +2,41 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=Amiri:wght@400;700&display=swap">
 <style>
+/* Pastel green throughout. Every colour is a token here, redefined once
+   for dark mode and once again for an explicit dark choice, so nothing is
+   hard-coded further down and the themes cannot drift apart. */
 :root{
-  --paper:#f2f5f0; --surface:#ffffff; --sunk:#e8ece5; --canvas:#eef1eb;
-  --ink:#191f1a; --ink-2:#5c665d; --ink-3:#8b948b;
-  --line:#dbe1d8; --line-2:#c7cfc4;
-  --pine:#14453a; --pine-soft:#dcebe4; --pine-ink:#0d3a30;
-  --brass:#8d6b1f; --brass-soft:#f3ecd9;
-  --rose:#8e5069; --rose-soft:#f8eef2; --rose-line:#d9b6c4;
-  --blue:#3d5f85; --blue-soft:#eaf1f8; --blue-line:#adc4dc;
-  --wire:#a9b4a6; --wire-strong:#14453a;
+  --paper:#f1f7f2; --surface:#ffffff; --sunk:#e4f0e7; --canvas:#eaf4ed;
+  --ink:#1b2a20; --ink-2:#55695b; --ink-3:#88a08f;
+  --line:#cfe4d5; --line-2:#b4d5be;
+  --pine:#4e9b74; --pine-soft:#daefe2; --pine-ink:#2b6949;
+  --brass:#9a7730; --brass-soft:#f7efdc;
+  --rose:#7d5578; --rose-soft:#f2e9f1; --rose-line:#ccb3c8;
+  --blue:#3f6d80; --blue-soft:#e4eff4; --blue-line:#a7ccd9;
+  --wire:#9dbda8; --wire-strong:#4e9b74;
   --display:"Fraunces",Georgia,serif;
   --ui:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   --arabic:"Amiri","Noto Naskh Arabic",serif;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --paper:#11150f; --surface:#1e241c; --sunk:#232a21; --canvas:#161a14;
-  --ink:#e9ede6; --ink-2:#a3ada2; --ink-3:#76806f;
-  --line:#2d3529; --line-2:#3d4738;
-  --pine:#6dc0a4; --pine-soft:#1a3a30; --pine-ink:#9ad9c2;
-  --brass:#cfa94f; --brass-soft:#32290f;
-  --rose:#d9a0b4; --rose-soft:#33242a; --rose-line:#5d3f4a;
-  --blue:#9dbde0; --blue-soft:#1f2b37; --blue-line:#3c5170;
-  --wire:#4a5546; --wire-strong:#6dc0a4;
+  --paper:#0f1610; --surface:#18211a; --sunk:#212c24; --canvas:#131b15;
+  --ink:#e6eee8; --ink-2:#9fb3a5; --ink-3:#738574;
+  --line:#2c3a30; --line-2:#3c4d41;
+  --pine:#79c79b; --pine-soft:#1c3a2a; --pine-ink:#a5dcbd;
+  --brass:#cfa863; --brass-soft:#33290f;
+  --rose:#c9a5c4; --rose-soft:#2e2431; --rose-line:#54405a;
+  --blue:#9cc2d3; --blue-soft:#1e2b32; --blue-line:#3a5765;
+  --wire:#3f5446; --wire-strong:#79c79b;
 }}
 :root[data-theme="dark"]{
-  --paper:#11150f; --surface:#1e241c; --sunk:#232a21; --canvas:#161a14;
-  --ink:#e9ede6; --ink-2:#a3ada2; --ink-3:#76806f;
-  --line:#2d3529; --line-2:#3d4738;
-  --pine:#6dc0a4; --pine-soft:#1a3a30; --pine-ink:#9ad9c2;
-  --brass:#cfa94f; --brass-soft:#32290f;
-  --rose:#d9a0b4; --rose-soft:#33242a; --rose-line:#5d3f4a;
-  --blue:#9dbde0; --blue-soft:#1f2b37; --blue-line:#3c5170;
-  --wire:#4a5546; --wire-strong:#6dc0a4;
+  --paper:#0f1610; --surface:#18211a; --sunk:#212c24; --canvas:#131b15;
+  --ink:#e6eee8; --ink-2:#9fb3a5; --ink-3:#738574;
+  --line:#2c3a30; --line-2:#3c4d41;
+  --pine:#79c79b; --pine-soft:#1c3a2a; --pine-ink:#a5dcbd;
+  --brass:#cfa863; --brass-soft:#33290f;
+  --rose:#c9a5c4; --rose-soft:#2e2431; --rose-line:#54405a;
+  --blue:#9cc2d3; --blue-soft:#1e2b32; --blue-line:#3a5765;
+  --wire:#3f5446; --wire-strong:#79c79b;
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -123,12 +126,13 @@ h1{margin:0}
 .strip .badge.ar{font-family:var(--arabic);font-size:16px;font-weight:400;padding:2px 12px}
 .strip .hint{font-size:12.5px;color:var(--ink-3)}
 
-.legend{position:absolute;left:12px;bottom:12px;background:var(--surface);
+.legend{transition:opacity .3s;position:absolute;left:12px;bottom:12px;background:var(--surface);
   border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:11px;
   color:var(--ink-2);display:flex;gap:14px;pointer-events:none;flex-wrap:wrap;max-width:calc(100% - 24px)}
 .legend i{display:inline-block;width:20px;height:0;border-top:2px solid var(--wire);
   vertical-align:middle;margin-right:5px}
 .legend i.mar{border-top-style:solid;border-color:var(--brass);border-top-width:3px}
+.legend.gone{opacity:0}
 @media (max-width:520px){ .legend{display:none} }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -436,7 +440,12 @@ function openingView() {
   var stage = document.getElementById('stage');
   var box = contentBox();
   var fitScale = Math.min(stage.clientWidth / box.w, stage.clientHeight / box.h);
-  if (fitScale >= LEGIBLE) fit();
+
+  // On a wide screen the shape of the family is worth seeing even when the
+  // names get small -- you can zoom. On a phone the same view is just a diagram
+  // of a diagram, so it opens on the reader instead.
+  var floor = stage.clientWidth >= 700 ? 0.34 : LEGIBLE;
+  if (fitScale >= floor) fit();
   else focusOn(state.ego, 0.92);
 }
 
@@ -489,6 +498,10 @@ function describe(id) {
 var drag = null, pan = null, pinch = null;
 
 document.getElementById('stage').addEventListener('pointerdown', function(e){
+  // The legend has said its piece once somebody starts moving things about.
+  var legend = document.querySelector('.legend');
+  if (legend) legend.classList.add('gone');
+
   var node = e.target.closest('.node');
   if (node) {
     drag = {

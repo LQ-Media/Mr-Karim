@@ -87,7 +87,11 @@ var DEFAULT_SETTINGS = {
   match_suggest_threshold: '55',
   default_lang: 'ms',
   allow_member_invites: 'TRUE',
-  invite_expiry_days: '30'
+  invite_expiry_days: '30',
+  /* Off by default. Reading someone's Google Photos is a sensitive scope, so
+   * switching this on has consequences for the OAuth consent screen that the
+   * owner should choose deliberately -- see docs/GOOGLE-PHOTOS.md. */
+  enable_google_photos: 'FALSE'
 };
 
 /** The id prefix each table counts from. */

@@ -249,6 +249,14 @@ Edit the files, then **Deploy → Manage deployments → ✏️ → Version: New
 → Deploy**. The URL stays the same, so nothing you have sent to relatives
 breaks. Settings and credentials are unaffected.
 
+## Optional: photos from Google Photos
+
+Relatives can pick a portrait straight from their Google Photos library, and the
+app copies it into the family album so everyone can see it. It ships off, and
+turning it on adds a sensitive permission to your sign-in screen with real
+consequences -- [`docs/GOOGLE-PHOTOS.md`](GOOGLE-PHOTOS.md) explains them, and
+why uploading from a phone already reaches Google Photos without any of it.
+
 ## Optional: a nightly duplicate scan
 
 **Triggers** (the clock icon) **→ Add trigger**, choose

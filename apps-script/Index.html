@@ -89,6 +89,9 @@
      are produced by this server, never by anything a visitor supplied. */
   var SESSION = <?!= JSON.stringify(session) ?>;
   var SIGN_IN_ERROR = <?!= JSON.stringify(signInError) ?>;
+  /* Set when Google has just sent the person back from granting access to
+     their photos, so the app can carry on where they left off. */
+  var RESUME_PHOTOS_FOR = <?!= JSON.stringify(resumePhotosFor) ?>;
 </script>
 <?!= include('Client'); ?>
 

@@ -16,11 +16,27 @@ function doGet(e) {
   var session = '';
   var error = '';
 
+  var resumePhotosFor = '';
+
   if (params.code && params.state) {
-    try {
-      session = AUTH_completeSignIn(params.code, params.state);
-    } catch (err) {
-      error = err.message || String(err);
+    // Two different round trips come back here: signing in, and granting access
+    // to the photos somebody is about to pick. The signed state says which.
+    var intent = AUTH_verify(params.state);
+    if (intent && intent.purpose === 'photos') {
+      try {
+        var granted = AUTH_completePhotosGrant(params.code, params.state);
+        resumePhotosFor = granted.personId || '';
+      } catch (err) {
+        error = err.message || String(err);
+      }
+      // The session is not carried through the redirect -- putting it in a URL
+      // would leave it in browser history. The browser still holds it.
+    } else {
+      try {
+        session = AUTH_completeSignIn(params.code, params.state);
+      } catch (err2) {
+        error = err2.message || String(err2);
+      }
     }
   } else if (params.error) {
     error = 'Sign-in was cancelled.';
@@ -30,6 +46,7 @@ function doGet(e) {
   template.appName = CFG.APP_NAME;
   template.session = session;
   template.signInError = error;
+  template.resumePhotosFor = resumePhotosFor;
   try {
     template.signInUrl = AUTH_signInUrl();
   } catch (err) {

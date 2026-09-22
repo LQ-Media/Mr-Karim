@@ -102,6 +102,23 @@ function parsePlainText(raw: string): Sample[] {
 const realPath = join(here, "real.txt");
 const usingReal = existsSync(realPath);
 
+// The example file runs fine as-is, which makes it easy to think you have
+// tested on real messages when you have only re-run the placeholders.
+if (usingReal) {
+  const example = readFileSync(join(here, "real.example.txt"), "utf8");
+  const stripComments = (t: string) =>
+    t.split("\n").filter((l) => !l.startsWith("#")).join("\n").trim();
+  if (stripComments(readFileSync(realPath, "utf8")) === stripComments(example)) {
+    console.error(
+      "\ntest/real.txt still contains the example messages.\n\n" +
+        "Open it, delete everything below the comment block, and paste in your\n" +
+        "own real emails and WhatsApp messages. That is the actual test — the\n" +
+        "placeholders only prove the script runs.\n",
+    );
+    process.exit(1);
+  }
+}
+
 const samples: Sample[] = usingReal
   ? parsePlainText(readFileSync(realPath, "utf8"))
   : readFileSync(join(here, "samples.jsonl"), "utf8")

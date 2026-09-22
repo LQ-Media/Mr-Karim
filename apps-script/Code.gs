@@ -26,16 +26,16 @@ function doGet(e) {
       try {
         var granted = AUTH_completePhotosGrant(params.code, params.state);
         resumePhotosFor = granted.personId || '';
-      } catch (err) {
-        error = err.message || String(err);
+      } catch (photoErr) {
+        error = photoErr.message || String(photoErr);
       }
       // The session is not carried through the redirect -- putting it in a URL
       // would leave it in browser history. The browser still holds it.
     } else {
       try {
         session = AUTH_completeSignIn(params.code, params.state);
-      } catch (err2) {
-        error = err2.message || String(err2);
+      } catch (signInErr) {
+        error = signInErr.message || String(signInErr);
       }
     }
   } else if (params.error) {
@@ -49,9 +49,9 @@ function doGet(e) {
   template.resumePhotosFor = resumePhotosFor;
   try {
     template.signInUrl = AUTH_signInUrl();
-  } catch (err) {
+  } catch (urlErr) {
     template.signInUrl = '';
-    if (!error) template.signInError = err.message;
+    if (!error) template.signInError = urlErr.message;
   }
 
   var page = template.evaluate();

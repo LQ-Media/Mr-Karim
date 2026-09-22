@@ -133,7 +133,7 @@ function PHO_thumbnails(session, personIds) {
     }
   }
   if (Object.keys(toCache).length) {
-    try { cache.putAll(toCache, 21600); } catch (err) { /* optional */ }
+    try { cache.putAll(toCache, 21600); } catch (err2) { /* optional */ }
   }
   return out;
 }

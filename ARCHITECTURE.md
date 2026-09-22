@@ -14,11 +14,12 @@ only surface the operator touches.
 |---|---|
 | Autonomy | **Draft only.** Nothing is ever sent without explicit human approval. |
 | Hosting | Cloudflare Workers + D1, plus a small always-on bridge on the Mac Studio |
-| Domain | Subdomain of `littlequrankids.sg`, DNS moved to Cloudflare |
+| Domain | `workers.dev` subdomain for v1; custom domain deferred |
 | Business WhatsApp | Meta Cloud API via coexistence — number stays on the phone |
 | Personal WhatsApp | Read-only, via a linked-device session on the Mac Studio |
 | Email | Two Gmail accounts — business Workspace + personal |
 | Email volume | Under 50/day combined |
+| WhatsApp volume | ~100/day across both numbers |
 | Bills | Detect, log, remind ahead of due date |
 | Attachments | PDFs parsed, primarily to extract bill amounts and due dates |
 | WhatsApp groups | Excluded |
@@ -121,10 +122,12 @@ Monthly, USD.
 | Gmail API | $0 |
 | WhatsApp — replies within the 24h service window | $0 |
 | Meta Cloud API, direct (no BSP) | $0 |
-| Subdomain of an owned domain | $0 |
-| Claude API — email (<50/day, 2 accounts) | ~$12–18 |
-| Claude API — WhatsApp | ~$15–30, pending volume |
-| **Total** | **~$32–53** |
+| `workers.dev` subdomain | $0 |
+| Claude API — email (<50/day, 2 accounts) | ~$12–15 |
+| Claude API — WhatsApp (~100/day, 3k/month) | ~$25–32 |
+| **Total** | **~$42–52** |
+
+A $75/month spend cap is set in the Anthropic Console as a circuit breaker.
 
 Rates used: Haiku 4.5 at $1/$5 per million tokens in/out; Opus 5 at $5/$25.
 Prompt caching applies to the settings block on every call and pulls the input
@@ -144,7 +147,7 @@ someone messages first is free, which is the entire use case here.
 
 Meta Business verification is already done, which removes the longest lead time.
 
-1. Cloudflare account, D1 schema, subdomain and DNS
+1. Cloudflare account, D1 schema, `workers.dev` deployment
 2. Gmail OAuth for both accounts, `watch` subscription, ingest endpoint
 3. Triage and drafting pipeline, settings file, first prompts
 4. Dashboard — queue view, approve/edit/send, bills tab
@@ -176,10 +179,23 @@ whole system rests on.
 
 ---
 
-## 7. Open
+## 7. Why not a custom domain yet
 
-- Actual WhatsApp message volume, business and personal — the only number still
-  missing from the cost model.
+`littlequrankids.sg` is hosted at Exabytes and carries the live Google Workspace
+MX records and the public website. Cloudflare's free plan requires full
+nameserver delegation — a subdomain alone cannot be pointed at Workers — so
+using `agent.littlequrankids.sg` would mean migrating the MX and website records
+too. The downside case is business email silently breaking, which is a poor
+trade for a nicer hostname on an internal tool.
+
+`workers.dev` provides valid HTTPS, which is all the Meta webhook and the
+dashboard require. A custom domain can be attached later, deliberately, with no
+deadline attached.
+
+---
+
+## 8. Open
+
 - Which providers send the recurring bills, so extraction can be tuned to their
   formats.
 - Whether bill data should eventually export to an accounting tool.

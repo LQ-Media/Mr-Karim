@@ -1,0 +1,24 @@
+name = "mr-karim"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Deployed at https://mr-karim.<your-subdomain>.workers.dev
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "mr-karim"
+database_id = "PLACEHOLDER_REPLACE_AFTER_D1_CREATE"
+
+[triggers]
+# Bill reminders and a safety sweep for anything the webhooks missed.
+crons = ["0 1 * * *", "*/30 * * * *"]
+
+# Secrets — set with `wrangler secret put <NAME>`, never in this file:
+#   ANTHROPIC_API_KEY
+#   GOOGLE_CLIENT_ID
+#   GOOGLE_CLIENT_SECRET
+#   WHATSAPP_ACCESS_TOKEN
+#   WHATSAPP_VERIFY_TOKEN
+#   BRIDGE_SHARED_SECRET

@@ -1,0 +1,9 @@
+node_modules/
+.dev.vars
+.wrangler/
+dist/
+*.log
+.DS_Store
+
+# WhatsApp linked-device session credentials — never commit
+bridge/auth/

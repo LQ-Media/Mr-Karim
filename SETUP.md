@@ -8,12 +8,19 @@ Studio. Design and rationale live in `ARCHITECTURE.md`.
 Before setting anything up, find out whether the agent's judgement matches
 yours. This runs on the Mac alone: no Cloudflare, no database, no deployment.
 
+Needs **Node 22.6 or newer** — check with `node --version`. If it's older,
+`brew upgrade node` or install from nodejs.org. Anything below 22.6 fails with
+`unknown option --experimental-strip-types`.
+
 ```sh
 git clone https://github.com/LQ-Media/Mr-Karim.git
 cd Mr-Karim && npm install
 export ANTHROPIC_API_KEY=sk-ant-...     # $5 of credits is plenty
 npm run test:triage
 ```
+
+The key lives only in that shell. Nothing writes it to disk, and it is not
+needed again after the run.
 
 It classifies the ten sample messages in `test/samples.jsonl` using the real
 rules from `settings/rules.md`, prints what it decided and why, and reports the

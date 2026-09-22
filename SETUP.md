@@ -3,11 +3,34 @@
 Run in order. Steps 1–2 are done in a browser; the rest are terminal on the Mac
 Studio. Design and rationale live in `ARCHITECTURE.md`.
 
+## 0. Try it first — about 2 cents, no infrastructure
+
+Before setting anything up, find out whether the agent's judgement matches
+yours. This runs on the Mac alone: no Cloudflare, no database, no deployment.
+
+```sh
+git clone https://github.com/LQ-Media/Mr-Karim.git
+cd Mr-Karim && npm install
+export ANTHROPIC_API_KEY=sk-ant-...     # $5 of credits is plenty
+npm run test:triage
+```
+
+It classifies the ten sample messages in `test/samples.jsonl` using the real
+rules from `settings/rules.md`, prints what it decided and why, and reports the
+exact cost of the run.
+
+Then replace `test/samples.jsonl` with **your own real messages** and run it
+again. If the classifications match your instincts, the design holds. If they
+don't, edit `settings/rules.md` and re-run — that file is the fix, not the code.
+
+Each run costs a fraction of a cent. Iterate freely.
+
 ## 1. Anthropic Console — console.anthropic.com
 
 Sign in as `karim@littlequrankids.sg`.
 
-- **Billing** → add a payment method → buy **$25** of credits.
+- **Billing** → add a payment method → buy credits. **$5 is the minimum and is
+  enough to evaluate.** Top up to $25 only once you've decided to proceed.
   The Claude Pro subscription does *not* cover API usage. Separate meter.
 - **Limits** → set a monthly cap of **$75**. This is the circuit breaker if
   anything ever loops. Do not skip it.
@@ -18,15 +41,15 @@ store in step 5 and should never be pasted into a chat, a file, or this repo.
 
 ## 2. Cloudflare — dash.cloudflare.com
 
-Sign up with the same email. Free tier.
+Sign up with the same email. **The free tier is enough** — 100,000 requests a
+day against your ~150, and waiting on the Claude API bills as I/O, not CPU, so
+the free tier's CPU limit is not the constraint I first assumed. Upgrade to
+Workers Paid only if you actually hit a limit.
 
 **Do not add `littlequrankids.sg` as a site.** Cloudflare's free plan requires
 delegating the whole domain, which would move the live Google Workspace MX
 records away from Exabytes. v1 runs on a free `workers.dev` subdomain instead —
 see `ARCHITECTURE.md` §7.
-
-Then upgrade to **Workers Paid ($5/mo)** — the free tier's CPU limits are too
-tight for the Claude calls.
 
 ## 3. Install and authenticate
 

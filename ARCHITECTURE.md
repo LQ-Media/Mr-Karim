@@ -116,7 +116,7 @@ Monthly, USD.
 
 | Item | Cost |
 |---|---|
-| Cloudflare Workers Paid | $5 |
+| Cloudflare Workers | $0 on the free tier at this volume |
 | Cloudflare D1 + KV | $0 — free tier far exceeds this volume |
 | Mac Studio bridge | $0 — hardware already running |
 | Gmail API | $0 |
@@ -125,7 +125,7 @@ Monthly, USD.
 | `workers.dev` subdomain | $0 |
 | Claude API — email (<50/day, 2 accounts) | ~$12–15 |
 | Claude API — WhatsApp (~100/day, 3k/month) | ~$25–32 |
-| **Total** | **~$42–52** |
+| **Total** | **~$37–47** |
 
 A $75/month spend cap is set in the Anthropic Console as a circuit breaker.
 

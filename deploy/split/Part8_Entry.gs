@@ -14,6 +14,18 @@
 
 /**
  * Entry points: serving the page, and one-time installation.
+ *
+ * Written plainly on purpose. Apps Script rejected an earlier version of doGet
+ * with a syntax error that nothing available locally could reproduce -- Node
+ * parsed it, the braces balanced, the bytes were plain ASCII -- and it survived
+ * a rewritten method chain and renamed catch parameters. A twelve-line doGet
+ * then parsed fine, which put the fault somewhere in this file rather than in
+ * the project.
+ *
+ * So this is the same behaviour expressed with nothing clever in it: one
+ * try/catch per function, no nesting, no expressions that depend on a parser
+ * resolving an ambiguity. If it still fails, the failure is now small enough to
+ * bisect in one step.
  */
 
 /**
@@ -26,53 +38,84 @@
  * the browser then presents on every call.
  */
 function doGet(e) {
-  var params = (e && e.parameter) || {};
-  var session = '';
-  var error = '';
-
-  var resumePhotosFor = '';
-
-  if (params.code && params.state) {
-    // Two different round trips come back here: signing in, and granting access
-    // to the photos somebody is about to pick. The signed state says which.
-    var intent = AUTH_verify(params.state);
-    if (intent && intent.purpose === 'photos') {
-      try {
-        var granted = AUTH_completePhotosGrant(params.code, params.state);
-        resumePhotosFor = granted.personId || '';
-      } catch (photoErr) {
-        error = photoErr.message || String(photoErr);
-      }
-      // The session is not carried through the redirect -- putting it in a URL
-      // would leave it in browser history. The browser still holds it.
-    } else {
-      try {
-        session = AUTH_completeSignIn(params.code, params.state);
-      } catch (signInErr) {
-        error = signInErr.message || String(signInErr);
-      }
-    }
-  } else if (params.error) {
-    error = 'Sign-in was cancelled.';
+  var params = {};
+  if (e && e.parameter) {
+    params = e.parameter;
   }
+
+  var state = ENTRY_readRedirect(params);
 
   var template = HtmlService.createTemplateFromFile('Index');
   template.appName = CFG.APP_NAME;
-  template.session = session;
-  template.signInError = error;
-  template.resumePhotosFor = resumePhotosFor;
-  try {
-    template.signInUrl = AUTH_signInUrl();
-  } catch (urlErr) {
-    template.signInUrl = '';
-    if (!error) template.signInError = urlErr.message;
+  template.session = state.session;
+  template.signInError = state.error;
+  template.resumePhotosFor = state.resumePhotosFor;
+  template.signInUrl = state.signInUrl;
+
+  var output = template.evaluate();
+  output.setTitle(CFG.APP_NAME);
+  output.addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover');
+  output.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  return output;
+}
+
+/**
+ * Works out what Google just sent us back with.
+ *
+ * Two different round trips land on this URL: signing in, and granting access
+ * to the photos somebody is about to pick. The signed state says which.
+ */
+function ENTRY_readRedirect(params) {
+  var state = {
+    session: '',
+    error: '',
+    resumePhotosFor: '',
+    signInUrl: ''
+  };
+
+  if (params.code && params.state) {
+    var intent = AUTH_verify(params.state);
+    if (intent && intent.purpose === 'photos') {
+      ENTRY_takePhotosGrant(params, state);
+    } else {
+      ENTRY_takeSignIn(params, state);
+    }
+  } else if (params.error) {
+    state.error = 'Sign-in was cancelled.';
   }
 
-  var page = template.evaluate();
-  page.setTitle(CFG.APP_NAME);
-  page.addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover');
-  page.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-  return page;
+  ENTRY_addSignInUrl(state);
+  return state;
+}
+
+/** The session is not carried through the redirect -- putting it in a URL would
+ *  leave it in browser history. The browser still holds it. */
+function ENTRY_takePhotosGrant(params, state) {
+  try {
+    var granted = AUTH_completePhotosGrant(params.code, params.state);
+    state.resumePhotosFor = granted.personId || '';
+  } catch (photoErr) {
+    state.error = photoErr.message || String(photoErr);
+  }
+}
+
+function ENTRY_takeSignIn(params, state) {
+  try {
+    state.session = AUTH_completeSignIn(params.code, params.state);
+  } catch (signInErr) {
+    state.error = signInErr.message || String(signInErr);
+  }
+}
+
+function ENTRY_addSignInUrl(state) {
+  try {
+    state.signInUrl = AUTH_signInUrl();
+  } catch (urlErr) {
+    state.signInUrl = '';
+    if (!state.error) {
+      state.error = urlErr.message;
+    }
+  }
 }
 
 function include(filename) {
@@ -90,58 +133,82 @@ function installFamilyTree() {
   var props = ST_props();
   var owner = Session.getEffectiveUser().getEmail();
 
-  var sheetId = props.getProperty(CFG.PROP_SHEET_ID);
-  var spreadsheet;
-  if (sheetId) {
-    spreadsheet = SpreadsheetApp.openById(sheetId);
-  } else {
-    spreadsheet = SpreadsheetApp.create(CFG.APP_NAME + ' — Data');
-    props.setProperty(CFG.PROP_SHEET_ID, spreadsheet.getId());
-  }
+  var spreadsheet = ENTRY_openOrCreateSheet(props);
   ST_bootstrap(spreadsheet);
-
-  if (!props.getProperty(CFG.PROP_FOLDER_ID)) {
-    var folders = DriveApp.getFoldersByName(CFG.APP_NAME + ' — Photos');
-    var folder = folders.hasNext() ? folders.next()
-      : DriveApp.createFolder(CFG.APP_NAME + ' — Photos');
-    props.setProperty(CFG.PROP_FOLDER_ID, folder.getId());
-  }
+  ENTRY_ensurePhotoFolder(props);
 
   props.setProperty(CFG.PROP_OWNER_EMAIL, owner);
+  ENTRY_seedSettings();
+  ENTRY_ensureOwner(owner);
 
-  var settings = ST_readAll('Settings');
-  if (!settings.length) {
-    var rows = [];
-    for (var key in DEFAULT_SETTINGS) {
-      if (Object.prototype.hasOwnProperty.call(DEFAULT_SETTINGS, key)) {
-        rows.push({ key: key, value: DEFAULT_SETTINGS[key] });
-      }
-    }
-    ST_appendMany('Settings', rows);
-  }
-
-  var users = ST_readAll('Users');
-  var found = false;
-  for (var i = 0; i < users.length; i++) {
-    if (String(users[i].email).toLowerCase() === owner.toLowerCase()) { found = true; break; }
-  }
-  if (!found) {
-    ST_append('Users', {
-      email: owner.toLowerCase(), person_id: '', role: 'owner', lang_pref: 'ms',
-      can_invite: 'TRUE', invited_by: 'install', invited_at: ST_now(),
-      last_login_at: '', status: 'active'
-    });
-  }
-
-  var message =
-    'Installed.\n\n' +
+  var message = 'Installed.\n\n' +
     'Spreadsheet: ' + spreadsheet.getUrl() + '\n' +
     'Owner: ' + owner + '\n\n' +
-    'Next: create an OAuth client id in Google Cloud Console and run\n' +
-    "setOAuthClientId('YOUR-CLIENT-ID.apps.googleusercontent.com')\n" +
-    'then deploy as a web app. See docs/SETUP.md.';
+    'Next: create an OAuth client id in Google Cloud Console, then run\n' +
+    'setOAuthCredentials(id, secret) and deploy as a web app.\n' +
+    'See docs/DEPLOY.md.';
+
   Logger.log(message);
   return message;
+}
+
+function ENTRY_openOrCreateSheet(props) {
+  var sheetId = props.getProperty(CFG.PROP_SHEET_ID);
+  if (sheetId) {
+    return SpreadsheetApp.openById(sheetId);
+  }
+  var created = SpreadsheetApp.create(CFG.APP_NAME + ' Data');
+  props.setProperty(CFG.PROP_SHEET_ID, created.getId());
+  return created;
+}
+
+function ENTRY_ensurePhotoFolder(props) {
+  if (props.getProperty(CFG.PROP_FOLDER_ID)) {
+    return;
+  }
+  var name = CFG.APP_NAME + ' Photos';
+  var folders = DriveApp.getFoldersByName(name);
+  var folder;
+  if (folders.hasNext()) {
+    folder = folders.next();
+  } else {
+    folder = DriveApp.createFolder(name);
+  }
+  props.setProperty(CFG.PROP_FOLDER_ID, folder.getId());
+}
+
+function ENTRY_seedSettings() {
+  var settings = ST_readAll('Settings');
+  if (settings.length) {
+    return;
+  }
+  var rows = [];
+  for (var key in DEFAULT_SETTINGS) {
+    if (Object.prototype.hasOwnProperty.call(DEFAULT_SETTINGS, key)) {
+      rows.push({ key: key, value: DEFAULT_SETTINGS[key] });
+    }
+  }
+  ST_appendMany('Settings', rows);
+}
+
+function ENTRY_ensureOwner(owner) {
+  var users = ST_readAll('Users');
+  for (var i = 0; i < users.length; i++) {
+    if (String(users[i].email).toLowerCase() === owner.toLowerCase()) {
+      return;
+    }
+  }
+  ST_append('Users', {
+    email: owner.toLowerCase(),
+    person_id: '',
+    role: 'owner',
+    lang_pref: 'ms',
+    can_invite: 'TRUE',
+    invited_by: 'install',
+    invited_at: ST_now(),
+    last_login_at: '',
+    status: 'active'
+  });
 }
 
 /**
@@ -151,16 +218,27 @@ function installFamilyTree() {
  * authorization code for an identity. It is never sent to a browser.
  */
 function setOAuthCredentials(clientId, clientSecret) {
-  if (!clientId || String(clientId).indexOf('.apps.googleusercontent.com') === -1) {
+  var id = ENTRY_trim(clientId);
+  var secret = ENTRY_trim(clientSecret);
+
+  if (!id || id.indexOf('.apps.googleusercontent.com') === -1) {
     throw new Error('That does not look like a Google OAuth client id.');
   }
-  if (!clientSecret || String(clientSecret).length < 10) {
+  if (!secret || secret.length < 10) {
     throw new Error('That does not look like a Google OAuth client secret.');
   }
+
   var props = ST_props();
-  props.setProperty(CFG.PROP_CLIENT_ID, String(clientId).replace(/^\s+|\s+$/g, ''));
-  props.setProperty('OAUTH_CLIENT_SECRET', String(clientSecret).replace(/^\s+|\s+$/g, ''));
+  props.setProperty(CFG.PROP_CLIENT_ID, id);
+  props.setProperty('OAUTH_CLIENT_SECRET', secret);
   return 'Sign-in configured. Redirect URI to register: ' + ScriptApp.getService().getUrl();
+}
+
+function ENTRY_trim(value) {
+  if (!value) {
+    return '';
+  }
+  return String(value).replace(/^\s+/, '').replace(/\s+$/, '');
 }
 
 /** The exact redirect URI to paste into the Google Cloud Console. */
@@ -174,14 +252,21 @@ function showRedirectUri() {
 function showInstallation() {
   var props = ST_props();
   var sheetId = props.getProperty(CFG.PROP_SHEET_ID);
-  var out = [
-    'Spreadsheet: ' + (sheetId ? SpreadsheetApp.openById(sheetId).getUrl() : 'not set'),
-    'Photo folder: ' + (props.getProperty(CFG.PROP_FOLDER_ID) || 'not set'),
-    'OAuth client id: ' + (props.getProperty(CFG.PROP_CLIENT_ID) || 'NOT SET'),
-    'OAuth secret: ' + (props.getProperty('OAUTH_CLIENT_SECRET') ? 'set' : 'NOT SET'),
-    'Owner: ' + (props.getProperty(CFG.PROP_OWNER_EMAIL) || 'not set'),
-    'Web app URL: ' + ScriptApp.getService().getUrl()
-  ].join('\n');
+
+  var sheetUrl = 'not set';
+  if (sheetId) {
+    sheetUrl = SpreadsheetApp.openById(sheetId).getUrl();
+  }
+
+  var rows = [];
+  rows.push('Spreadsheet: ' + sheetUrl);
+  rows.push('Photo folder: ' + (props.getProperty(CFG.PROP_FOLDER_ID) || 'not set'));
+  rows.push('OAuth client id: ' + (props.getProperty(CFG.PROP_CLIENT_ID) || 'NOT SET'));
+  rows.push('OAuth secret: ' + (props.getProperty('OAUTH_CLIENT_SECRET') ? 'set' : 'NOT SET'));
+  rows.push('Owner: ' + (props.getProperty(CFG.PROP_OWNER_EMAIL) || 'not set'));
+  rows.push('Web app URL: ' + ScriptApp.getService().getUrl());
+
+  var out = rows.join('\n');
   Logger.log(out);
   return out;
 }

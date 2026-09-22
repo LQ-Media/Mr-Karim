@@ -141,7 +141,24 @@ fight over who is signed in.
 
 ## When something goes wrong
 
-Tell me the exact message and I will fix it. The usual three:
+**Read this one first.**
+
+**The error does not change after you fix the code.**
+A deployment is a frozen snapshot. Editing and saving does **not** change what
+`/exec` serves -- it keeps running the code as it was when you clicked Deploy,
+so a fixed bug keeps reporting itself at the same line and you conclude the fix
+did nothing.
+
+**Deploy → Manage deployments → ✏️ → Version: New version → Deploy.** The URL
+stays the same. Do this after *every* code change, or you are debugging a
+program you already replaced.
+
+To skip it while iterating, use **Deploy → Test deployments**, whose `/dev` URL
+always runs the current saved code. Sign-in will not work there -- the OAuth
+redirect is registered for `/exec` -- but it will tell you whether the code
+compiles.
+
+The other three:
 
 **"Sign-in is not configured yet."**
 Step 6 did not save. Run `showInstallation` and check both the client id and the
@@ -159,9 +176,14 @@ The page sat open more than two hours before anyone clicked through. Reload.
 
 ## Changing the code later
 
-Edit `apps-script/`, run `node tools/build-deploy-bundle.js`, paste the two
-files again, then **Deploy → Manage deployments → ✏️ → Version: New version →
-Deploy**. The URL stays the same, so nothing you have sent to relatives breaks.
+Edit `apps-script/`, run `node tools/build-deploy-bundle.js`, paste the files
+again, then **Deploy → Manage deployments → ✏️ → Version: New version →
+Deploy**. That last step is not optional: without a new version the live app
+keeps serving the old code. The URL stays the same, so nothing you have sent to
+relatives breaks.
+
+If one 218 KB paste will not go in, `deploy/split/` holds the same server as
+seven files of under 40 KB, built by `node tools/build-split-bundle.js`.
 
 If you would rather not paste: install [clasp](https://github.com/google/clasp)
 (`npm i -g @google/clasp`), run `clasp login`, `clasp clone <script id>`, then

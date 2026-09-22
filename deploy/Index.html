@@ -1,0 +1,2358 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <!-- Styles.html, inlined by tools/build-deploy-bundle.js -->
+<style>
+/* Mobile-first: the people who will use this most are relatives on phones in a
+   WhatsApp group, not anyone at a desk.
+
+   The palette is pastel green throughout. Every colour is a token defined here
+   and redefined once for dark mode, so nothing is hard-coded further down and
+   the two themes cannot drift apart. */
+:root {
+  --bg: #f1f7f2;
+  --surface: #ffffff;
+  --surface-2: #e4f0e7;
+  --line: #cfe4d5;
+  --line-2: #b4d5be;
+  --ink: #1b2a20;
+  --ink-2: #55695b;
+  --ink-3: #88a08f;
+  --accent: #4e9b74;
+  --accent-soft: #daefe2;
+  --accent-ink: #2b6949;
+  --warn: #9a7730;
+  --warn-soft: #f7efdc;
+  --danger: #a55446;
+  --danger-soft: #f8e9e6;
+  --male: #e4eff4;
+  --male-line: #a7ccd9;
+  --male-ink: #3f6d80;
+  --female: #f2e9f1;
+  --female-line: #ccb3c8;
+  --female-ink: #7d5578;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --shadow: 0 1px 2px rgba(27,42,32,.05), 0 6px 20px rgba(27,42,32,.07);
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1610; --surface: #18211a; --surface-2: #212c24; --line: #2c3a30;
+    --line-2: #3c4d41;
+    --ink: #e6eee8; --ink-2: #9fb3a5; --ink-3: #738574;
+    --accent: #79c79b; --accent-soft: #1c3a2a; --accent-ink: #a5dcbd;
+    --warn: #cfa863; --warn-soft: #33290f; --danger: #dd8a7d; --danger-soft: #3b201c;
+    --male: #1e2b32; --male-line: #3a5765; --male-ink: #9cc2d3;
+    --female: #2e2431; --female-line: #54405a; --female-ink: #c9a5c4;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.35);
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font); background: var(--bg); color: var(--ink);
+  font-size: 16px; line-height: 1.5; overflow-x: hidden;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; border: none; background: none; }
+h1,h2,h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
+
+.wrap { max-width: 760px; margin: 0 auto; padding: 0 16px 96px; }
+
+/* ---- Header ---- */
+.topbar {
+  position: sticky; top: 0; z-index: 30; background: var(--bg);
+  border-bottom: 1px solid var(--line); padding: 10px 16px;
+  display: flex; align-items: center; gap: 10px;
+}
+.topbar .brand { font-weight: 700; font-size: 17px; flex: 1; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.icon-btn {
+  width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--surface-2); color: var(--ink-2); font-size: 16px; flex: none;
+  position: relative; border: 1px solid transparent;
+}
+.icon-btn:hover { border-color: var(--line); }
+.icon-btn .dot {
+  position: absolute; top: 4px; right: 4px; min-width: 16px; height: 16px;
+  border-radius: 8px; background: var(--danger); color: #fff; font-size: 10px;
+  font-weight: 700; display: grid; place-items: center; padding: 0 4px;
+}
+
+/* ---- Search ---- */
+.searchbar { padding: 10px 0 4px; }
+.searchbar input {
+  width: 100%; padding: 11px 14px; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--surface); outline: none;
+}
+.searchbar input:focus { border-color: var(--accent); }
+
+/* ---- Centre card ---- */
+.centre {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 18px; margin: 14px 0 6px;
+  display: flex; gap: 14px; align-items: center;
+}
+.centre .avatar { width: 68px; height: 68px; font-size: 24px; }
+.centre .who { min-width: 0; flex: 1; }
+.centre .title-badge {
+  display: inline-block; background: var(--accent-soft); color: var(--accent-ink);
+  border-radius: 999px; padding: 2px 10px; font-size: 13px; font-weight: 650;
+  margin-bottom: 4px;
+}
+.centre .name { font-size: 20px; font-weight: 680; line-height: 1.25; }
+.centre .meta { color: var(--ink-2); font-size: 13.5px; margin-top: 2px; }
+
+.avatar {
+  width: 50px; height: 50px; border-radius: 50%; flex: none; object-fit: cover;
+  background: var(--surface-2); display: grid; place-items: center;
+  font-weight: 650; color: var(--ink-3); overflow: hidden;
+}
+.avatar.f { background: var(--female); color: var(--female-ink); }
+.avatar.m { background: var(--male); color: var(--male-ink); }
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+/* ---- Relationship rows ---- */
+.section { margin-top: 18px; }
+.section-head {
+  display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; padding: 0 2px;
+}
+.section-head h2 { font-size: 12.5px; text-transform: uppercase; letter-spacing: .07em;
+  color: var(--ink-3); font-weight: 700; }
+.section-head .add {
+  margin-left: auto; font-size: 13px; color: var(--accent); font-weight: 650;
+}
+.row { display: flex; gap: 10px; overflow-x: auto; padding: 2px 2px 8px;
+  scroll-snap-type: x proximity; }
+.row::-webkit-scrollbar { height: 0; }
+
+.card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 12px; min-width: 132px; max-width: 132px; text-align: center;
+  scroll-snap-align: start; display: flex; flex-direction: column; align-items: center;
+  gap: 6px; transition: transform .12s ease, border-color .12s ease;
+}
+.card:active { transform: scale(.97); }
+.card:hover { border-color: var(--accent); }
+.card.you { border-color: var(--accent); background: var(--accent-soft); }
+.card .ttl { font-size: 13px; font-weight: 700; color: var(--accent-ink); line-height: 1.2; }
+.card .nm { font-size: 12.5px; color: var(--ink-2); line-height: 1.25;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card .yr { font-size: 11px; color: var(--ink-3); }
+.card.add {
+  border-style: dashed; color: var(--ink-3); justify-content: center; min-height: 128px;
+}
+.card.add .plus { font-size: 26px; line-height: 1; }
+
+.empty { color: var(--ink-3); font-size: 14px; padding: 6px 2px 10px; }
+
+/* ---- Sheet ---- */
+.scrim {
+  position: fixed; inset: 0; background: rgba(20,17,14,.5); z-index: 50;
+  opacity: 0; pointer-events: none; transition: opacity .18s ease;
+}
+.scrim.on { opacity: 1; pointer-events: auto; }
+.sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; background: var(--surface);
+  border-radius: 20px 20px 0 0; max-height: 92vh; overflow-y: auto;
+  transform: translateY(101%); transition: transform .24s cubic-bezier(.32,.72,0,1);
+  padding: 8px 16px calc(24px + env(safe-area-inset-bottom));
+  box-shadow: 0 -8px 40px rgba(0,0,0,.2);
+}
+.sheet.on { transform: translateY(0); }
+@media (min-width: 720px) {
+  .sheet { left: 50%; transform: translate(-50%, 101%); width: 640px;
+           border-radius: 20px; bottom: 24px; max-height: 84vh; }
+  .sheet.on { transform: translate(-50%, 0); }
+}
+.grabber { width: 40px; height: 4px; border-radius: 2px; background: var(--line);
+  margin: 6px auto 12px; }
+.sheet h2 { font-size: 19px; margin-bottom: 4px; }
+.sheet .sub { color: var(--ink-2); font-size: 14px; margin-bottom: 14px; }
+
+/* ---- Forms ---- */
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 12.5px; font-weight: 650; color: var(--ink-2);
+  margin-bottom: 5px; }
+.field input, .field select, .field textarea {
+  width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--bg); outline: none;
+}
+.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); }
+.field textarea { min-height: 84px; resize: vertical; }
+.field .hint { font-size: 12px; color: var(--ink-3); margin-top: 4px; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 12px 18px; border-radius: var(--radius-sm); font-weight: 650; font-size: 15px;
+  background: var(--accent); color: #fff; width: 100%;
+}
+.btn:disabled { opacity: .5; }
+.btn.ghost { background: var(--surface-2); color: var(--ink); }
+.btn.danger { background: var(--danger-soft); color: var(--danger); }
+.btn.sm { padding: 8px 12px; font-size: 13.5px; width: auto; }
+.btn-row { display: flex; gap: 8px; margin-top: 14px; }
+
+/* ---- Duplicate warning ---- */
+.dupe {
+  background: var(--warn-soft); border: 1px solid rgba(154,91,18,.25);
+  border-radius: var(--radius); padding: 14px; margin-bottom: 14px;
+}
+.dupe h3 { font-size: 15px; color: var(--warn); margin-bottom: 4px; }
+.dupe p { font-size: 13.5px; color: var(--ink-2); margin: 0 0 12px; }
+.match {
+  display: flex; gap: 11px; align-items: center; background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px;
+  margin-bottom: 8px;
+}
+.match .who { flex: 1; min-width: 0; }
+.match .nm { font-weight: 650; font-size: 14.5px; }
+.match .why { font-size: 12.5px; color: var(--ink-2); }
+.match .score { font-size: 11px; font-weight: 700; color: var(--warn);
+  background: var(--warn-soft); border-radius: 999px; padding: 2px 8px; }
+
+/* ---- Detail ---- */
+.facts { border-top: 1px solid var(--line); margin-top: 6px; }
+.fact { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line);
+  font-size: 14.5px; }
+.fact .k { color: var(--ink-3); min-width: 112px; font-size: 13px; }
+.fact .v { flex: 1; }
+
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.chip { padding: 6px 12px; border-radius: 999px; background: var(--surface-2);
+  font-size: 13px; font-weight: 600; color: var(--ink-2); border: 1px solid transparent; }
+.chip.on { background: var(--accent-soft); color: var(--accent-ink); border-color: var(--accent); }
+
+/* ---- Gates ---- */
+.gate { min-height: 100dvh; display: grid; place-items: center; padding: 24px; }
+.gate .box { max-width: 420px; width: 100%; text-align: center; }
+.gate h1 { font-size: 26px; margin-bottom: 8px; }
+.gate p { color: var(--ink-2); margin: 0 0 22px; }
+.gate .mark { font-size: 44px; margin-bottom: 14px; }
+#gsiButton { display: flex; justify-content: center; }
+
+.toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 140%);
+  background: var(--ink); color: var(--bg); padding: 12px 18px; border-radius: 999px;
+  font-size: 14px; font-weight: 600; z-index: 90; transition: transform .22s ease;
+  max-width: 90vw; text-align: center;
+}
+.toast.on { transform: translate(-50%, 0); }
+.toast.bad { background: var(--danger); color: #fff; }
+
+.spinner {
+  width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.35);
+  border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading { display: grid; place-items: center; padding: 60px 0; color: var(--ink-3); }
+
+.admin-item {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 13px; margin-bottom: 10px;
+}
+.admin-item .what { font-size: 14.5px; font-weight: 600; margin-bottom: 2px; }
+.admin-item .who { font-size: 12.5px; color: var(--ink-3); margin-bottom: 10px; }
+.side-by-side { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
+.side { background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: 10px; font-size: 13px; }
+.side .nm { font-weight: 650; margin-bottom: 4px; }
+.side .l { color: var(--ink-3); font-size: 12px; }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
+.tabs button { padding: 10px 12px; font-size: 14px; font-weight: 620; color: var(--ink-3);
+  border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tabs button.on { color: var(--accent); border-bottom-color: var(--accent); }
+/* ---- Whole-tree canvas ---- */
+.mapwrap { position: fixed; inset: 0; z-index: 40; background: var(--bg);
+  display: flex; flex-direction: column; }
+.maptop { flex: none; display: flex; gap: 8px; align-items: center; padding: 10px 16px;
+  border-bottom: 1px solid var(--line); background: var(--bg); }
+.maptop .ttl { font-weight: 700; font-size: 15px; flex: 1; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stage { flex: 1; position: relative; overflow: hidden; background: var(--surface-2);
+  touch-action: none; cursor: grab; }
+.stage.panning { cursor: grabbing; }
+.stage::before { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background-image: radial-gradient(circle, var(--line) 1px, transparent 1px);
+  background-size: 26px 26px; opacity: .55; }
+.world { position: absolute; top: 0; left: 0; transform-origin: 0 0; will-change: transform; }
+#wires { position: absolute; top: 0; left: 0; overflow: visible; pointer-events: none; }
+
+.mnode { position: absolute; width: 176px; height: 74px; border-radius: 13px;
+  background: var(--surface); border: 1.5px solid var(--line); padding: 8px 10px;
+  display: flex; flex-direction: column; justify-content: center; cursor: grab;
+  user-select: none; -webkit-user-select: none;
+  box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 12px rgba(0,0,0,.05); }
+.mnode.m { background: var(--male); border-color: var(--male-line); }
+.mnode.f { background: var(--female); border-color: var(--female-line); }
+.mnode.you { border-color: var(--accent); border-width: 2.5px; background: var(--accent-soft); }
+.mnode.dragging { cursor: grabbing; box-shadow: 0 8px 28px rgba(0,0,0,.22); z-index: 10; }
+.mnode.lit { border-color: var(--warn); box-shadow: 0 0 0 3px var(--warn-soft); }
+.mnode.dim { opacity: .3; }
+.mnode .t { font-size: 12px; font-weight: 700; color: var(--accent-ink); line-height: 1.15;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mnode .n { font-size: 12.5px; font-weight: 600; line-height: 1.2; margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mnode .y { font-size: 10.5px; color: var(--ink-3); margin-top: 1px; }
+.mapfoot { flex: none; border-top: 1px solid var(--line); background: var(--surface);
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  display: flex; gap: 10px; align-items: center; min-height: 56px; }
+.mapfoot .who { flex: 1; min-width: 0; }
+.mapfoot .nm { font-weight: 650; font-size: 14.5px; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.mapfoot .sub2 { font-size: 12.5px; color: var(--ink-2); }
+
+.nudge {
+  background: var(--accent-soft); border: 1px solid var(--accent); border-radius: var(--radius);
+  padding: 13px 15px; margin-top: 16px; display: flex; gap: 11px; align-items: flex-start;
+}
+.nudge .mk { font-size: 17px; line-height: 1.3; flex: none; }
+.nudge .tx { font-size: 13.5px; color: var(--accent-ink); line-height: 1.5; }
+.nudge .tx b { font-weight: 700; }
+
+.batch-row { display: grid; grid-template-columns: 24px 1fr 92px 78px; gap: 6px;
+  align-items: center; margin-bottom: 6px; }
+.batch-row .ord { font-size: 12px; color: var(--ink-3); font-weight: 650; text-align: center; }
+.batch-row input, .batch-row select {
+  padding: 9px 10px; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--bg); outline: none; min-width: 0;
+}
+.batch-row input:focus, .batch-row select:focus { border-color: var(--accent); }
+@media (max-width: 420px) {
+  .batch-row { grid-template-columns: 20px 1fr 76px 66px; gap: 4px; }
+  .batch-row input, .batch-row select { padding: 9px 7px; font-size: 14px; }
+}
+.preview {
+  background: var(--accent-soft); color: var(--accent-ink); border-radius: var(--radius-sm);
+  padding: 10px 12px; font-size: 13.5px; font-weight: 600; margin-top: 8px;
+  line-height: 1.7;
+}
+.preview .lbl { display: block; font-size: 11px; letter-spacing: .07em; font-weight: 700;
+  text-transform: uppercase; opacity: .7; margin-bottom: 3px; }
+
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+</head>
+<body>
+
+<!-- Sign in. Nothing below this point renders until Google has confirmed who
+     the visitor is and the server has verified the token it issued. -->
+<div class="gate" id="gateSignIn">
+  <div class="box">
+    <div class="mark">&#127795;</div>
+    <h1><?= appName ?></h1>
+    <p>Sign in with the Google account your family invited.</p>
+    <!-- A plain top-level link, not a scripted popup. Google will not render
+         its sign-in page inside an iframe, and this page is always framed. -->
+    <a class="btn" id="signInLink" href="<?= signInUrl ?>" target="_top"
+       style="text-decoration:none">Continue with Google</a>
+    <p id="signInError" style="color:var(--danger); margin-top:16px; display:none"></p>
+  </div>
+</div>
+
+<!-- Waiting for an admin. -->
+<div class="gate" id="gatePending" style="display:none">
+  <div class="box">
+    <div class="mark">&#9203;</div>
+    <h1>Waiting for approval</h1>
+    <p>Your request to join the family tree has been sent. You will be able to
+       sign in once a family admin approves it.</p>
+    <button class="btn ghost" onclick="location.reload()">Check again</button>
+  </div>
+</div>
+
+<!-- Claiming an existing record, so nobody enters themselves twice. -->
+<div class="gate" id="gateClaim" style="display:none">
+  <div class="box" style="text-align:left">
+    <h1 style="text-align:center">Which one are you?</h1>
+    <p style="text-align:center">Your family may already have added you. Choosing
+       yourself here keeps the tree from holding two of you.</p>
+    <div id="claimList"></div>
+    <button class="btn ghost" id="claimNone" style="margin-top:12px">
+      None of these are me
+    </button>
+  </div>
+</div>
+
+<!-- An empty tree, waiting on its first person. -->
+<div class="gate" id="gateStart" style="display:none">
+  <div class="box" style="text-align:left">
+    <h1 style="text-align:center">Start the family tree</h1>
+    <p style="text-align:center">Begin with yourself. Everyone after this is added
+       through someone already here.</p>
+    <div id="startForm"></div>
+  </div>
+</div>
+
+<!-- The app. -->
+<div id="app" style="display:none">
+  <div class="topbar">
+    <button class="icon-btn" id="btnHome" title="Back to me">&#9679;</button>
+    <div class="brand" id="familyName">Family tree</div>
+    <button class="icon-btn" id="btnMap" title="Whole family as a chart">&#9783;</button>
+    <button class="icon-btn" id="btnAdmin" title="Admin" style="display:none">&#9881;</button>
+    <button class="icon-btn" id="btnMenu" title="Settings">&#9776;</button>
+  </div>
+
+  <div class="wrap">
+    <div class="searchbar">
+      <input id="search" type="search" placeholder="Search the family&hellip;"
+             autocomplete="off" spellcheck="false">
+    </div>
+    <div id="results" style="display:none"></div>
+    <div id="view"><div class="loading">Loading your family&hellip;</div></div>
+  </div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet">
+  <div class="grabber"></div>
+  <div id="sheetBody"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+  /* <?!= ?> emits raw, which is required here: <?= ?> HTML-escapes its output
+     and would turn the quotes of these JSON literals into &quot;. Both values
+     are produced by this server, never by anything a visitor supplied. */
+  var SESSION = <?!= JSON.stringify(session) ?>;
+  var SIGN_IN_ERROR = <?!= JSON.stringify(signInError) ?>;
+  /* Set when Google has just sent the person back from granting access to
+     their photos, so the app can carry on where they left off. */
+  var RESUME_PHOTOS_FOR = <?!= JSON.stringify(resumePhotosFor) ?>;
+</script>
+<!-- Client.html, inlined by tools/build-deploy-bundle.js -->
+<script>
+/**
+ * The browser side.
+ *
+ * Google Identity Services signs the visitor in and hands us an ID token. That
+ * token goes with every call and is verified server-side each time, so nothing
+ * here is trusted: hiding a button does not protect anything, it just keeps the
+ * interface honest about what the person can do.
+ */
+
+var S = {
+  token: null,       // The signed session token from the server.
+  me: null,          // Who is signed in.
+  focusId: null,     // Who the view is centred on.
+  view: null,
+  thumbs: {},        // Portrait cache, keyed by person id.
+  searchTimer: null
+};
+
+/* ------------------------------------------------------------------ *
+ * Sign-in
+ * ------------------------------------------------------------------ */
+
+var SESSION_KEY = 'familyTreeSession';
+
+/**
+ * Picks up the session.
+ *
+ * A fresh sign-in arrives embedded in the page, because the server has just
+ * exchanged Google's authorization code for it. A reload of the bare app URL
+ * has no such token, so the last one is taken from sessionStorage -- which
+ * keeps a refresh from bouncing the person back through Google.
+ */
+function loadSession() {
+  if (SESSION) {
+    S.token = SESSION;
+    try { sessionStorage.setItem(SESSION_KEY, SESSION); } catch (e) { /* private mode */ }
+    return true;
+  }
+  try {
+    S.token = sessionStorage.getItem(SESSION_KEY) || null;
+  } catch (e) {
+    S.token = null;
+  }
+  return !!S.token;
+}
+
+function signOutLocally() {
+  S.token = null;
+  try { sessionStorage.removeItem(SESSION_KEY); } catch (e) { /* private mode */ }
+}
+
+/** A session lasts twelve hours. When one runs out, send them back to Google. */
+function reauth() {
+  signOutLocally();
+  gate('gateSignIn');
+  show('signInError', 'Your sign-in has expired. Please sign in again.');
+}
+
+/* ------------------------------------------------------------------ *
+ * Server calls
+ * ------------------------------------------------------------------ */
+
+function call(fnName) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  return new Promise(function (resolve, reject) {
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res) return reject(new Error('No response from the server.'));
+        if (res.ok) return resolve(res.data);
+        if (/sign-?in (expired|required)/i.test(res.error)) {
+          reauth();
+          return reject(new Error(res.error));
+        }
+        reject(new Error(res.error));
+      })
+      .withFailureHandler(function (err) { reject(err); })
+      [fnName].apply(null, [S.token].concat(args));
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ * Routing
+ * ------------------------------------------------------------------ */
+
+function boot() {
+  call('api_me').then(function (me) {
+    S.me = me;
+    document.getElementById('familyName').textContent = me.familyName || 'Family tree';
+
+    if (me.isPending) return gate('gatePending');
+    if (me.treeSize === 0 && me.isAdmin) return startTreeGate();
+    if (me.needsBinding) return claimGate(me.unclaimed || []);
+
+    gate('app');
+    // Google has just sent them back from granting access to their photos.
+    if (typeof RESUME_PHOTOS_FOR === 'string' && RESUME_PHOTOS_FOR) {
+      var resumeFor = RESUME_PHOTOS_FOR;
+      RESUME_PHOTOS_FOR = '';
+      setTimeout(function () { startGooglePhotos(resumeFor); }, 400);
+    }
+    if (me.isAdmin) {
+      var n = (me.adminCounts.pendingChanges || 0) + (me.adminCounts.pendingUsers || 0) +
+              (me.adminCounts.mergeQueue || 0);
+      var btn = document.getElementById('btnAdmin');
+      btn.style.display = '';
+      if (n) btn.innerHTML = '&#9881;<span class="dot">' + n + '</span>';
+    }
+    loadView(null);
+  }).catch(function (err) {
+    signOutLocally();
+    gate('gateSignIn');
+    show('signInError', err.message);
+  });
+}
+
+/* Start here: either we have a session, or the person signs in. */
+if (SIGN_IN_ERROR) {
+  gate('gateSignIn');
+  show('signInError', SIGN_IN_ERROR);
+} else if (loadSession()) {
+  boot();
+} else {
+  gate('gateSignIn');
+}
+
+function gate(id) {
+  ['gateSignIn', 'gatePending', 'gateClaim', 'gateStart', 'app'].forEach(function (g) {
+    document.getElementById(g).style.display = g === id ? '' : 'none';
+  });
+}
+
+function show(id, text) {
+  var el = document.getElementById(id);
+  el.textContent = text;
+  el.style.display = '';
+}
+
+/* ------------------------------------------------------------------ *
+ * First-run gates
+ * ------------------------------------------------------------------ */
+
+function claimGate(candidates) {
+  gate('gateClaim');
+  var list = document.getElementById('claimList');
+  if (!candidates.length) {
+    list.innerHTML = '<p class="empty">Nobody in the tree looks like you yet.</p>';
+  } else {
+    list.innerHTML = candidates.map(function (c) {
+      return '<button class="match" style="width:100%;text-align:left" data-id="' + c.personId + '">' +
+        '<div class="avatar">' + initials(c.name) + '</div>' +
+        '<div class="who"><div class="nm">' + esc(c.name) + '</div>' +
+        '<div class="why">' + (c.birthDate ? 'Born ' + esc(c.birthDate) : 'No birth date recorded') +
+        '</div></div></button>';
+    }).join('');
+    Array.prototype.forEach.call(list.querySelectorAll('[data-id]'), function (btn) {
+      btn.onclick = function () {
+        call('api_claimPerson', btn.getAttribute('data-id'))
+          .then(boot).catch(fail);
+      };
+    });
+  }
+  document.getElementById('claimNone').onclick = function () {
+    toast('Ask a family admin to add you and link your account.');
+  };
+}
+
+function startTreeGate() {
+  gate('gateStart');
+  document.getElementById('startForm').innerHTML =
+    personFields({}, true) +
+    '<button class="btn" id="startBtn" style="margin-top:8px">Create my record</button>';
+  document.getElementById('startBtn').onclick = function () {
+    var data = readPersonFields();
+    if (!data.display_name) return toast('Please enter a name.', true);
+    busy(this, true);
+    call('api_startTree', data).then(boot).catch(function (e) { busy(null); fail(e); });
+  };
+}
+
+/* ------------------------------------------------------------------ *
+ * The me-centred view
+ * ------------------------------------------------------------------ */
+
+function loadView(focusId) {
+  S.focusId = focusId;
+  document.getElementById('view').innerHTML = '<div class="loading">Loading&hellip;</div>';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('search').value = '';
+
+  call('api_view', focusId).then(function (view) {
+    S.view = view;
+    renderView(view);
+    loadThumbs(view);
+  }).catch(fail);
+}
+
+function renderView(v) {
+  var html = centreCard(v.centre);
+
+  html += section('Parents', v.parents, v.centre, 'parent_of', 'No parents recorded yet');
+  html += section(v.spouses.length > 1 ? 'Marriages' : 'Spouse', v.spouses, v.centre,
+                  'spouse_of', 'No marriage recorded');
+  html += section('Brothers and sisters', v.siblings, v.centre, 'sibling_of', 'No siblings recorded');
+  html += section('Children', v.children, v.centre, 'child_of', 'No children recorded');
+
+  html += nextStep(v);
+
+  document.getElementById('view').innerHTML = html;
+  wireCards();
+}
+
+/**
+ * What to enter next.
+ *
+ * Two hundred people is a lot of typing, and the order matters more than it
+ * looks: build upward and outward from yourself and every new person has
+ * somewhere to attach, which is what keeps the tree in one piece. Left to
+ * improvise, people add whoever comes to mind and end up with fragments.
+ *
+ * The hint only appears on your own record, and only while the tree is small
+ * enough for the advice to still be useful.
+ */
+function nextStep(v) {
+  if (!v.centre.isYou || S.me.treeSize > 60) return '';
+
+  var step = null;
+  if (!v.parents.length) {
+    step = 'Add <b>your parents</b> first, then their parents. Your side of the ' +
+           'family grows upward from you.';
+  } else if (!v.siblings.length && !v.spouses.length) {
+    step = 'Add <b>your brothers and sisters</b> &mdash; oldest first, so their ' +
+           'children get the right titles for them.';
+  } else if (!v.spouses.length) {
+    step = 'Add <b>your spouse</b>. Their family becomes the second tree, joined ' +
+           'to this one through your marriage.';
+  } else if (!v.children.length) {
+    step = 'Add <b>your children</b>, oldest first &mdash; and open your spouse to ' +
+           'add <b>their parents</b>, which starts their side of the family.';
+  } else {
+    step = 'Open <b>your spouse</b> and add <b>their parents</b> to build their side ' +
+           'of the family. Then work outward: each person&rsquo;s siblings, then their ' +
+           'children.';
+  }
+
+  return '<div class="nudge"><span class="mk">&#127793;</span>' +
+         '<span class="tx">' + step + '</span></div>';
+}
+
+function centreCard(p) {
+  var meta = [];
+  if (p.birthDate) meta.push((p.isLiving ? 'b. ' : 'b. ') + year(p.birthDate));
+  if (!p.isLiving) meta.push(p.deathDate ? 'd. ' + year(p.deathDate) : 'deceased');
+
+  return '<div class="centre">' +
+    avatar(p, 'avatar ' + genderClass(p.gender)) +
+    '<div class="who">' +
+      (p.isYou ? '' : '<span class="title-badge">' + esc(p.yourTitle) + '</span>') +
+      '<div class="name">' + esc(p.name) + '</div>' +
+      '<div class="meta">' + esc(meta.join(' · ')) + '</div>' +
+    '</div>' +
+    '<button class="icon-btn" data-open="' + p.personId + '" title="Details">&#8250;</button>' +
+  '</div>';
+}
+
+/**
+ * One relationship row.
+ *
+ * Each card leads with the title the VIEWER uses, not the label that applies at
+ * the centre of the screen -- that is the whole point of the app, and it stays
+ * true however far into a distant branch someone wanders. The smaller line
+ * underneath says how the person sits relative to whoever is centred, which is
+ * what stops a cousin's household from being confusing.
+ */
+function section(heading, people, centre, relationship, emptyText) {
+  var cards = people.map(function (p) {
+    var sub = p.isYou ? 'you' : p.roleHere;
+    return '<button class="card' + (p.isYou ? ' you' : '') + '" data-focus="' + p.personId + '">' +
+      avatar(p, 'avatar ' + genderClass(p.gender)) +
+      '<div class="ttl">' + esc(p.isYou ? 'You' : p.yourTitle) + '</div>' +
+      '<div class="nm">' + esc(p.name) + '</div>' +
+      '<div class="yr">' + esc(sub) + (p.birthDate ? ' · ' + year(p.birthDate) : '') + '</div>' +
+    '</button>';
+  });
+
+  // Children and siblings are entered a generation at a time, because that is
+  // how families recall themselves and because the order they are listed in is
+  // what the Malay titles need.
+  var batch = relationship === 'child_of' || relationship === 'sibling_of';
+
+  if (centre.editable) {
+    cards.push('<button class="card add" data-add="' + relationship +
+      '" data-batch="' + (batch ? '1' : '0') + '">' +
+      '<div class="plus">+</div><div class="nm">' + (batch ? 'Add several' : 'Add') +
+      '</div></button>');
+  }
+
+  var tools = '';
+  if (relationship === 'child_of' && centre.editable && people.length > 1) {
+    tools = '<button class="add" data-reorder="1">Reorder</button>';
+  }
+
+  return '<div class="section">' +
+    '<div class="section-head"><h2>' + esc(heading) + '</h2>' + tools + '</div>' +
+    (cards.length ? '<div class="row">' + cards.join('') + '</div>'
+                  : '<div class="empty">' + esc(emptyText) + '</div>') +
+  '</div>';
+}
+
+function wireCards() {
+  var view = document.getElementById('view');
+  Array.prototype.forEach.call(view.querySelectorAll('[data-focus]'), function (el) {
+    el.onclick = function () { loadView(el.getAttribute('data-focus')); };
+  });
+  Array.prototype.forEach.call(view.querySelectorAll('[data-open]'), function (el) {
+    el.onclick = function () { openPerson(el.getAttribute('data-open')); };
+  });
+  Array.prototype.forEach.call(view.querySelectorAll('[data-add]'), function (el) {
+    el.onclick = function () {
+      var relationship = el.getAttribute('data-add');
+      if (el.getAttribute('data-batch') === '1') openBatch(S.view.centre.personId, relationship);
+      else openAdd(S.view.centre.personId, relationship);
+    };
+  });
+  Array.prototype.forEach.call(view.querySelectorAll('[data-reorder]'), function (el) {
+    el.onclick = function () { openReorder(); };
+  });
+}
+
+/** Portraits for everyone on screen, in one call rather than one per face. */
+function loadThumbs(v) {
+  var ids = [];
+  [[v.centre], v.parents, v.spouses, v.siblings, v.children].forEach(function (group) {
+    group.forEach(function (p) {
+      if (p && p.hasPhoto && !S.thumbs[p.personId]) ids.push(p.personId);
+    });
+  });
+  if (!ids.length) return paintThumbs();
+
+  call('api_thumbnails', ids).then(function (map) {
+    for (var id in map) if (map.hasOwnProperty(id)) S.thumbs[id] = map[id];
+    paintThumbs();
+  }).catch(function () { /* A missing portrait is not worth an error. */ });
+}
+
+function paintThumbs() {
+  Array.prototype.forEach.call(document.querySelectorAll('[data-photo]'), function (el) {
+    var id = el.getAttribute('data-photo');
+    if (S.thumbs[id] && !el.querySelector('img')) {
+      el.innerHTML = '<img src="' + S.thumbs[id] + '" alt="">';
+    }
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ * Person detail
+ * ------------------------------------------------------------------ */
+
+function openPerson(personId) {
+  openSheet('<div class="loading">Loading&hellip;</div>');
+  call('api_person', personId).then(function (p) {
+    var facts = [];
+    function fact(k, v) { if (v) facts.push('<div class="fact"><div class="k">' + k +
+      '</div><div class="v">' + esc(String(v)) + '</div></div>'); }
+
+    fact('Full name', p.full_name);
+    fact('Also known as', p.also_known_as);
+    fact('Born', datePhrase(p.birth_date, p.birth_precision));
+    fact('Birthplace', p.birth_place);
+    if (p.is_living === 'FALSE') {
+      fact('Died', datePhrase(p.death_date, p.death_precision));
+      fact('Place of death', p.death_place);
+      fact('Buried', p.burial_place);
+    }
+    fact('Occupation', p.occupation);
+    fact('Email', p.email);
+    fact('Mobile', p.mobile);
+    fact('Address', p.address);
+    if (p.derivedBirthOrder) {
+      fact('Birth order', p.derivedBirthOrder + ' of ' + p.siblingCount +
+        (p.birth_order ? '' : ' (worked out from birth dates)'));
+    }
+    fact('Notes', p.notes);
+
+    var html =
+      '<h2>' + esc(p.display_name) + '</h2>' +
+      '<div class="sub">You call them <strong>' + esc(p.yourTitle) + '</strong>' +
+        (p.titleSource === 'custom' ? ' (set by your family)' : '') + '</div>' +
+      '<div class="facts">' + (facts.join('') || '<div class="empty">Nothing recorded yet.</div>') + '</div>' +
+      '<div class="btn-row">' +
+        (p.editable ? '<button class="btn" id="editBtn">Edit</button>' +
+                      '<button class="btn ghost" id="photoBtn">Upload photo</button>' : '') +
+        '<button class="btn ghost" id="titleBtn">Rename title</button>' +
+      '</div>' +
+      (p.editable && S.me.googlePhotos
+        ? '<button class="btn ghost" id="gphotoBtn" style="margin-top:8px">' +
+          'Choose from Google Photos</button>' +
+          '<div class="hint" style="margin-top:6px">The picture is copied into the ' +
+          'family album, so every relative can see it \u2014 a Google Photos link on ' +
+          'its own only works for you, and only for an hour.</div>'
+        : '') +
+      '<input type="file" id="photoInput" accept="image/*" class="sr">';
+
+    openSheet(html);
+
+    if (p.editable) {
+      document.getElementById('editBtn').onclick = function () { openEdit(p); };
+      document.getElementById('photoBtn').onclick = function () {
+        document.getElementById('photoInput').click();
+      };
+      document.getElementById('photoInput').onchange = function (e) {
+        if (e.target.files[0]) uploadPhoto(personId, e.target.files[0]);
+      };
+      var gphoto = document.getElementById('gphotoBtn');
+      if (gphoto) gphoto.onclick = function () { startGooglePhotos(personId); };
+    }
+    document.getElementById('titleBtn').onclick = function () { openTitle(p); };
+  }).catch(fail);
+}
+
+function openEdit(p) {
+  openSheet(
+    '<h2>Edit ' + esc(p.display_name) + '</h2>' +
+    '<div class="sub">Changes outside your own branch are sent to a family admin first.</div>' +
+    personFields(p, false) +
+    '<div class="btn-row"><button class="btn" id="saveBtn">Save</button>' +
+    '<button class="btn ghost" onclick="closeSheet()">Cancel</button></div>');
+
+  document.getElementById('saveBtn').onclick = function () {
+    var data = readPersonFields();
+    busy(this, true);
+    call('api_updatePerson', p.personId, data).then(function (res) {
+      closeSheet();
+      toast(res.status === 'pending_approval'
+        ? 'Sent to a family admin for approval.' : 'Saved.');
+      if (res.status !== 'pending_approval') loadView(S.focusId);
+    }).catch(function (e) { busy(null); fail(e); });
+  };
+}
+
+/** The family's own name for someone, overriding what the engine worked out. */
+function openTitle(p) {
+  openSheet(
+    '<h2>What you call ' + esc(p.display_name) + '</h2>' +
+    '<div class="sub">The app worked out <strong>' + esc(p.yourTitle) + '</strong>. If your ' +
+      'family uses a different name for them, put it here -- it only changes what ' +
+      '<em>you</em> see, unless you set it for everyone.</div>' +
+    '<div class="field"><label>Your name for them</label>' +
+      '<input id="customTitle" placeholder="' + esc(p.yourTitle) + '" maxlength="60"></div>' +
+    (S.me.isAdmin ? '<div class="field"><label>' +
+      '<input type="checkbox" id="titleGlobal" style="width:auto;margin-right:8px">' +
+      'Use this for the whole family</label></div>' : '') +
+    '<div class="btn-row"><button class="btn" id="titleSave">Save</button>' +
+    '<button class="btn ghost" onclick="closeSheet()">Cancel</button></div>');
+
+  document.getElementById('titleSave').onclick = function () {
+    var label = document.getElementById('customTitle').value;
+    var globalEl = document.getElementById('titleGlobal');
+    busy(this, true);
+    call('api_setCustomTitle', p.personId, label,
+         globalEl && globalEl.checked ? 'GLOBAL' : 'ME', '*')
+      .then(function () { closeSheet(); toast('Saved.'); loadView(S.focusId); })
+      .catch(function (e) { busy(null); fail(e); });
+  };
+}
+
+/* ------------------------------------------------------------------ *
+ * Adding someone
+ * ------------------------------------------------------------------ */
+
+var ADD_WORDING = {
+  parent_of: 'a parent of', child_of: 'a child of',
+  spouse_of: 'married to', sibling_of: 'a brother or sister of'
+};
+
+function openAdd(anchorId, relationship, anchorName) {
+  anchorName = anchorName || (S.view && S.view.centre ? S.view.centre.name : 'them');
+  openSheet(
+    '<h2>Add someone</h2>' +
+    '<div class="sub">This person will be recorded as <strong>' +
+      ADD_WORDING[relationship] + ' ' + esc(anchorName) + '</strong>.</div>' +
+    '<div id="dupeZone"></div>' +
+    personFields({}, true) +
+    (relationship === 'spouse_of' ? marriageFields() : '') +
+    '<div class="btn-row"><button class="btn" id="addBtn">Add them</button>' +
+    '<button class="btn ghost" onclick="closeSheet()">Cancel</button></div>');
+
+  document.getElementById('addBtn').onclick = function () {
+    submitAdd(anchorId, relationship, false);
+  };
+}
+
+/**
+ * Submits a new person.
+ *
+ * The first attempt asks the server to look for anyone this might already be.
+ * If it finds someone, the form stays exactly as it is and the matches appear
+ * above it, so the person entering data can link instead of duplicating without
+ * losing what they typed. Only a deliberate second press creates a new record.
+ */
+function submitAdd(anchorId, relationship, ignoreDuplicates) {
+  var data = readPersonFields();
+  if (!data.display_name) return toast('Please enter a name.', true);
+  Object.assign(data, readMarriageFields());
+
+  var btn = document.getElementById('addBtn');
+  busy(btn, true);
+
+  call('api_addPerson', anchorId, relationship, data, { ignoreDuplicates: ignoreDuplicates })
+    .then(function (res) {
+      busy(btn, false);
+      if (res.status === 'possible_duplicate') return showDuplicates(res, anchorId, relationship);
+      closeSheet();
+      toast(res.status === 'pending_approval'
+        ? 'Sent to a family admin for approval.' : 'Added.');
+      if (res.status !== 'pending_approval') refreshAfterWrite();
+    })
+    .catch(function (e) { busy(btn, false); fail(e); });
+}
+
+function showDuplicates(res, anchorId, relationship) {
+  var matches = res.candidates.map(function (c) {
+    var why = c.why.length ? c.why.join(', ') : 'similar details';
+    var line = [c.fatherName ? 'father: ' + c.fatherName : '',
+                c.birthDate ? 'b. ' + year(c.birthDate) : ''].filter(Boolean).join(' · ');
+    return '<div class="match">' +
+      '<div class="avatar">' + initials(c.name) + '</div>' +
+      '<div class="who"><div class="nm">' + esc(c.name) +
+        (c.yourTitle ? ' <span class="score">' + esc(c.yourTitle) + '</span>' : '') + '</div>' +
+        (line ? '<div class="why">' + esc(line) + '</div>' : '') +
+        '<div class="why">Matched on ' + esc(why) + '</div></div>' +
+      '<button class="btn sm" data-link="' + c.personId + '">This one</button>' +
+    '</div>';
+  }).join('');
+
+  document.getElementById('dupeZone').innerHTML =
+    '<div class="dupe">' +
+      '<h3>Is this someone already in the tree?</h3>' +
+      '<p>Adding a second copy of the same person is how a family tree quietly ' +
+         'splits in two. Pick them if you recognise them.</p>' +
+      matches +
+      '<button class="btn ghost sm" id="notThem" style="width:100%">' +
+        'None of these &mdash; add as a new person</button>' +
+    '</div>';
+
+  Array.prototype.forEach.call(document.querySelectorAll('[data-link]'), function (btn) {
+    btn.onclick = function () {
+      busy(btn, true);
+      call('api_linkExisting', anchorId, relationship, btn.getAttribute('data-link'),
+           readMarriageFields())
+        .then(function (r) {
+          closeSheet();
+          toast(r.status === 'pending_approval'
+            ? 'Sent to a family admin for approval.' : 'Connected.');
+          if (r.status !== 'pending_approval') refreshAfterWrite();
+        })
+        .catch(function (e) { busy(btn, false); fail(e); });
+    };
+  });
+
+  document.getElementById('notThem').onclick = function () {
+    submitAdd(anchorId, relationship, true);
+  };
+  document.getElementById('sheet').scrollTop = 0;
+}
+
+/* ------------------------------------------------------------------ *
+ * Adding a generation at once
+ * ------------------------------------------------------------------ */
+
+var BATCH_WORDING = {
+  child_of: { title: 'Add children of ', noun: 'children' },
+  sibling_of: { title: 'Add brothers and sisters of ', noun: 'brothers and sisters' }
+};
+
+/**
+ * The fast path.
+ *
+ * Entering two hundred relatives one form at a time is what kills a family tree
+ * before it is worth looking at. Here a whole generation goes in at once, with
+ * only the three things somebody reliably knows off the top of their head: the
+ * name, whether they are a son or a daughter, and roughly when they were born.
+ *
+ * Listing them oldest first is not housekeeping. Their position becomes their
+ * birth order, which is precisely what decides whether an uncle is Pak Long or
+ * Pak Su -- so the app collects the hardest fact in the system as a side effect
+ * of the way people naturally recite a family.
+ */
+function openBatch(anchorId, relationship, anchorName) {
+  anchorName = anchorName || (S.view && S.view.centre ? S.view.centre.name : 'them');
+  var wording = BATCH_WORDING[relationship];
+  // Any rows held over from a batch that was abandoned rather than cancelled.
+  S.batchRows = null;
+  openSheet(
+    '<h2>' + wording.title + esc(anchorName) + '</h2>' +
+    '<div class="sub">List them <strong>oldest first</strong>. That order is what ' +
+      'decides their titles &mdash; Pak Long for the eldest, Pak Su for the youngest &mdash; ' +
+      'so it is worth getting right, and you can change it later.</div>' +
+    '<div id="batchRows"></div>' +
+    '<button class="btn ghost sm" id="addRow" style="width:100%;margin-top:4px">' +
+      '+ Another</button>' +
+    '<div class="btn-row"><button class="btn" id="batchSave">Add them</button>' +
+    '<button class="btn ghost" onclick="closeSheet()">Cancel</button></div>');
+
+  var rows = 0;
+  function addRow() {
+    rows++;
+    var i = rows;
+    var el = document.createElement('div');
+    el.className = 'batch-row';
+    el.innerHTML =
+      '<span class="ord">' + i + '</span>' +
+      '<input id="b_name_' + i + '" placeholder="Name" maxlength="120">' +
+      select('b_gender_' + i, [['U', '\u2014'], ['M', 'Son'], ['F', 'Daughter']], 'U') +
+      '<input id="b_year_' + i + '" type="number" placeholder="Year" min="1700" max="2100">';
+    document.getElementById('batchRows').appendChild(el);
+    if (i === 1) document.getElementById('b_name_1').focus();
+  }
+  for (var n = 0; n < 4; n++) addRow();
+
+  document.getElementById('addRow').onclick = addRow;
+  document.getElementById('batchSave').onclick = function () {
+    submitBatch(anchorId, relationship, rows, null);
+  };
+
+  // Typing in the last row adds another, so entering nine children never means
+  // stopping to press a button.
+  document.getElementById('batchRows').addEventListener('input', function (e) {
+    if (e.target.id === 'b_name_' + rows && e.target.value) addRow();
+  });
+}
+
+function readBatchRows(count) {
+  var rows = [];
+  for (var i = 1; i <= count; i++) {
+    var nameEl = document.getElementById('b_name_' + i);
+    if (!nameEl || !nameEl.value.trim()) continue;
+    var gender = document.getElementById('b_gender_' + i).value;
+    var yearEl = document.getElementById('b_year_' + i);
+    var row = { display_name: nameEl.value.trim(), full_name: nameEl.value.trim() };
+    if (gender !== 'U') row.gender = gender;
+    if (yearEl && yearEl.value) {
+      row.birth_date = yearEl.value + '-01-01';
+      row.birth_precision = 'year';
+    }
+    rows.push(row);
+  }
+  return rows;
+}
+
+function submitBatch(anchorId, relationship, rowCount, decisions) {
+  var rows = S.batchRows || readBatchRows(rowCount);
+  if (!rows.length) return toast('Enter at least one name.', true);
+  S.batchRows = rows;
+
+  var btn = document.getElementById('batchSave');
+  busy(btn, true);
+
+  call('api_addBatch', anchorId, relationship, rows, decisions).then(function (res) {
+    busy(btn, false);
+    if (res.status === 'possible_duplicate') {
+      return reviewBatch(res.rows, anchorId, relationship, rows);
+    }
+    S.batchRows = null;
+    closeSheet();
+    if (res.status === 'pending_approval') return toast('Sent to a family admin for approval.');
+    toast('Added ' + res.created + (res.linked ? ', linked ' + res.linked : '') + '.');
+    refreshAfterWrite();
+  }).catch(function (e) { busy(btn, false); S.batchRows = null; fail(e); });
+}
+
+/**
+ * Some of the batch might already be in the tree.
+ *
+ * Nothing was written -- a half-applied batch would leave the tree in a state
+ * nobody asked for -- so each uncertain row is settled here and the whole thing
+ * is sent again. Rows the app had no doubt about are not shown; there is nothing
+ * to decide about them.
+ */
+function reviewBatch(flagged, anchorId, relationship, rows) {
+  var uncertain = flagged.filter(function (r) { return r.candidates.length; });
+
+  openSheet(
+    '<h2>Some of these may already be here</h2>' +
+    '<div class="sub">Nothing has been saved yet. Link the ones you recognise, and ' +
+      'the rest will be added as new people.</div>' +
+    uncertain.map(function (row) {
+      return '<div class="dupe"><h3>' + esc(row.name) + '</h3>' +
+        row.candidates.map(function (c) {
+          return '<label class="match" style="cursor:pointer">' +
+            '<input type="radio" name="row' + row.index + '" value="' + c.personId +
+              '" style="width:auto;flex:none">' +
+            '<div class="who"><div class="nm">' + esc(c.fullName || c.name) + '</div>' +
+            '<div class="why">' + esc([c.fatherName ? 'father: ' + c.fatherName : '',
+              c.birthDate ? 'b. ' + year(c.birthDate) : '',
+              c.why.join(', ')].filter(Boolean).join(' \u00b7 ')) + '</div></div>' +
+            '<span class="score">' + c.score + '%</span></label>';
+        }).join('') +
+        '<label class="match" style="cursor:pointer">' +
+          '<input type="radio" name="row' + row.index + '" value="new" checked ' +
+            'style="width:auto;flex:none">' +
+          '<div class="who"><div class="nm">Add as a new person</div>' +
+          '<div class="why">None of the above is them</div></div></label>' +
+      '</div>';
+    }).join('') +
+    '<div class="btn-row"><button class="btn" id="batchSave">Save them</button>' +
+    '<button class="btn ghost" onclick="closeSheet();S.batchRows=null">Cancel</button></div>');
+
+  document.getElementById('batchSave').onclick = function () {
+    var decisions = {};
+    flagged.forEach(function (row) {
+      var picked = document.querySelector('input[name="row' + row.index + '"]:checked');
+      decisions[String(row.index)] = (!picked || picked.value === 'new')
+        ? { action: 'create' }
+        : { action: 'link', personId: picked.value };
+    });
+    // Rows the matcher was sure about still need a decision, or the server will
+    // treat the batch as unreviewed and ask again.
+    rows.forEach(function (_, i) {
+      if (!decisions[String(i)]) decisions[String(i)] = { action: 'create' };
+    });
+    submitBatch(anchorId, relationship, rows.length, decisions);
+  };
+}
+
+/**
+ * Putting a generation back in order.
+ *
+ * A family entered out of sequence gets the wrong titles, and since these words
+ * are used daily somebody will notice within the hour. The order is stated
+ * directly rather than by editing one person's number, because the ranks only
+ * mean anything relative to each other.
+ */
+function openReorder() {
+  var children = S.view.children.slice();
+  var parentId = S.view.centre.personId;
+
+  function draw() {
+    openSheet(
+      '<h2>Order of ' + esc(S.view.centre.name) + '\u2019s children</h2>' +
+      '<div class="sub">Oldest at the top. This is what decides Pak Long, Mak Ngah ' +
+        'and Pak Su for the next generation.</div>' +
+      '<div id="orderList">' + children.map(function (c, i) {
+        return '<div class="match">' +
+          '<span class="score">' + (i + 1) + '</span>' +
+          '<div class="who"><div class="nm">' + esc(c.name) + '</div>' +
+          '<div class="why">' + esc(c.birthDate ? 'b. ' + year(c.birthDate)
+                                                : 'no birth date recorded') + '</div></div>' +
+          '<button class="btn sm ghost" data-up="' + i + '" ' +
+            (i === 0 ? 'disabled' : '') + '>\u2191</button>' +
+          '<button class="btn sm ghost" data-down="' + i + '" ' +
+            (i === children.length - 1 ? 'disabled' : '') + '>\u2193</button>' +
+        '</div>';
+      }).join('') + '</div>' +
+      '<div class="btn-row"><button class="btn" id="orderSave">Save order</button>' +
+      '<button class="btn ghost" onclick="closeSheet()">Cancel</button></div>');
+
+    function swap(a, b) {
+      var tmp = children[a]; children[a] = children[b]; children[b] = tmp;
+      draw();
+    }
+    Array.prototype.forEach.call(document.querySelectorAll('[data-up]'), function (b) {
+      b.onclick = function () { var i = Number(b.getAttribute('data-up')); swap(i, i - 1); };
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-down]'), function (b) {
+      b.onclick = function () { var i = Number(b.getAttribute('data-down')); swap(i, i + 1); };
+    });
+    document.getElementById('orderSave').onclick = function () {
+      busy(this, true);
+      call('api_reorderSiblings', parentId, children.map(function (c) { return c.personId; }))
+        .then(function () { closeSheet(); toast('Order saved.'); loadView(S.focusId); })
+        .catch(function (e) { busy(null); fail(e); });
+    };
+  }
+  draw();
+}
+
+/**
+ * Redraws whatever the person is looking at after a change lands.
+ *
+ * A relative added from the chart should appear on the chart, not only on the
+ * list screen hidden behind it.
+ */
+function refreshAfterWrite() {
+  if (MAP.on) {
+    closeMap();
+    openMap();
+    return;
+  }
+  loadView(S.focusId);
+}
+
+/* ------------------------------------------------------------------ *
+ * Forms
+ * ------------------------------------------------------------------ */
+
+function personFields(p, isNew) {
+  p = p || {};
+  return '' +
+  field('Name as the family says it', '<input id="f_display_name" value="' +
+    attr(p.display_name) + '" placeholder="e.g. Karim" maxlength="120">') +
+  field('Full name', '<input id="f_full_name" value="' + attr(p.full_name) + '" ' +
+    'placeholder="e.g. Karim bin Rahim" maxlength="200">',
+    'Writing the full name with bin or binti helps the app spot duplicates.') +
+  '<div class="two">' +
+    field('Gender', select('f_gender', [['U', 'Not recorded'], ['M', 'Male'], ['F', 'Female']],
+      p.gender || 'U')) +
+    field('Born', '<input id="f_birth_date" type="date" value="' + attr(p.birth_date) + '">') +
+  '</div>' +
+  '<div class="two">' +
+    field('How sure is that date?', select('f_birth_precision',
+      [['exact', 'Exact'], ['month', 'Month only'], ['year', 'Year only'],
+       ['about', 'Approximate'], ['unknown', 'Unknown']], p.birth_precision || 'exact')) +
+    field('Birthplace', '<input id="f_birth_place" value="' + attr(p.birth_place) +
+      '" maxlength="120">') +
+  '</div>' +
+  field('Living?', select('f_is_living', [['TRUE', 'Living'], ['FALSE', 'Passed away']],
+    p.is_living === 'FALSE' ? 'FALSE' : 'TRUE')) +
+  '<div id="deathBlock" style="display:' + (p.is_living === 'FALSE' ? '' : 'none') + '">' +
+    '<div class="two">' +
+      field('Died', '<input id="f_death_date" type="date" value="' + attr(p.death_date) + '">') +
+      field('Place of death', '<input id="f_death_place" value="' + attr(p.death_place) +
+        '" maxlength="120">') +
+    '</div>' +
+    field('Buried at', '<input id="f_burial_place" value="' + attr(p.burial_place) +
+      '" maxlength="160">') +
+  '</div>' +
+  field('Also known as', '<input id="f_also_known_as" value="' + attr(p.also_known_as) +
+    '" placeholder="nicknames, separated by commas" maxlength="200">') +
+  '<div class="two">' +
+    field('Birth order', '<input id="f_birth_order" type="number" min="1" max="30" value="' +
+      attr(p.birth_order) + '">',
+      'Which child they are. Needed for Pak Long, Mak Ngah, Pak Su.') +
+    field('Occupation', '<input id="f_occupation" value="' + attr(p.occupation) +
+      '" maxlength="120">') +
+  '</div>' +
+  '<div class="two">' +
+    field('Mobile', '<input id="f_mobile" value="' + attr(p.mobile) + '" maxlength="40">') +
+    field('Email', '<input id="f_email" type="email" value="' + attr(p.email) +
+      '" maxlength="120">') +
+  '</div>' +
+  field('Address', '<input id="f_address" value="' + attr(p.address) + '" maxlength="200">') +
+  field('Notes and stories', '<textarea id="f_notes" maxlength="5000">' +
+    esc(p.notes || '') + '</textarea>');
+}
+
+function marriageFields() {
+  return '<div class="two">' +
+    field('Marriage', select('f_union_status',
+      [['current', 'Married'], ['divorced', 'Divorced'], ['widowed', 'Widowed'],
+       ['separated', 'Separated']], 'current')) +
+    field('Married on', '<input id="f_union_start_date" type="date">') +
+  '</div>';
+}
+
+function readPersonFields() {
+  var out = {};
+  ['display_name', 'full_name', 'gender', 'birth_date', 'birth_precision', 'birth_place',
+   'is_living', 'death_date', 'death_place', 'burial_place', 'also_known_as',
+   'birth_order', 'occupation', 'mobile', 'email', 'address', 'notes'].forEach(function (f) {
+    var el = document.getElementById('f_' + f);
+    if (el && el.value !== '') out[f] = el.value;
+  });
+  if (!out.full_name && out.display_name) out.full_name = out.display_name;
+  return out;
+}
+
+function readMarriageFields() {
+  var out = {};
+  var status = document.getElementById('f_union_status');
+  var start = document.getElementById('f_union_start_date');
+  if (status) out.union_status = status.value;
+  if (start && start.value) out.union_start_date = start.value;
+  return out;
+}
+
+function field(label, control, hint) {
+  return '<div class="field"><label>' + label + '</label>' + control +
+    (hint ? '<div class="hint">' + hint + '</div>' : '') + '</div>';
+}
+
+function select(id, options, value) {
+  return '<select id="' + id + '">' + options.map(function (o) {
+    return '<option value="' + o[0] + '"' + (o[0] === value ? ' selected' : '') + '>' +
+      o[1] + '</option>';
+  }).join('') + '</select>';
+}
+
+// Reveal the death fields the moment someone is marked as passed away.
+document.addEventListener('change', function (e) {
+  if (e.target && e.target.id === 'f_is_living') {
+    var block = document.getElementById('deathBlock');
+    if (block) block.style.display = e.target.value === 'FALSE' ? '' : 'none';
+  }
+});
+
+/* ------------------------------------------------------------------ *
+ * Photos
+ * ------------------------------------------------------------------ */
+
+/**
+ * Downscales in the browser before uploading.
+ *
+ * Apps Script has no image API, so nothing can be resized once it arrives, and
+ * a modern phone photo is several megabytes. Two sizes are produced: a full
+ * image capped at 1200px and a thumbnail at 256px, which is what the card grid
+ * loads.
+ */
+function uploadPhoto(personId, file) {
+  toast('Preparing photo…');
+  Promise.all([downscale(file, 1200, 0.82), downscale(file, 256, 0.75)])
+    .then(function (sizes) {
+      return call('api_uploadPhoto', personId,
+        { full: sizes[0], thumb: sizes[1], mime: 'image/jpeg' });
+    })
+    .then(function (res) {
+      if (res.status === 'pending_approval') return toast('Photo sent for approval.');
+      delete S.thumbs[personId];
+      toast('Photo saved.');
+      closeSheet();
+      loadView(S.focusId);
+    })
+    .catch(fail);
+}
+
+function downscale(file, maxEdge, quality) {
+  return new Promise(function (resolve, reject) {
+    var reader = new FileReader();
+    reader.onerror = function () { reject(new Error('That file could not be read.')); };
+    reader.onload = function () {
+      var img = new Image();
+      img.onerror = function () { reject(new Error('That does not look like an image.')); };
+      img.onload = function () {
+        var scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+        var canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', quality).split(',')[1]);
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ * Google Photos
+ * ------------------------------------------------------------------ */
+
+/**
+ * Choosing a portrait from Google Photos.
+ *
+ * Three steps, because that is how the Picker API works and because the middle
+ * one happens in Google's own app rather than in ours: the server opens a
+ * picking session, the person picks in Google Photos, and the server copies
+ * what they picked into the family's Drive.
+ *
+ * That copy is the point. A Google Photos link works for its owner and expires
+ * within the hour; a copy in the family album is visible to every relative for
+ * as long as the tree exists.
+ */
+var PHOTOS = { poll: null, sessionId: null, personId: null, deadline: 0 };
+
+function startGooglePhotos(personId) {
+  openSheet('<h2>Google Photos</h2><div class="loading">Asking Google&hellip;</div>');
+
+  call('api_photosStart', personId).then(function (res) {
+    if (res.status === 'needs_consent') return askPhotosConsent(res.url, personId);
+    PHOTOS.sessionId = res.sessionId;
+    PHOTOS.personId = personId;
+    PHOTOS.deadline = Date.now() + (res.expiresIn || 600) * 1000;
+
+    openSheet(
+      '<h2>Pick the photo</h2>' +
+      '<div class="sub">Google Photos will open in a new tab. Choose one picture, ' +
+        'confirm, then come back here \u2014 this page is watching for it.</div>' +
+      '<a class="btn" id="openPicker" href="' + attr(res.pickerUri) + '" target="_blank" ' +
+        'rel="noopener" style="text-decoration:none">Open Google Photos</a>' +
+      '<div class="loading" id="photoWait" style="padding:22px 0">' +
+        '<span class="spinner" style="border-color:rgba(0,0,0,.15);' +
+        'border-top-color:var(--accent)"></span></div>' +
+      '<div class="hint" id="photoStatus" style="text-align:center">' +
+        'Waiting for you to choose&hellip;</div>' +
+      '<button class="btn ghost" onclick="stopGooglePhotos()">Cancel</button>');
+
+    document.getElementById('openPicker').click();
+    pollGooglePhotos(res.pollMillis || 3000);
+  }).catch(function (e) { closeSheet(); fail(e); });
+}
+
+/**
+ * Reading somebody's photo library needs its own permission, which the app asks
+ * for only at this moment rather than bundling into signing in. Granting it
+ * reloads the page, so it says so plainly first.
+ */
+function askPhotosConsent(url, personId) {
+  openSheet(
+    '<h2>Allow access to your photos</h2>' +
+    '<div class="sub">Google will ask whether this family tree may see the photos ' +
+      '<strong>you pick</strong>. It never gets your library \u2014 only the ' +
+      'pictures you hand over, one at a time.</div>' +
+    '<div class="dupe"><p style="margin:0">This reloads the page. You will come ' +
+      'straight back to the photo picker.</p></div>' +
+    '<a class="btn" href="' + attr(url) + '" target="_top" style="text-decoration:none">' +
+      'Continue to Google</a>' +
+    '<button class="btn ghost" onclick="closeSheet()" style="margin-top:8px">Not now</button>');
+}
+
+function pollGooglePhotos(interval) {
+  clearTimeout(PHOTOS.poll);
+  PHOTOS.poll = setTimeout(function () {
+    if (!PHOTOS.sessionId) return;
+    if (Date.now() > PHOTOS.deadline) {
+      stopGooglePhotos();
+      return toast('That took too long. Try again when you are ready.', true);
+    }
+
+    call('api_photosPoll', PHOTOS.sessionId).then(function (res) {
+      if (!PHOTOS.sessionId) return;
+      if (res.status === 'needs_consent') return askPhotosConsent(res.url, PHOTOS.personId);
+      if (res.status !== 'ready') return pollGooglePhotos(res.pollMillis || interval);
+      finishGooglePhotos();
+    }).catch(function (e) { stopGooglePhotos(); fail(e); });
+  }, interval);
+}
+
+function finishGooglePhotos() {
+  var status = document.getElementById('photoStatus');
+  if (status) status.textContent = 'Copying it into the family album\u2026';
+
+  call('api_photosImport', PHOTOS.sessionId, PHOTOS.personId).then(function (res) {
+    var personId = PHOTOS.personId;
+    stopGooglePhotos();
+    closeSheet();
+    if (res.status === 'pending_approval') return toast('Photo sent for approval.');
+    delete S.thumbs[personId];
+    toast('Photo added. Everyone in the family can see it.');
+    loadView(S.focusId);
+  }).catch(function (e) { stopGooglePhotos(); fail(e); });
+}
+
+function stopGooglePhotos() {
+  clearTimeout(PHOTOS.poll);
+  PHOTOS.poll = null;
+  PHOTOS.sessionId = null;
+  PHOTOS.personId = null;
+  if (document.getElementById('photoWait')) closeSheet();
+}
+
+/* ------------------------------------------------------------------ *
+ * Search
+ * ------------------------------------------------------------------ */
+
+document.getElementById('search').addEventListener('input', function (e) {
+  var q = e.target.value;
+  clearTimeout(S.searchTimer);
+  if (q.length < 2) {
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('view').style.display = '';
+    return;
+  }
+  S.searchTimer = setTimeout(function () { runSearch(q); }, 280);
+});
+
+function runSearch(q) {
+  call('api_search', q).then(function (rows) {
+    var box = document.getElementById('results');
+    document.getElementById('view').style.display = 'none';
+    box.style.display = '';
+    if (!rows.length) {
+      box.innerHTML = '<div class="empty">Nobody found.</div>';
+      return;
+    }
+    box.innerHTML = rows.map(function (r) {
+      return '<button class="match" style="width:100%;text-align:left" data-focus="' +
+        r.personId + '">' +
+        '<div class="avatar">' + initials(r.name) + '</div>' +
+        '<div class="who"><div class="nm">' + esc(r.name) + '</div>' +
+        '<div class="why">' + esc(r.yourTitle) +
+          (r.birthDate ? ' · ' + year(r.birthDate) : '') + '</div></div></button>';
+    }).join('');
+    Array.prototype.forEach.call(box.querySelectorAll('[data-focus]'), function (el) {
+      el.onclick = function () { loadView(el.getAttribute('data-focus')); };
+    });
+  }).catch(fail);
+}
+
+/* ------------------------------------------------------------------ *
+ * Settings and admin
+ * ------------------------------------------------------------------ */
+
+document.getElementById('btnHome').onclick = function () { loadView(null); };
+document.getElementById('btnMap').onclick = openMap;
+document.getElementById('btnMenu').onclick = openSettings;
+document.getElementById('btnAdmin').onclick = openAdmin;
+
+function openSettings() {
+  var langs = [['ms', 'Bahasa Melayu'], ['en', 'English'], ['ar', 'Arabic']];
+  openSheet(
+    '<h2>Settings</h2>' +
+    '<div class="sub">Signed in as ' + esc(S.me.email) + '</div>' +
+    '<div class="field"><label>Family titles shown in</label><div class="chips">' +
+      langs.map(function (l) {
+        return '<button class="chip' + (S.me.lang === l[0] ? ' on' : '') +
+          '" data-lang="' + l[0] + '">' + l[1] + '</button>';
+      }).join('') +
+    '</div><div class="hint">The same person is Pak Long in Malay, Uncle in English ' +
+      'and ‘Amm in Arabic. Only the label changes.</div></div>' +
+    (S.me.canInvite || S.me.isAdmin ?
+      '<div class="field"><label>Invite a relative</label>' +
+      '<input id="inviteEmail" type="email" placeholder="their@gmail.com">' +
+      '<div class="hint">They sign in with that Google account.</div></div>' +
+      '<button class="btn" id="inviteBtn">Send invitation</button>' : '') +
+    '<div id="inviteResult"></div>' +
+    '<button class="btn ghost" id="signOutBtn" style="margin-top:18px">Sign out</button>');
+
+  document.getElementById('signOutBtn').onclick = function () {
+    signOutLocally();
+    location.reload();
+  };
+
+  Array.prototype.forEach.call(document.querySelectorAll('[data-lang]'), function (btn) {
+    btn.onclick = function () {
+      call('api_setLanguage', btn.getAttribute('data-lang')).then(function () {
+        S.me.lang = btn.getAttribute('data-lang');
+        closeSheet();
+        loadView(S.focusId);
+      }).catch(fail);
+    };
+  });
+
+  var inviteBtn = document.getElementById('inviteBtn');
+  if (inviteBtn) inviteBtn.onclick = function () {
+    var email = document.getElementById('inviteEmail').value;
+    busy(inviteBtn, true);
+    call('api_invite', email, null).then(function (r) {
+      busy(inviteBtn, false);
+      document.getElementById('inviteResult').innerHTML =
+        '<div class="dupe" style="margin-top:14px"><h3>Invitation ready</h3>' +
+        '<p>Send this link to ' + esc(r.email) + '. It works until ' +
+        esc(String(r.expiresAt).slice(0, 10)) + '.</p>' +
+        '<input value="' + attr(r.url) + '" readonly onclick="this.select()"></div>';
+    }).catch(function (e) { busy(inviteBtn, false); fail(e); });
+  };
+}
+
+function openAdmin() {
+  openSheet('<div class="loading">Loading&hellip;</div>');
+  call('api_adminQueues').then(function (q) {
+    openSheet(
+      '<h2>Admin</h2>' +
+      '<div class="tabs">' +
+        tabBtn('changes', 'Changes', q.changes.length) +
+        tabBtn('merges', 'Duplicates', q.merges.length) +
+        tabBtn('users', 'Access', q.users.length) +
+        tabBtn('settings', 'Settings', 0) +
+      '</div><div id="adminBody"></div>');
+
+    var panels = {
+      changes: function () { return renderChanges(q.changes); },
+      merges: function () { return renderMerges(q.merges); },
+      users: function () { return renderUsers(q.users); },
+      settings: function () { return '<div class="loading">Loading&hellip;</div>'; }
+    };
+
+    function openTab(name) {
+      Array.prototype.forEach.call(document.querySelectorAll('[data-tab]'), function (b) {
+        b.className = b.getAttribute('data-tab') === name ? 'on' : '';
+      });
+      document.getElementById('adminBody').innerHTML = panels[name]();
+      if (name === 'settings') loadSettings();
+      else wireAdmin();
+    }
+    Array.prototype.forEach.call(document.querySelectorAll('[data-tab]'), function (b) {
+      b.onclick = function () { openTab(b.getAttribute('data-tab')); };
+    });
+    openTab('changes');
+  }).catch(fail);
+}
+
+function tabBtn(id, label, count) {
+  return '<button data-tab="' + id + '">' + label + (count ? ' (' + count + ')' : '') + '</button>';
+}
+
+function renderChanges(changes) {
+  if (!changes.length) return '<div class="empty">Nothing waiting.</div>';
+  return changes.map(function (c) {
+    return '<div class="admin-item">' +
+      '<div class="what">' + esc(c.summary) + '</div>' +
+      '<div class="who">Asked by ' + esc(c.requestedBy) + ' · ' +
+        esc(String(c.requestedAt).slice(0, 10)) + '</div>' +
+      '<div class="btn-row" style="margin-top:0">' +
+        '<button class="btn sm" data-approve="' + c.changeId + '">Approve</button>' +
+        '<button class="btn sm ghost" data-reject="' + c.changeId + '">Reject</button>' +
+      '</div></div>';
+  }).join('');
+}
+
+function renderMerges(merges) {
+  if (!merges.length) {
+    return '<div class="empty">No suspected duplicates.</div>' +
+      '<button class="btn ghost" id="rescan" style="margin-top:12px">Scan again</button>';
+  }
+  return merges.map(function (m) {
+    return '<div class="admin-item">' +
+      '<div class="what">Possibly the same person · ' + m.score + '% match</div>' +
+      '<div class="who">' + esc(m.signals.filter(function (s) { return s.points > 0; })
+        .map(function (s) { return s.signal.replace(/_/g, ' '); }).join(', ')) + '</div>' +
+      '<div class="side-by-side">' + mergeSide(m.a) + mergeSide(m.b) + '</div>' +
+      '<div class="btn-row" style="margin-top:0">' +
+        '<button class="btn sm" data-merge="' + m.a.personId + '|' + m.b.personId +
+          '">Keep left</button>' +
+        '<button class="btn sm" data-merge="' + m.b.personId + '|' + m.a.personId +
+          '">Keep right</button>' +
+        '<button class="btn sm ghost" data-dismiss="' + m.candidateId +
+          '">Different people</button>' +
+      '</div></div>';
+  }).join('') + '<button class="btn ghost" id="rescan">Scan again</button>';
+}
+
+function mergeSide(s) {
+  // Each line is escaped on its own and the breaks added afterwards, so the
+  // markup survives while the names stay escaped.
+  var lines = [
+    s.birthDate ? 'b. ' + year(s.birthDate) : '',
+    s.fatherName ? 'father: ' + s.fatherName : '',
+    s.childCount + ' children'
+  ].filter(Boolean).map(esc).join('<br>');
+
+  return '<div class="side"><div class="nm">' + esc(s.fullName || s.name) + '</div>' +
+    '<div class="l">' + lines + '</div>' +
+    '<div class="l" style="margin-top:6px">added by ' + esc(s.createdBy || 'unknown') + '</div></div>';
+}
+
+function renderUsers(users) {
+  if (!users.length) return '<div class="empty">Nobody waiting for access.</div>';
+  return users.map(function (u) {
+    return '<div class="admin-item">' +
+      '<div class="what">' + esc(u.email) + '</div>' +
+      '<div class="who">Asked ' + esc(String(u.requestedAt).slice(0, 10)) + '</div>' +
+      '<div class="btn-row" style="margin-top:0">' +
+        '<button class="btn sm" data-admit="' + attr(u.email) + '">Let them in</button>' +
+      '</div></div>';
+  }).join('');
+}
+
+/**
+ * The settings an admin can change without opening the spreadsheet.
+ *
+ * The birth-order sequence is the one that earns its place here. Long, Ngah,
+ * Alang and the rest vary by family and by region, and a family shown the wrong
+ * word for an uncle they have called Pak Ngah their whole life will not trust
+ * anything else the app says. The preview shows the effect immediately, because
+ * the list of words on its own means nothing until you see the titles it makes.
+ */
+function loadSettings() {
+  call('api_settings').then(function (cfg) {
+    document.getElementById('adminBody').innerHTML =
+      field('Family name', '<input id="s_family_name" value="' + attr(cfg.family_name) +
+        '" maxlength="80">', 'Shown at the top of every screen.') +
+
+      field('Order of siblings, eldest first',
+        '<input id="s_birth_order_titles" value="' + attr(cfg.birth_order_titles) +
+          '" maxlength="140">',
+        'Separate with commas. The youngest is always Su and is not in this list. ' +
+        'Families and regions differ \u2014 use yours.') +
+      '<div class="preview" id="titlePreview"></div>' +
+      '<button class="btn ghost sm" id="resetTitles" style="margin-top:8px">' +
+        'Back to the common sequence</button>' +
+
+      field('Titles shown by default', select('s_default_lang',
+        [['ms', 'Bahasa Melayu'], ['en', 'English'], ['ar', 'Arabic']], cfg.default_lang),
+        'Each person can change this for themselves.') +
+
+      field('Who may invite', select('s_allow_member_invites',
+        [['TRUE', 'Anyone in the family'], ['FALSE', 'Admins only']],
+        String(cfg.allow_member_invites).toUpperCase() === 'TRUE' ? 'TRUE' : 'FALSE'),
+        'Letting relatives invite their own side is how a tree spreads without ' +
+        'you being the bottleneck.') +
+
+      field('Google Photos', select('s_enable_google_photos',
+        [['FALSE', 'Off \u2014 upload files only'], ['TRUE', 'On \u2014 allow picking from Google Photos']],
+        String(cfg.enable_google_photos).toUpperCase() === 'TRUE' ? 'TRUE' : 'FALSE'),
+        'Picked photos are copied into the family album so every relative can ' +
+        'see them. Turning this on adds a sensitive permission to your Google ' +
+        'sign-in screen \u2014 read docs/GOOGLE-PHOTOS.md before you do.') +
+
+      field('Flag a possible duplicate above',
+        '<input id="s_merge_queue_threshold" type="number" min="40" max="99" value="' +
+          attr(cfg.merge_queue_threshold) + '">',
+        'Lower catches more duplicates and asks you more often.') +
+
+      '<div class="btn-row"><button class="btn" id="saveSettings">Save</button></div>';
+
+    var titlesInput = document.getElementById('s_birth_order_titles');
+
+    function preview() {
+      var list = titlesInput.value.split(',')
+        .map(function (t) { return t.replace(/[^A-Za-z' -]/g, '').trim(); })
+        .filter(Boolean).slice(0, 12);
+      // Pak for an uncle, Mak for an aunt -- the prefix follows the person, not
+      // their position, so the preview shows one consistent run.
+      var shown = list.map(function (t) { return 'Pak ' + t; });
+      shown.push('Pak Su');
+      document.getElementById('titlePreview').innerHTML =
+        '<span class="lbl">Your uncles, eldest to youngest</span>' +
+        esc(list.length ? shown.join(' \u00b7 ')
+                        : 'Pak Cik \u2014 with no list, every uncle is simply Pak Cik') +
+        (list.length ? '<span class="lbl" style="margin-top:6px">Aunts take Mak instead: ' +
+          esc('Mak ' + list[0]) + ', and so on</span>' : '');
+    }
+    titlesInput.oninput = preview;
+    preview();
+
+    document.getElementById('resetTitles').onclick = function () {
+      titlesInput.value = cfg.defaults.birth_order_titles;
+      preview();
+    };
+
+    document.getElementById('saveSettings').onclick = function () {
+      var changes = {};
+      ['family_name', 'birth_order_titles', 'default_lang', 'allow_member_invites',
+       'enable_google_photos', 'merge_queue_threshold'].forEach(function (key) {
+        var el = document.getElementById('s_' + key);
+        if (el) changes[key] = el.value;
+      });
+      busy(this, true);
+      call('api_saveSettings', changes).then(function () {
+        toast('Saved.');
+        closeSheet();
+        boot();
+      }).catch(function (e) { busy(null); fail(e); });
+    };
+  }).catch(fail);
+}
+
+function wireAdmin() {
+  function bind(attrName, handler) {
+    Array.prototype.forEach.call(document.querySelectorAll('[' + attrName + ']'), function (b) {
+      b.onclick = function () { handler(b.getAttribute(attrName), b); };
+    });
+  }
+  bind('data-approve', function (id, b) {
+    busy(b, true);
+    call('api_approveChange', id, '').then(function () { toast('Approved.'); openAdmin(); })
+      .catch(function (e) { busy(b, false); fail(e); });
+  });
+  bind('data-reject', function (id, b) {
+    busy(b, true);
+    call('api_rejectChange', id, '').then(function () { toast('Rejected.'); openAdmin(); })
+      .catch(function (e) { busy(b, false); fail(e); });
+  });
+  bind('data-merge', function (pair, b) {
+    var ids = pair.split('|');
+    if (!confirm('Merge these two records into one? This cannot be undone from here.')) return;
+    busy(b, true);
+    call('api_merge', ids[0], ids[1], null).then(function () { toast('Merged.'); openAdmin(); })
+      .catch(function (e) { busy(b, false); fail(e); });
+  });
+  bind('data-dismiss', function (id, b) {
+    busy(b, true);
+    call('api_dismissMerge', id, '').then(function () { toast('Marked as different people.'); openAdmin(); })
+      .catch(function (e) { busy(b, false); fail(e); });
+  });
+  bind('data-admit', function (email, b) {
+    busy(b, true);
+    call('api_approveUser', email, '', 'member').then(function () {
+      toast('They can sign in now.'); openAdmin();
+    }).catch(function (e) { busy(b, false); fail(e); });
+  });
+  var rescan = document.getElementById('rescan');
+  if (rescan) rescan.onclick = function () {
+    busy(rescan, true);
+    call('api_rebuildMergeQueue').then(function (r) {
+      toast('Found ' + r.added + ' new to check.'); openAdmin();
+    }).catch(function (e) { busy(rescan, false); fail(e); });
+  };
+}
+
+/* ------------------------------------------------------------------ *
+ * The whole tree, as a chart
+ * ------------------------------------------------------------------ */
+
+/**
+ * A second way to look at the same family.
+ *
+ * The me-centred screen answers "who is around me" and scales to any number of
+ * people. It cannot answer "how does all of this fit together", which is the
+ * question a family reaches for a wall chart to settle -- so this draws one,
+ * with the cards still labelled from whoever is reading.
+ *
+ * Cards are draggable because no layout algorithm knows how a family thinks of
+ * itself. An admin can save an arrangement for everyone; anyone else's stays in
+ * their own browser.
+ */
+var MAP = {
+  on: false, data: null, pos: {}, els: {}, sel: null,
+  scale: 1, tx: 0, ty: 0, dirty: false, M: null
+};
+
+var MAP_LEGIBLE = 0.62;
+var MAP_PAD = 90;
+var MAP_STORE = 'familyTreeMapPositions';
+
+function openMap() {
+  if (document.getElementById('mapwrap')) return;
+
+  var wrap = document.createElement('div');
+  wrap.className = 'mapwrap';
+  wrap.id = 'mapwrap';
+  wrap.innerHTML =
+    '<div class="maptop">' +
+      '<button class="icon-btn" id="mapClose" title="Back">&#8592;</button>' +
+      '<div class="ttl">Whole family</div>' +
+      '<button class="icon-btn" id="mapMe" title="Find me">&#9673;</button>' +
+      '<button class="icon-btn" id="mapFit" title="Fit everyone">&#9635;</button>' +
+      '<button class="icon-btn" id="mapTidy" title="Re-arrange">&#8634;</button>' +
+    '</div>' +
+    '<div class="stage" id="stage"><div class="world" id="world">' +
+      '<svg id="wires"></svg></div></div>' +
+    '<div class="mapfoot" id="mapfoot"><div class="who">' +
+      '<div class="nm">Loading&hellip;</div></div></div>';
+  document.body.appendChild(wrap);
+  MAP.on = true;
+
+  document.getElementById('mapClose').onclick = closeMap;
+  document.getElementById('mapFit').onclick = mapFit;
+  document.getElementById('mapMe').onclick = function () {
+    mapFocus(MAP.data.viewerPersonId, Math.max(MAP.scale, 0.92));
+  };
+  document.getElementById('mapTidy').onclick = mapTidy;
+  mapBindStage();
+
+  call('api_map').then(function (data) {
+    MAP.data = data;
+    MAP.M = data.metrics;
+    mapResetPositions();
+    mapLoadPositions();
+    mapBuild();
+    mapDescribe(null);
+    requestAnimationFrame(mapOpeningView);
+  }).catch(function (e) { closeMap(); fail(e); });
+}
+
+function closeMap() {
+  var wrap = document.getElementById('mapwrap');
+  if (wrap) wrap.remove();
+  MAP.on = false;
+  MAP.els = {};
+  MAP.sel = null;
+}
+
+function mapResetPositions() {
+  var minX = Infinity, minY = Infinity;
+  for (var id in MAP.data.positions) {
+    if (!MAP.data.positions.hasOwnProperty(id)) continue;
+    minX = Math.min(minX, MAP.data.positions[id].x);
+    minY = Math.min(minY, MAP.data.positions[id].y);
+  }
+  MAP.pos = {};
+  for (var k in MAP.data.positions) {
+    if (!MAP.data.positions.hasOwnProperty(k)) continue;
+    MAP.pos[k] = {
+      x: MAP.data.positions[k].x - minX + MAP_PAD,
+      y: MAP.data.positions[k].y - minY + MAP_PAD
+    };
+  }
+}
+
+/* A member's own arrangement is a per-viewer convenience: it stays in their
+ * browser, and the chart has to render correctly when it is not there. */
+function mapSavePositions() {
+  try { localStorage.setItem(MAP_STORE, JSON.stringify(MAP.pos)); } catch (e) {}
+}
+
+function mapLoadPositions() {
+  try {
+    var raw = localStorage.getItem(MAP_STORE);
+    if (!raw) return;
+    var saved = JSON.parse(raw);
+    for (var id in MAP.pos) {
+      if (MAP.pos.hasOwnProperty(id) && saved[id] &&
+          typeof saved[id].x === 'number' && typeof saved[id].y === 'number') {
+        MAP.pos[id] = { x: saved[id].x, y: saved[id].y };
+      }
+    }
+  } catch (e) { /* render from the computed layout instead */ }
+}
+
+function mapBuild() {
+  var world = document.getElementById('world');
+  Array.prototype.slice.call(world.querySelectorAll('.mnode')).forEach(function (n) { n.remove(); });
+  MAP.els = {};
+
+  for (var i = 0; i < MAP.data.people.length; i++) {
+    var p = MAP.data.people[i];
+    var el = document.createElement('div');
+    el.className = 'mnode ' + (p.gender === 'F' ? 'f' : p.gender === 'M' ? 'm' : '') +
+      (p.isYou ? ' you' : '');
+    el.setAttribute('data-id', p.personId);
+    el.innerHTML =
+      '<div class="t">' + esc(p.isYou ? 'You' : p.yourTitle) + '</div>' +
+      '<div class="n">' + esc(mapShortName(p.name)) + '</div>' +
+      '<div class="y">' + esc(year(p.birthDate)) + (p.isLiving ? '' : ' \u2013') + '</div>';
+    world.appendChild(el);
+    MAP.els[p.personId] = el;
+  }
+  mapPlace();
+}
+
+/** Malay names state the father after bin or binti; the card shows the part
+ *  that is actually the person's own name. */
+function mapShortName(full) {
+  var parts = String(full).split(/\s+/);
+  for (var i = 0; i < parts.length; i++) {
+    if (/^(bin|binte|binti|bte|bt)\.?$/i.test(parts[i])) return parts.slice(0, i).join(' ');
+  }
+  return parts.slice(0, 3).join(' ');
+}
+
+function mapPlace() {
+  for (var id in MAP.els) {
+    if (!MAP.els.hasOwnProperty(id)) continue;
+    MAP.els[id].style.left = (MAP.pos[id].x - MAP.M.NODE_W / 2) + 'px';
+    MAP.els[id].style.top = (MAP.pos[id].y - MAP.M.NODE_H / 2) + 'px';
+  }
+  mapWires();
+}
+
+/** Connectors are derived from where the cards are now, so a dragged card
+ *  takes its lines with it and nothing needs invalidating. */
+function mapWires() {
+  var edges = LAY_edges(MAP.data.units, MAP.pos, MAP.M);
+
+  var near = mapNeighbourhood();
+  var maxX = 0, maxY = 0;
+  for (var id in MAP.pos) {
+    if (!MAP.pos.hasOwnProperty(id)) continue;
+    maxX = Math.max(maxX, MAP.pos[id].x + MAP.M.NODE_W);
+    maxY = Math.max(maxY, MAP.pos[id].y + MAP.M.NODE_H);
+  }
+
+  var out = ['<defs><marker id="mar" viewBox="0 0 8 8" refX="7" refY="4" ' +
+    'markerWidth="7" markerHeight="7" orient="auto">' +
+    '<path d="M0 0 L8 4 L0 8 z" fill="currentColor"/></marker></defs>'];
+
+  for (var i = 0; i < edges.length; i++) {
+    var e = edges[i];
+    var lit = near && ((e.childId && near[e.childId]) ||
+      (e.kind === 'union' && near.__union[e.unionId]));
+    var fade = near && !lit ? ' opacity="0.28"' : '';
+
+    if (e.kind === 'union') {
+      out.push('<path d="M ' + e.x1 + ' ' + e.y1 + ' L ' + e.x2 + ' ' + e.y2 +
+        '" stroke="var(--warn)" stroke-width="' + (lit ? 3.4 : 2.4) +
+        '" fill="none" stroke-linecap="round"' + fade + '/>');
+      out.push('<circle cx="' + e.midX + '" cy="' + e.midY + '" r="4" ' +
+        'fill="var(--warn)"' + fade + '/>');
+    } else if (e.kind === 'stem') {
+      out.push('<path d="M ' + e.x1 + ' ' + e.y1 + ' L ' + e.x2 + ' ' + e.y2 +
+        '" stroke="currentColor" stroke-width="' + (lit ? 2.4 : 1.6) +
+        '" fill="none"' + fade + '/>');
+    } else {
+      out.push('<path d="' + LAY_descentPath(e, 12) + '" stroke="currentColor" ' +
+        'stroke-width="' + (lit ? 2.4 : 1.6) + '" fill="none" stroke-linejoin="round" ' +
+        'marker-end="url(#mar)"' + fade + '/>');
+    }
+  }
+
+  var svg = document.getElementById('wires');
+  svg.setAttribute('width', maxX + MAP_PAD);
+  svg.setAttribute('height', maxY + MAP_PAD);
+  svg.style.color = MAP.sel ? 'var(--accent)' : 'var(--ink-3)';
+  svg.innerHTML = out.join('');
+}
+
+function mapNeighbourhood() {
+  if (!MAP.sel) return null;
+  var near = { __union: {} };
+  near[MAP.sel] = true;
+  for (var i = 0; i < MAP.data.units.length; i++) {
+    var u = MAP.data.units[i];
+    if (u.partners.indexOf(MAP.sel) !== -1) {
+      near.__union[u.unionId] = true;
+      for (var p = 0; p < u.partners.length; p++) near[u.partners[p]] = true;
+      for (var c = 0; c < u.children.length; c++) near[u.children[c]] = true;
+    }
+    if (u.children.indexOf(MAP.sel) !== -1) {
+      near.__union[u.unionId] = true;
+      for (var q = 0; q < u.partners.length; q++) near[u.partners[q]] = true;
+      for (var k = 0; k < u.children.length; k++) near[u.children[k]] = true;
+    }
+  }
+  return near;
+}
+
+function mapHighlight() {
+  var near = mapNeighbourhood();
+  for (var id in MAP.els) {
+    if (!MAP.els.hasOwnProperty(id)) continue;
+    MAP.els[id].classList.toggle('lit', !!(near && id === MAP.sel));
+    MAP.els[id].classList.toggle('dim', !!(near && !near[id]));
+  }
+}
+
+/* ---- viewport ---- */
+
+function mapTransform() {
+  document.getElementById('world').style.transform =
+    'translate(' + MAP.tx + 'px,' + MAP.ty + 'px) scale(' + MAP.scale + ')';
+}
+
+function mapBox() {
+  var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (var id in MAP.pos) {
+    if (!MAP.pos.hasOwnProperty(id)) continue;
+    minX = Math.min(minX, MAP.pos[id].x - MAP.M.NODE_W / 2);
+    minY = Math.min(minY, MAP.pos[id].y - MAP.M.NODE_H / 2);
+    maxX = Math.max(maxX, MAP.pos[id].x + MAP.M.NODE_W / 2);
+    maxY = Math.max(maxY, MAP.pos[id].y + MAP.M.NODE_H / 2);
+  }
+  return { minX: minX, minY: minY, w: maxX - minX + 48, h: maxY - minY + 48 };
+}
+
+function mapFit() {
+  var stage = document.getElementById('stage');
+  var box = mapBox();
+  MAP.scale = Math.max(0.1, Math.min(1.15,
+    Math.min(stage.clientWidth / box.w, stage.clientHeight / box.h)));
+  MAP.tx = (stage.clientWidth - box.w * MAP.scale) / 2 - (box.minX - 24) * MAP.scale;
+  MAP.ty = (stage.clientHeight - box.h * MAP.scale) / 2 - (box.minY - 24) * MAP.scale;
+  mapTransform();
+}
+
+function mapFocus(id, scale) {
+  var stage = document.getElementById('stage');
+  if (!MAP.pos[id]) return mapFit();
+  MAP.scale = scale || Math.max(MAP.scale, MAP_LEGIBLE);
+  MAP.tx = stage.clientWidth / 2 - MAP.pos[id].x * MAP.scale;
+  MAP.ty = stage.clientHeight / 2 - MAP.pos[id].y * MAP.scale;
+  mapTransform();
+}
+
+/**
+ * What to show when the chart opens.
+ *
+ * On a wide screen the shape of the family is worth seeing even when the names
+ * get small, because you can zoom into any part of it. On a phone that same
+ * view is a diagram of a diagram, so it opens on the person reading instead and
+ * keeps the overview as a button.
+ */
+function mapOpeningView() {
+  var stage = document.getElementById('stage');
+  var box = mapBox();
+  var fitScale = Math.min(stage.clientWidth / box.w, stage.clientHeight / box.h);
+  var floor = stage.clientWidth >= 700 ? 0.34 : MAP_LEGIBLE;
+  if (fitScale >= floor) mapFit();
+  else mapFocus(MAP.data.viewerPersonId, 0.92);
+}
+
+function mapTidy() {
+  if (MAP.data.canSaveLayout && MAP.dirty) {
+    if (confirm('Save this arrangement for the whole family?')) return mapCommit();
+  }
+  try { localStorage.removeItem(MAP_STORE); } catch (e) {}
+  mapResetPositions();
+  mapPlace();
+  mapOpeningView();
+  toast('Back to the suggested layout.');
+}
+
+function mapCommit() {
+  call('api_saveMapLayout', MAP.pos).then(function (r) {
+    MAP.dirty = false;
+    toast('Layout saved for everyone (' + r.count + ' cards).');
+  }).catch(fail);
+}
+
+function mapDescribe(id) {
+  var foot = document.getElementById('mapfoot');
+  if (!id) {
+    foot.innerHTML = '<div class="who"><div class="nm">Tap a card</div>' +
+      '<div class="sub2">Drag to rearrange' +
+      (MAP.data && MAP.data.canSaveLayout ? ', then save it for everyone' : '') +
+      '. Pinch or scroll to zoom.</div></div>';
+    return;
+  }
+  var p = null;
+  for (var i = 0; i < MAP.data.people.length; i++) {
+    if (MAP.data.people[i].personId === id) p = MAP.data.people[i];
+  }
+  if (!p) return;
+
+  foot.innerHTML =
+    '<div class="who"><div class="nm">' + esc(p.name) + '</div>' +
+    '<div class="sub2">You call them <strong>' + esc(p.yourTitle) + '</strong>' +
+    (p.birthDate ? ' \u00b7 born ' + esc(year(p.birthDate)) : '') + '</div></div>' +
+    '<button class="btn sm" id="mapOpen">Open</button>' +
+    '<button class="btn sm ghost" id="mapAdd">+ Relative</button>' +
+    (MAP.data.canSaveLayout && MAP.dirty
+      ? '<button class="btn sm ghost" id="mapSave">Save layout</button>' : '');
+
+  document.getElementById('mapOpen').onclick = function () { openPerson(id); };
+  document.getElementById('mapAdd').onclick = function () { chooseRelationship(id, p.name); };
+  var save = document.getElementById('mapSave');
+  if (save) save.onclick = mapCommit;
+}
+
+/**
+ * Adding somebody from the chart.
+ *
+ * The chart is where people notice a gap -- a cousin missing, a marriage not
+ * recorded -- so it needs its own way in rather than sending them back to the
+ * list to find the same person again. It asks how the new person is related
+ * first, because that is what anchors them to the family.
+ */
+function chooseRelationship(personId, name) {
+  var options = [
+    ['child_of', 'A child of ' + name],
+    ['parent_of', 'A parent of ' + name],
+    ['spouse_of', 'Married to ' + name],
+    ['sibling_of', 'A brother or sister of ' + name]
+  ];
+
+  openSheet(
+    '<h2>Add a relative</h2>' +
+    '<div class="sub">Everyone is added through somebody already in the tree, so ' +
+      'the family stays in one piece.</div>' +
+    options.map(function (o) {
+      return '<button class="btn ghost" data-rel="' + o[0] + '" ' +
+        'style="margin-bottom:8px;justify-content:flex-start">' + esc(o[1]) + '</button>';
+    }).join('') +
+    '<button class="btn ghost" onclick="closeSheet()" style="margin-top:6px">Cancel</button>');
+
+  Array.prototype.forEach.call(document.querySelectorAll('[data-rel]'), function (b) {
+    b.onclick = function () {
+      var relationship = b.getAttribute('data-rel');
+      if (relationship === 'child_of' || relationship === 'sibling_of') {
+        openBatch(personId, relationship, name);
+      } else {
+        openAdd(personId, relationship, name);
+      }
+    };
+  });
+}
+
+/* ---- pointer handling ---- */
+
+function mapBindStage() {
+  var stage = document.getElementById('stage');
+  var drag = null, pan = null, pinch = null;
+
+  stage.addEventListener('pointerdown', function (e) {
+    var node = e.target.closest('.mnode');
+    if (node) {
+      var id = node.getAttribute('data-id');
+      drag = { id: id, pointer: e.pointerId, moved: false,
+               dx: e.clientX / MAP.scale - MAP.pos[id].x,
+               dy: e.clientY / MAP.scale - MAP.pos[id].y };
+      node.classList.add('dragging');
+      node.setPointerCapture(e.pointerId);
+      return;
+    }
+    pan = { x: e.clientX - MAP.tx, y: e.clientY - MAP.ty, pointer: e.pointerId };
+    stage.classList.add('panning');
+    stage.setPointerCapture(e.pointerId);
+  });
+
+  stage.addEventListener('pointermove', function (e) {
+    if (drag && e.pointerId === drag.pointer) {
+      MAP.pos[drag.id].x = e.clientX / MAP.scale - drag.dx;
+      MAP.pos[drag.id].y = e.clientY / MAP.scale - drag.dy;
+      drag.moved = true;
+      MAP.els[drag.id].style.left = (MAP.pos[drag.id].x - MAP.M.NODE_W / 2) + 'px';
+      MAP.els[drag.id].style.top = (MAP.pos[drag.id].y - MAP.M.NODE_H / 2) + 'px';
+      mapWires();
+      return;
+    }
+    if (pan && e.pointerId === pan.pointer) {
+      MAP.tx = e.clientX - pan.x;
+      MAP.ty = e.clientY - pan.y;
+      mapTransform();
+    }
+  });
+
+  function release(e) {
+    if (drag && e.pointerId === drag.pointer) {
+      MAP.els[drag.id].classList.remove('dragging');
+      if (drag.moved) {
+        MAP.dirty = true;
+        mapSavePositions();
+        mapDescribe(MAP.sel);
+      } else {
+        MAP.sel = MAP.sel === drag.id ? null : drag.id;
+        mapHighlight(); mapWires(); mapDescribe(MAP.sel);
+      }
+      drag = null;
+    }
+    if (pan && e.pointerId === pan.pointer) {
+      pan = null;
+      stage.classList.remove('panning');
+    }
+  }
+  stage.addEventListener('pointerup', release);
+  stage.addEventListener('pointercancel', release);
+
+  stage.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    var rect = stage.getBoundingClientRect();
+    var mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    var next = Math.max(0.1, Math.min(2.2, MAP.scale * Math.exp(-e.deltaY * 0.0015)));
+    MAP.tx = mx - (mx - MAP.tx) * (next / MAP.scale);
+    MAP.ty = my - (my - MAP.ty) * (next / MAP.scale);
+    MAP.scale = next;
+    mapTransform();
+  }, { passive: false });
+
+  stage.addEventListener('touchstart', function (e) {
+    if (e.touches.length === 2) {
+      pinch = { dist: mapTouchGap(e.touches), scale: MAP.scale,
+                cx: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+                cy: (e.touches[0].clientY + e.touches[1].clientY) / 2,
+                tx: MAP.tx, ty: MAP.ty };
+      drag = null; pan = null;
+    }
+  }, { passive: true });
+
+  stage.addEventListener('touchmove', function (e) {
+    if (!pinch || e.touches.length !== 2) return;
+    e.preventDefault();
+    var rect = stage.getBoundingClientRect();
+    var next = Math.max(0.1, Math.min(2.2,
+      pinch.scale * (mapTouchGap(e.touches) / pinch.dist)));
+    var mx = pinch.cx - rect.left, my = pinch.cy - rect.top;
+    MAP.tx = mx - (mx - pinch.tx) * (next / pinch.scale);
+    MAP.ty = my - (my - pinch.ty) * (next / pinch.scale);
+    MAP.scale = next;
+    mapTransform();
+  }, { passive: false });
+
+  stage.addEventListener('touchend', function (e) {
+    if (e.touches.length < 2) pinch = null;
+  }, { passive: true });
+}
+
+function mapTouchGap(t) {
+  var dx = t[0].clientX - t[1].clientX, dy = t[0].clientY - t[1].clientY;
+  return Math.sqrt(dx * dx + dy * dy) || 1;
+}
+
+/* ------------------------------------------------------------------ *
+ * Sheet, toast and small helpers
+ * ------------------------------------------------------------------ */
+
+function openSheet(html) {
+  document.getElementById('sheetBody').innerHTML = html;
+  document.getElementById('sheet').classList.add('on');
+  document.getElementById('scrim').classList.add('on');
+  document.getElementById('sheet').scrollTop = 0;
+}
+
+function closeSheet() {
+  document.getElementById('sheet').classList.remove('on');
+  document.getElementById('scrim').classList.remove('on');
+}
+document.getElementById('scrim').onclick = closeSheet;
+
+function toast(text, bad) {
+  var el = document.getElementById('toast');
+  el.textContent = text;
+  el.className = 'toast on' + (bad ? ' bad' : '');
+  clearTimeout(el._t);
+  el._t = setTimeout(function () { el.className = 'toast'; }, 3400);
+}
+
+function fail(err) { toast(err && err.message ? err.message : String(err), true); }
+
+function busy(btn, on) {
+  if (!btn) return;
+  if (on) {
+    btn._label = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner"></span>';
+    btn.disabled = true;
+  } else if (btn._label) {
+    btn.innerHTML = btn._label;
+    btn.disabled = false;
+  }
+}
+
+function avatar(p, cls) {
+  return '<div class="' + cls + '" data-photo="' + p.personId + '">' +
+    (S.thumbs[p.personId] ? '<img src="' + S.thumbs[p.personId] + '" alt="">'
+                          : initials(p.name)) + '</div>';
+}
+
+function initials(name) {
+  var parts = String(name || '?').replace(/^\s+|\s+$/g, '').split(/\s+/);
+  var first = parts[0] ? parts[0][0] : '?';
+  var second = parts.length > 1 ? parts[parts.length - 1][0] : '';
+  return esc((first + second).toUpperCase());
+}
+
+function genderClass(g) { return g === 'F' ? 'f' : (g === 'M' ? 'm' : ''); }
+
+function year(date) { return date ? String(date).slice(0, 4) : ''; }
+
+/** Dates are often approximate for an older generation, and saying so is more
+ *  honest than printing a precise date nobody actually knows. */
+function datePhrase(date, precision) {
+  if (!date) return '';
+  var text = String(date);
+  if (precision === 'year') return text.slice(0, 4);
+  if (precision === 'month') return text.slice(0, 7);
+  if (precision === 'about') return 'about ' + text.slice(0, 4);
+  if (precision === 'unknown') return '';
+  return text.slice(0, 10);
+}
+
+function esc(text) {
+  return String(text === undefined || text === null ? '' : text)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function attr(text) { return esc(text); }
+</script>
+
+</body>
+</html>

@@ -73,7 +73,8 @@ father, which catches most duplicate entries on its own.
 
 | Document | Contents |
 | --- | --- |
-| [`docs/SETUP.md`](docs/SETUP.md) | Step-by-step deployment, start to finish |
+| [`docs/DEPLOY.md`](docs/DEPLOY.md) | **Deploy in two pastes** — start here |
+| [`docs/SETUP.md`](docs/SETUP.md) | The same ground in more detail, file by file |
 | [`docs/TESTING.md`](docs/TESTING.md) | How to check it works, from zero setup to two accounts |
 | [`docs/GOOGLE-PHOTOS.md`](docs/GOOGLE-PHOTOS.md) | Linking portraits from Google Photos, and what it costs |
 | [`docs/DATA-MODEL.md`](docs/DATA-MODEL.md) | Every sheet tab, every column |
@@ -83,7 +84,8 @@ father, which catches most duplicate entries on its own.
 
 ## Repository layout
 
-    apps-script/     The deployable Apps Script project
+    apps-script/     The Apps Script project, as fifteen readable files
+    deploy/          The same project as two files, for pasting into the editor
     docs/            Setup and design documentation
     tests/           285 assertions, run with `npm test`
     tools/           Prototype builder and other local helpers

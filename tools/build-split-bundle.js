@@ -26,7 +26,8 @@ const PARTS = [
   ['Part4_Matching.gs', ['08_Matching.gs', '09_Merge.gs']],
   ['Part5_Admin.gs',    ['10_Admin.gs', '11_Api.gs']],
   ['Part6_Chart.gs',    ['12_Dev.gs', '13_Layout.gs']],
-  ['Part7_Entry.gs',    ['14_Picker.gs', 'Code.gs']]
+  ['Part7_Picker.gs',   ['14_Picker.gs']],
+  ['Part8_Entry.gs',    ['Code.gs']]
 ];
 
 fs.rmSync(OUT, { recursive: true, force: true });

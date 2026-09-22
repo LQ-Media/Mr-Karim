@@ -12,15 +12,39 @@ Needs **Node 22.6 or newer** — check with `node --version`. If it's older,
 `brew upgrade node` or install from nodejs.org. Anything below 22.6 fails with
 `unknown option --experimental-strip-types`.
 
+All the work lives on the `claude/tender-lovelace-bc6kxg` branch — `main` is
+empty, so clone the branch explicitly. Run these **one line at a time**.
+
 ```sh
-git clone https://github.com/LQ-Media/Mr-Karim.git
-cd Mr-Karim && npm install
-export ANTHROPIC_API_KEY=sk-ant-...     # $5 of credits is plenty
+git clone -b claude/tender-lovelace-bc6kxg https://github.com/LQ-Media/Mr-Karim.git
+cd Mr-Karim
+npm install
+```
+
+Then create `.env` in the project directory. A heredoc keeps the key out of
+your shell history, which `export` on the command line does not:
+
+```sh
+cat > .env <<'KEY'
+ANTHROPIC_API_KEY=sk-ant-api03-...
+KEY
+chmod 600 .env
+```
+
+`.env` is gitignored and is loaded automatically. Then:
+
+```sh
 npm run test:triage
 ```
 
-The key lives only in that shell. Nothing writes it to disk, and it is not
-needed again after the run.
+### If npm install fails with EACCES
+
+The npm cache is owned by root, usually left behind by an earlier
+`sudo npm install`:
+
+```sh
+sudo chown -R $(whoami) ~/.npm
+```
 
 It classifies the ten sample messages in `test/samples.jsonl` using the real
 rules from `settings/rules.md`, prints what it decided and why, and reports the

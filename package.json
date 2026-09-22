@@ -9,7 +9,7 @@
     "db:migrate": "wrangler d1 execute mr-karim --remote --file=schema.sql",
     "db:migrate:local": "wrangler d1 execute mr-karim --local --file=schema.sql",
     "typecheck": "tsc --noEmit",
-    "test:triage": "node --experimental-strip-types test/triage.ts"
+    "test:triage": "node --env-file=.env --experimental-strip-types test/triage.ts"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260922.1",

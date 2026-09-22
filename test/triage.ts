@@ -12,7 +12,11 @@
  * agent's idea of "important" matches yours — before building anything on it.
  */
 
-import Anthropic from "@anthropic-ai/sdk";
+import Anthropic, {
+  AuthenticationError,
+  BadRequestError,
+  RateLimitError,
+} from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { readFileSync } from "node:fs";
@@ -75,6 +79,16 @@ Guidance:
 --- OPERATOR RULES ---
 ${rules}`;
 
+if (!process.env.ANTHROPIC_API_KEY) {
+  console.error(
+    "\nNo ANTHROPIC_API_KEY found.\n\n" +
+      "Create a .env file in this directory containing:\n" +
+      "  ANTHROPIC_API_KEY=sk-ant-api03-...\n\n" +
+      "Get a key at console.anthropic.com under API Keys.\n",
+  );
+  process.exit(1);
+}
+
 const client = new Anthropic();
 
 let cost = 0;
@@ -93,13 +107,33 @@ for (const s of samples) {
     .filter(Boolean)
     .join("\n");
 
-  const response = await client.messages.parse({
-    model: TRIAGE_MODEL,
-    max_tokens: 1024,
-    system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
-    messages: [{ role: "user", content: `${header}\n\n${s.body}` }],
-    output_config: { format: zodOutputFormat(Triage) },
-  });
+  let response;
+  try {
+    response = await client.messages.parse({
+      model: TRIAGE_MODEL,
+      max_tokens: 1024,
+      system: [
+        { type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } },
+      ],
+      messages: [{ role: "user", content: `${header}\n\n${s.body}` }],
+      output_config: { format: zodOutputFormat(Triage) },
+    });
+  } catch (err) {
+    if (err instanceof AuthenticationError) {
+      console.error(
+        "\nThe API key was rejected.\n\n" +
+          "Check .env holds a current key — if you revoked one, create a new\n" +
+          "key at console.anthropic.com and replace it.\n",
+      );
+    } else if (err instanceof RateLimitError) {
+      console.error("\nRate limited. Wait a moment and run again.\n");
+    } else if (err instanceof BadRequestError) {
+      console.error(`\nRequest rejected: ${err.message}\n`);
+    } else {
+      console.error(`\nFailed on "${s.sender_name ?? s.sender}":`, err);
+    }
+    process.exit(1);
+  }
 
   const t = response.parsed_output;
   if (!t) {

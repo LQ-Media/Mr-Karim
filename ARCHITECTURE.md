@@ -93,8 +93,10 @@ never transmits.
 
 ## 3. Components
 
-1. **Ingest** — Gmail `watch` + Pub/Sub push (near-instant, free); Meta Cloud API
-   webhook; Mac bridge push endpoint.
+1. **Ingest** — Gmail polled on a 5-minute cron (push via Pub/Sub was dropped
+   for v1: it needs a Cloud topic, a push subscription and IAM grants, to buy
+   latency that email triage does not need); Meta Cloud API webhook; Mac bridge
+   push endpoint.
 2. **Store** — Cloudflare D1. Every message, its classification, its draft, and
    what the operator did with it. Doubles as memory and audit trail.
 3. **Triage** — Haiku 4.5 classifies everything: category, urgency, needs-reply,

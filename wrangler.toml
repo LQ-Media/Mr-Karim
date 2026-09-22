@@ -22,3 +22,10 @@ crons = ["0 1 * * *", "*/30 * * * *"]
 #   WHATSAPP_ACCESS_TOKEN
 #   WHATSAPP_VERIFY_TOKEN
 #   BRIDGE_SHARED_SECRET
+
+# Bundles settings/rules.md as a string so the Worker has a default copy.
+# The D1 settings table overrides it when present, so edits need no redeploy.
+[[rules]]
+type = "Text"
+globs = ["**/*.md"]
+fallthrough = true

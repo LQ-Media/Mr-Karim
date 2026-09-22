@@ -104,46 +104,89 @@ Copy the `database_id` it prints into `wrangler.toml`, replacing
 npm run db:migrate
 ```
 
-## 5. Set secrets
+## 5. Connect Gmail
+
+At **console.cloud.google.com**, in any project:
+
+1. **APIs & Services → Library** → enable the **Gmail API**.
+2. **OAuth consent screen** → External → add yourself as a test user.
+   It never needs Google verification while you are the only user.
+3. **Credentials → Create OAuth client ID → Web application.**
+   Authorised redirect URI: `http://localhost:8788/callback`
+4. Add the client id and secret to `.env`:
+
+```
+GOOGLE_CLIENT_ID=....apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPX-...
+```
+
+Then authorise each inbox in turn. Run it once signed in as
+`karim@littlequrankids.sg`, then again signed in as the personal account:
+
+```sh
+npm run auth:google
+```
+
+It prints a refresh token each time. That token grants read access to the
+mailbox — treat it like a password.
+
+## 6. Set secrets
 
 Each command prompts for the value; nothing is echoed or written to disk.
 
 ```sh
-npx wrangler secret put ANTHROPIC_API_KEY        # from step 1
+npx wrangler secret put ANTHROPIC_API_KEY
+npx wrangler secret put GOOGLE_CLIENT_ID
+npx wrangler secret put GOOGLE_CLIENT_SECRET
+npx wrangler secret put GMAIL_REFRESH_TOKEN_WORK
+npx wrangler secret put GMAIL_REFRESH_TOKEN_PERSONAL
 npx wrangler secret put WHATSAPP_VERIFY_TOKEN    # invent one, keep it handy
 npx wrangler secret put BRIDGE_SHARED_SECRET     # openssl rand -hex 32
 ```
 
-`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `WHATSAPP_ACCESS_TOKEN` come
-later, when Gmail and the Cloud API are wired up.
+`WHATSAPP_ACCESS_TOKEN` comes later, with the Cloud API.
 
-## 6. Deploy and verify
+## 7. Deploy and verify
 
 ```sh
 npm run deploy
 ```
 
-Note the `https://mr-karim.<subdomain>.workers.dev` URL it prints, then:
+Note the `https://mr-karim.<subdomain>.workers.dev` URL, then:
 
 ```sh
 curl https://mr-karim.<subdomain>.workers.dev/health
 ```
 
-Expect `{"ok":true,"db":"connected"}`. If `db` says `unreachable`, the
-`database_id` in `wrangler.toml` is wrong or the migration didn't run.
+Expect `{"ok":true,"db":"connected","messages":0,"triaged":0,"open_bills":0}`.
+If `db` says `unreachable`, the `database_id` in `wrangler.toml` is wrong or
+the migration did not run.
+
+## 8. Trigger a poll without waiting for cron
+
+```sh
+curl -X POST https://mr-karim.<subdomain>.workers.dev/admin/poll \
+  -H "x-bridge-secret: <BRIDGE_SHARED_SECRET>"
+```
+
+Returns counts of what it fetched, stored and triaged, plus any errors. Then
+`/health` again to see the totals climb.
 
 ---
 
 ## What works after this
 
-The Worker is deployed, the database exists, and the Meta webhook verification
-handshake will succeed. Ingest, triage, drafting and the dashboard are not built
-yet — those routes return 501 by design.
+Every five minutes the Worker polls both inboxes for mail from the last
+fifteen minutes, stores anything new, and classifies whatever is unclassified.
+Re-polling the same window is harmless — duplicates are dropped on insert.
+
+Classification uses `settings/rules.md`, bundled as a default. Once a `rules`
+row exists in the `settings` table it takes precedence, so edits need no
+redeploy.
 
 ## Still to come
 
-- Gmail OAuth for both accounts, `watch` subscription, ingest
-- Triage and drafting against `settings/rules.md`
+- Drafting replies with Opus, and the approve/edit/send path
 - Dashboard, behind Cloudflare Access
 - Meta Cloud API connection via coexistence
 - Mac Studio bridge for personal WhatsApp, read-only

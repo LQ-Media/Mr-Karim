@@ -51,11 +51,10 @@ var MTC_PATRONYM_MARKERS = [
 
 function MTC_normalise(text) {
   if (!text) return '';
-  return String(text)
-    .toLowerCase()
-    .replace(/[^a-z0-9/\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .replace(/^\s+|\s+$/g, '');
+  var lower = String(text).toLowerCase();
+  var letters = lower.replace(/[^a-z0-9/\s]/g, ' ');
+  var single = letters.replace(/\s+/g, ' ');
+  return single.replace(/^\s+|\s+$/g, '');
 }
 
 function MTC_canonicalToken(token) {

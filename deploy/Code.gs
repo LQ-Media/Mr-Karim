@@ -1747,9 +1747,7 @@ function REL_neighbourhood(graph, personId, radius) {
     var next = [];
     for (var i = 0; i < frontier.length; i++) {
       var id = frontier[i];
-      var touching = []
-        .concat(KIN_parentsOf(graph, id))
-        .concat(KIN_childrenOf(graph, id));
+      var touching = KIN_parentsOf(graph, id).concat(KIN_childrenOf(graph, id));
 
       var spouses = KIN_spousesOf(graph, id);
       for (var s = 0; s < spouses.length; s++) touching.push(spouses[s].personId);
@@ -2878,11 +2876,10 @@ var MTC_PATRONYM_MARKERS = [
 
 function MTC_normalise(text) {
   if (!text) return '';
-  return String(text)
-    .toLowerCase()
-    .replace(/[^a-z0-9/\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .replace(/^\s+|\s+$/g, '');
+  var lower = String(text).toLowerCase();
+  var letters = lower.replace(/[^a-z0-9/\s]/g, ' ');
+  var single = letters.replace(/\s+/g, ' ');
+  return single.replace(/^\s+|\s+$/g, '');
 }
 
 function MTC_canonicalToken(token) {
@@ -5943,10 +5940,11 @@ function doGet(e) {
     if (!error) template.signInError = err.message;
   }
 
-  return template.evaluate()
-    .setTitle(CFG.APP_NAME)
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  var page = template.evaluate();
+  page.setTitle(CFG.APP_NAME);
+  page.addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover');
+  page.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  return page;
 }
 
 function include(filename) {

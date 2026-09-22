@@ -252,10 +252,11 @@ function doGet(e) {
     if (!error) template.signInError = err.message;
   }
 
-  return template.evaluate()
-    .setTitle(CFG.APP_NAME)
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  var page = template.evaluate();
+  page.setTitle(CFG.APP_NAME);
+  page.addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover');
+  page.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  return page;
 }
 
 function include(filename) {

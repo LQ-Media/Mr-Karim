@@ -102,9 +102,7 @@ function REL_neighbourhood(graph, personId, radius) {
     var next = [];
     for (var i = 0; i < frontier.length; i++) {
       var id = frontier[i];
-      var touching = []
-        .concat(KIN_parentsOf(graph, id))
-        .concat(KIN_childrenOf(graph, id));
+      var touching = KIN_parentsOf(graph, id).concat(KIN_childrenOf(graph, id));
 
       var spouses = KIN_spousesOf(graph, id);
       for (var s = 0; s < spouses.length; s++) touching.push(spouses[s].personId);

@@ -11,7 +11,8 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
-const ENGINE = ['05_Relations.gs', '06_Kinship.gs', '07_Titles.gs', '13_Layout.gs'];
+const ENGINE = ['05_Relations.gs', '06_Kinship.gs', '07_Titles.gs',
+                '08_Matching.gs', '13_Layout.gs'];
 
 const args = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 const useFixture = process.argv.includes('--fixture');

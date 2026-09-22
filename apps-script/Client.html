@@ -473,8 +473,8 @@ var ADD_WORDING = {
   spouse_of: 'married to', sibling_of: 'a brother or sister of'
 };
 
-function openAdd(anchorId, relationship) {
-  var anchorName = S.view.centre.name;
+function openAdd(anchorId, relationship, anchorName) {
+  anchorName = anchorName || (S.view && S.view.centre ? S.view.centre.name : 'them');
   openSheet(
     '<h2>Add someone</h2>' +
     '<div class="sub">This person will be recorded as <strong>' +
@@ -513,7 +513,7 @@ function submitAdd(anchorId, relationship, ignoreDuplicates) {
       closeSheet();
       toast(res.status === 'pending_approval'
         ? 'Sent to a family admin for approval.' : 'Added.');
-      if (res.status !== 'pending_approval') loadView(S.focusId);
+      if (res.status !== 'pending_approval') refreshAfterWrite();
     })
     .catch(function (e) { busy(btn, false); fail(e); });
 }
@@ -552,7 +552,7 @@ function showDuplicates(res, anchorId, relationship) {
           closeSheet();
           toast(r.status === 'pending_approval'
             ? 'Sent to a family admin for approval.' : 'Connected.');
-          if (r.status !== 'pending_approval') loadView(S.focusId);
+          if (r.status !== 'pending_approval') refreshAfterWrite();
         })
         .catch(function (e) { busy(btn, false); fail(e); });
     };
@@ -586,12 +586,13 @@ var BATCH_WORDING = {
  * Pak Su -- so the app collects the hardest fact in the system as a side effect
  * of the way people naturally recite a family.
  */
-function openBatch(anchorId, relationship) {
+function openBatch(anchorId, relationship, anchorName) {
+  anchorName = anchorName || (S.view && S.view.centre ? S.view.centre.name : 'them');
   var wording = BATCH_WORDING[relationship];
   // Any rows held over from a batch that was abandoned rather than cancelled.
   S.batchRows = null;
   openSheet(
-    '<h2>' + wording.title + esc(S.view.centre.name) + '</h2>' +
+    '<h2>' + wording.title + esc(anchorName) + '</h2>' +
     '<div class="sub">List them <strong>oldest first</strong>. That order is what ' +
       'decides their titles &mdash; Pak Long for the eldest, Pak Su for the youngest &mdash; ' +
       'so it is worth getting right, and you can change it later.</div>' +
@@ -664,7 +665,7 @@ function submitBatch(anchorId, relationship, rowCount, decisions) {
     closeSheet();
     if (res.status === 'pending_approval') return toast('Sent to a family admin for approval.');
     toast('Added ' + res.created + (res.linked ? ', linked ' + res.linked : '') + '.');
-    loadView(S.focusId);
+    refreshAfterWrite();
   }).catch(function (e) { busy(btn, false); S.batchRows = null; fail(e); });
 }
 
@@ -772,6 +773,21 @@ function openReorder() {
     };
   }
   draw();
+}
+
+/**
+ * Redraws whatever the person is looking at after a change lands.
+ *
+ * A relative added from the chart should appear on the chart, not only on the
+ * list screen hidden behind it.
+ */
+function refreshAfterWrite() {
+  if (MAP.on) {
+    closeMap();
+    openMap();
+    return;
+  }
+  loadView(S.focusId);
 }
 
 /* ------------------------------------------------------------------ *
@@ -1681,12 +1697,52 @@ function mapDescribe(id) {
     '<div class="sub2">You call them <strong>' + esc(p.yourTitle) + '</strong>' +
     (p.birthDate ? ' \u00b7 born ' + esc(year(p.birthDate)) : '') + '</div></div>' +
     '<button class="btn sm" id="mapOpen">Open</button>' +
+    '<button class="btn sm ghost" id="mapAdd">+ Relative</button>' +
     (MAP.data.canSaveLayout && MAP.dirty
       ? '<button class="btn sm ghost" id="mapSave">Save layout</button>' : '');
 
   document.getElementById('mapOpen').onclick = function () { openPerson(id); };
+  document.getElementById('mapAdd').onclick = function () { chooseRelationship(id, p.name); };
   var save = document.getElementById('mapSave');
   if (save) save.onclick = mapCommit;
+}
+
+/**
+ * Adding somebody from the chart.
+ *
+ * The chart is where people notice a gap -- a cousin missing, a marriage not
+ * recorded -- so it needs its own way in rather than sending them back to the
+ * list to find the same person again. It asks how the new person is related
+ * first, because that is what anchors them to the family.
+ */
+function chooseRelationship(personId, name) {
+  var options = [
+    ['child_of', 'A child of ' + name],
+    ['parent_of', 'A parent of ' + name],
+    ['spouse_of', 'Married to ' + name],
+    ['sibling_of', 'A brother or sister of ' + name]
+  ];
+
+  openSheet(
+    '<h2>Add a relative</h2>' +
+    '<div class="sub">Everyone is added through somebody already in the tree, so ' +
+      'the family stays in one piece.</div>' +
+    options.map(function (o) {
+      return '<button class="btn ghost" data-rel="' + o[0] + '" ' +
+        'style="margin-bottom:8px;justify-content:flex-start">' + esc(o[1]) + '</button>';
+    }).join('') +
+    '<button class="btn ghost" onclick="closeSheet()" style="margin-top:6px">Cancel</button>');
+
+  Array.prototype.forEach.call(document.querySelectorAll('[data-rel]'), function (b) {
+    b.onclick = function () {
+      var relationship = b.getAttribute('data-rel');
+      if (relationship === 'child_of' || relationship === 'sibling_of') {
+        openBatch(personId, relationship, name);
+      } else {
+        openAdd(personId, relationship, name);
+      }
+    };
+  });
 }
 
 /* ---- pointer handling ---- */

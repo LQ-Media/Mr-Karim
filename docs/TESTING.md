@@ -20,6 +20,13 @@ browser against a made-up family of twenty-one people.
 
 **What to actually check:**
 
+- **+ Add person.** It asks who they are related to and how before it asks their
+  name, because a person with no connection is how a family tree splits in two.
+  Watch the duplicate warning appear if you type somebody already on the chart.
+- **Tap a card, then Add photo.** The picture is cropped square and appears on
+  the card. In the prototype it stays in your browser; in the deployed app the
+  same photo is copied into the family's Drive so every relative sees it.
+
 - Change **"Signed in as"** between Ismail, Rahim, Karim, Aisha and Hana. The
   same people should get renamed each time. If Osman is `Pak Long` to Karim and
   `Abang` to Rahim, the ego-centric model is working.

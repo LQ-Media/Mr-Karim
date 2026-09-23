@@ -79,6 +79,40 @@ export default {
       return Response.json(report);
     }
 
+    // Describes the API key's shape without revealing it, and makes one live
+    // call, so a 401 can be told apart from a malformed secret.
+    if (pathname === "/admin/diag" && request.method === "POST") {
+      if (!isBridgeAuthorised(request, env) && !isDashboardAuthorised(request, env)) {
+        return new Response("unauthorised\n", { status: 401 });
+      }
+      const raw = env.ANTHROPIC_API_KEY ?? "";
+      const key = raw.trim();
+      const shape = {
+        present: raw.length > 0,
+        length: raw.length,
+        length_after_trim: key.length,
+        has_surrounding_whitespace: raw !== key,
+        starts_with_sk_ant: key.startsWith("sk-ant-"),
+        first_8: key.slice(0, 8),
+        last_4: key.slice(-4),
+      };
+
+      let call: string;
+      try {
+        const client = new Anthropic({ apiKey: key });
+        await client.messages.create({
+          model: TRIAGE_MODEL,
+          max_tokens: 4,
+          messages: [{ role: "user", content: "hi" }],
+        });
+        call = "ok";
+      } catch (err) {
+        call = String(err).slice(0, 300);
+      }
+
+      return Response.json({ anthropic_key: shape, test_call: call });
+    }
+
     if (pathname === "/webhook/whatsapp") {
       if (request.method === "GET") return verifyMetaWebhook(url, env);
       if (request.method === "POST") return notYet("WhatsApp ingest");
@@ -217,7 +251,9 @@ async function runCycle(
 
   const pending = await untriagedMessages(env.DB, options.maxPerInbox);
   if (pending.length > 0) {
-    const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+    const client = new Anthropic({
+      apiKey: (env.ANTHROPIC_API_KEY ?? "").trim(),
+    });
     const systemPrompt = buildSystemPrompt(
       await loadRules(env.DB, defaultRules),
     );

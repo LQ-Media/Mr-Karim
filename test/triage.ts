@@ -124,7 +124,11 @@ if (!process.env.ANTHROPIC_API_KEY) {
   process.exit(1);
 }
 
-const client = new Anthropic();
+// Same trim as the Worker: a key pasted into .env often carries a stray
+// space or newline, and Anthropic rejects it with no hint as to why.
+const client = new Anthropic({
+  apiKey: (process.env.ANTHROPIC_API_KEY ?? "").trim(),
+});
 
 let cost = 0;
 

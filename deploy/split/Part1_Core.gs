@@ -650,24 +650,44 @@ function AUTH_exchangeCode(code) {
     }
   });
   if (response.getResponseCode() !== 200) {
-    // Google's own words, not ours. The common failure here is a redirect_uri
-    // that differs between the sign-in link and this exchange, and a generic
-    // "please try again" sends the person round the same loop for ever.
-    throw new Error('Google rejected the sign-in: ' + AUTH_tokenError(response) +
-      '\n\nRedirect URI used: ' + AUTH_redirectUri());
+    throw new Error(AUTH_tokenErrorMessage(response));
   }
   return JSON.parse(response.getContentText());
 }
 
-/** What Google said went wrong, without echoing anything we sent it. */
-function AUTH_tokenError(response) {
+/**
+ * What to tell somebody when Google refuses to complete the sign-in.
+ *
+ * Two different readers. A spent authorization code is ordinary -- refreshing
+ * the page after signing in resubmits the one in the address bar, and Google
+ * only honours it once -- so that needs a plain sentence and nothing else. A
+ * misconfigured client stops the whole family, and the one person who can fix
+ * it needs the detail, so that case carries it and no other does.
+ */
+function AUTH_tokenErrorMessage(response) {
+  var code = 'unknown_error';
+  var description = '';
   try {
     var body = JSON.parse(response.getContentText());
-    var code = body.error || 'unknown_error';
-    return body.error_description ? code + ' (' + body.error_description + ')' : code;
+    code = body.error || code;
+    description = body.error_description || '';
   } catch (err) {
-    return 'HTTP ' + response.getResponseCode();
+    code = 'HTTP ' + response.getResponseCode();
   }
+
+  if (code === 'invalid_grant') {
+    return 'That sign-in link had already been used. Please sign in again.';
+  }
+
+  if (code === 'redirect_uri_mismatch' || code === 'invalid_client' ||
+      code === 'unauthorized_client') {
+    return 'Sign-in is not set up correctly, so nobody can sign in until a ' +
+      'family admin fixes it.\n\nGoogle said: ' + code +
+      (description ? ' (' + description + ')' : '') +
+      '\nRedirect URI used: ' + AUTH_redirectUri();
+  }
+
+  return 'Google would not complete the sign-in. Please try again.';
 }
 
 /* ------------------------------------------------------------------ *

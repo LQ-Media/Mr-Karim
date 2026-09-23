@@ -135,15 +135,22 @@ function boot() {
 
 /* Start here: either we have a session, or the person signs in.
  *
- * Reading the stored session is synchronous, so this decision costs nothing.
- * What costs is api_me, and the page stays on the neutral splash until that
+ * The session is checked BEFORE the sign-in error, because the two arrive
+ * together on an ordinary refresh. Reloading leaves ?code= in the address bar
+ * and resubmits it; Google honours an authorization code once, so the second
+ * attempt fails -- while the session it issued the first time is still in the
+ * browser and still good. Reading that is synchronous and costs nothing, so
+ * somebody already signed in goes straight on to the app and never learns
+ * that anything was refused.
+ *
+ * What does cost is api_me, and the page stays on the neutral splash until it
  * answers -- never on the sign-in card, which would be a claim we cannot
  * support yet. */
-if (SIGN_IN_ERROR) {
+if (loadSession()) {
+  boot();
+} else if (SIGN_IN_ERROR) {
   gate('gateSignIn');
   show('signInError', SIGN_IN_ERROR);
-} else if (loadSession()) {
-  boot();
 } else {
   gate('gateSignIn');
 }

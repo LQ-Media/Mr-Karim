@@ -249,6 +249,28 @@ h1,h2,h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
   border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* An indeterminate bar for the opening wait. There is nothing to measure --
+   the server answers when it answers -- so this says "working" without
+   pretending to know how far along it is. */
+.loadbar {
+  width: 190px; height: 4px; margin: 0 auto; border-radius: 999px;
+  background: var(--surface-2); overflow: hidden; position: relative;
+}
+.loadbar::after {
+  content: ''; position: absolute; inset: 0 auto 0 0; width: 42%;
+  border-radius: 999px; background: var(--accent);
+  animation: sweep 1.25s cubic-bezier(.65,.02,.35,1) infinite;
+}
+@keyframes sweep {
+  0%   { transform: translateX(-105%); }
+  100% { transform: translateX(345%); }
+}
+/* Somebody who has asked for less movement still needs to see it is alive. */
+@media (prefers-reduced-motion: reduce) {
+  .loadbar::after { animation: pulse 1.8s ease-in-out infinite; width: 100%; }
+  @keyframes pulse { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
+}
 .loading { display: grid; place-items: center; padding: 60px 0; color: var(--ink-3); }
 
 .admin-item {
@@ -348,8 +370,9 @@ h1,h2,h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
     <div class="mark">&#127795;</div>
     <h1><?= appName ?></h1>
     <p id="loadingNote">Loading your family&hellip;</p>
+    <div class="loadbar" id="loadingBar"></div>
     <a class="btn ghost" id="loadingRetry" href="<?= signInUrl ?>" target="_top"
-       style="display:none; text-decoration:none">Sign in again</a>
+       style="display:none; text-decoration:none; margin-top:20px">Sign in again</a>
   </div>
 </div>
 
@@ -364,7 +387,8 @@ h1,h2,h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
          its sign-in page inside an iframe, and this page is always framed. -->
     <a class="btn" id="signInLink" href="<?= signInUrl ?>" target="_top"
        style="text-decoration:none">Continue with Google</a>
-    <p id="signInError" style="color:var(--danger); margin-top:16px; display:none"></p>
+    <p id="signInError" style="color:var(--danger); margin-top:16px; display:none;
+       white-space:pre-line; overflow-wrap:anywhere"></p>
   </div>
 </div>
 
@@ -583,15 +607,22 @@ function boot() {
 
 /* Start here: either we have a session, or the person signs in.
  *
- * Reading the stored session is synchronous, so this decision costs nothing.
- * What costs is api_me, and the page stays on the neutral splash until that
+ * The session is checked BEFORE the sign-in error, because the two arrive
+ * together on an ordinary refresh. Reloading leaves ?code= in the address bar
+ * and resubmits it; Google honours an authorization code once, so the second
+ * attempt fails -- while the session it issued the first time is still in the
+ * browser and still good. Reading that is synchronous and costs nothing, so
+ * somebody already signed in goes straight on to the app and never learns
+ * that anything was refused.
+ *
+ * What does cost is api_me, and the page stays on the neutral splash until it
  * answers -- never on the sign-in card, which would be a claim we cannot
  * support yet. */
-if (SIGN_IN_ERROR) {
+if (loadSession()) {
+  boot();
+} else if (SIGN_IN_ERROR) {
   gate('gateSignIn');
   show('signInError', SIGN_IN_ERROR);
-} else if (loadSession()) {
-  boot();
 } else {
   gate('gateSignIn');
 }

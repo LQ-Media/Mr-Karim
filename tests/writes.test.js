@@ -454,6 +454,42 @@ function find(store, id) { return rows(store, 'People').find((p) => p.person_id 
   check('a blank row is not a person', size(), (n) => n === graphSize(), 'still equal');
 }
 
+/* ================= What a refused sign-in says ===================== */
+{
+  const { env } = makeApp(buildFamily());
+  const reply = (code, description) => ({
+    getResponseCode: () => 400,
+    getContentText: () => JSON.stringify({ error: code, error_description: description })
+  });
+  const msg = (code, description) => env.AUTH_tokenErrorMessage(reply(code, description));
+
+  // Refreshing the page resubmits the authorization code in the address bar.
+  // Google honours one once, so this is ordinary and must read as ordinary.
+  const spent = msg('invalid_grant', 'Bad Request');
+  check('a spent code reads as plain English', spent,
+    (m) => /already been used/i.test(m), 'a sentence about reuse');
+  check('and does not leak the error code', spent,
+    (m) => !/invalid_grant/.test(m), 'no error code');
+  check('nor the redirect URI', spent, (m) => !/https?:/.test(m), 'no URI');
+
+  // A misconfigured client stops the whole family, and the person who can fix
+  // it is the one reading. That case, and only that case, carries the detail.
+  const broken = msg('redirect_uri_mismatch', '');
+  check('a broken client says so', broken,
+    (m) => /not set up correctly/i.test(m), 'a sentence about setup');
+  check('and names what Google objected to', broken,
+    (m) => /redirect_uri_mismatch/.test(m), 'the error code');
+
+  check('an unknown refusal stays vague rather than raw',
+    msg('some_new_thing', 'whatever'),
+    (m) => /try again/i.test(m) && !/some_new_thing/.test(m), 'no raw code');
+
+  // A non-JSON body must not throw while building an error message.
+  check('a body that is not JSON still produces a message',
+    env.AUTH_tokenErrorMessage({ getResponseCode: () => 502, getContentText: () => '<html>' }),
+    (m) => typeof m === 'string' && m.length > 0, 'some message');
+}
+
 console.log(`\nwrites: ${pass} passed, ${failures.length} failed\n`);
 if (failures.length) {
   failures.forEach((f) => console.log('  FAIL  ' + f));

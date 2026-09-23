@@ -416,9 +416,15 @@ h1,h2,h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
 <div class="toast" id="toast"></div>
 
 <script>
-  /* <?!= ?> emits raw, which is required here: <?= ?> HTML-escapes its output
-     and would turn the quotes of these JSON literals into &quot;. Both values
-     are produced by this server, never by anything a visitor supplied. */
+  /* These three use the raw-output scriptlet rather than the escaping one.
+     The escaping form would turn the quotes of these JSON literals into
+     &quot; and break the script. Every value is produced by this server,
+     never by anything a visitor supplied.
+
+     Do not write a scriptlet tag inside a comment here. The template engine
+     scans the whole file and compiles any it finds into JavaScript, comment or
+     not -- an empty one compiles to a broken statement, and the error surfaces
+     against whichever line called evaluate(), which is nowhere near this one. */
   var SESSION = <?!= JSON.stringify(session) ?>;
   var SIGN_IN_ERROR = <?!= JSON.stringify(signInError) ?>;
   /* Set when Google has just sent the person back from granting access to

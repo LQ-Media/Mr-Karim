@@ -22,6 +22,12 @@ import type { Env } from "./types.ts";
 // Overlaps the 5-minute cron generously; duplicates are dropped on insert.
 const POLL_WINDOW_SECONDS = 15 * 60;
 
+// A manual poll may reach further back, to pull a real sample worth judging
+// rather than waiting for mail to arrive. Capped at a week so a stray value
+// cannot trigger an enormous backfill.
+const MAX_MANUAL_WINDOW_SECONDS = 7 * 24 * 60 * 60;
+const MAX_MANUAL_MESSAGES = 100;
+
 const notYet = (what: string) =>
   new Response(`${what} is not implemented yet\n`, { status: 501 });
 
@@ -48,11 +54,21 @@ export default {
     }
 
     // Runs the same work as cron, for checking setup without waiting.
+    // ?minutes=N widens the lookback; ?max=N raises the per-inbox cap.
     if (pathname === "/admin/poll" && request.method === "POST") {
       if (!isBridgeAuthorised(request, env)) {
         return new Response("unauthorised\n", { status: 401 });
       }
-      const report = await runCycle(env);
+      const minutes = Number(url.searchParams.get("minutes"));
+      const max = Number(url.searchParams.get("max"));
+      const report = await runCycle(env, {
+        windowSeconds: Number.isFinite(minutes) && minutes > 0
+          ? Math.min(minutes * 60, MAX_MANUAL_WINDOW_SECONDS)
+          : POLL_WINDOW_SECONDS,
+        maxPerInbox: Number.isFinite(max) && max > 0
+          ? Math.min(max, MAX_MANUAL_MESSAGES)
+          : 25,
+      });
       return Response.json(report);
     }
 
@@ -82,15 +98,33 @@ export default {
 };
 
 interface CycleReport {
+  window_minutes: number;
   fetched: number;
   stored: number;
   triaged: number;
   errors: string[];
 }
 
+interface CycleOptions {
+  windowSeconds: number;
+  maxPerInbox: number;
+}
+
 /** Poll every configured inbox, then classify whatever is still unclassified. */
-async function runCycle(env: Env): Promise<CycleReport> {
-  const report: CycleReport = { fetched: 0, stored: 0, triaged: 0, errors: [] };
+async function runCycle(
+  env: Env,
+  options: CycleOptions = {
+    windowSeconds: POLL_WINDOW_SECONDS,
+    maxPerInbox: 25,
+  },
+): Promise<CycleReport> {
+  const report: CycleReport = {
+    window_minutes: Math.round(options.windowSeconds / 60),
+    fetched: 0,
+    stored: 0,
+    triaged: 0,
+    errors: [],
+  };
 
   const inboxes = [
     { account: "work", refresh: env.GMAIL_REFRESH_TOKEN_WORK },
@@ -106,7 +140,11 @@ async function runCycle(env: Env): Promise<CycleReport> {
         env.GOOGLE_CLIENT_SECRET,
         inbox.refresh,
       );
-      const ids = await gmail.listRecent(token, POLL_WINDOW_SECONDS);
+      const ids = await gmail.listRecent(
+        token,
+        options.windowSeconds,
+        options.maxPerInbox,
+      );
       report.fetched += ids.length;
 
       for (const id of ids) {
@@ -123,7 +161,7 @@ async function runCycle(env: Env): Promise<CycleReport> {
     }
   }
 
-  const pending = await untriagedMessages(env.DB);
+  const pending = await untriagedMessages(env.DB, options.maxPerInbox);
   if (pending.length > 0) {
     const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
     const systemPrompt = buildSystemPrompt(

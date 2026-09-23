@@ -210,11 +210,23 @@ the migration did not run.
 
 ```sh
 curl -X POST https://mr-karim.<subdomain>.workers.dev/admin/poll \
-  -H "x-bridge-secret: <BRIDGE_SHARED_SECRET>"
+  -H "x-bridge-secret: $(cat .secrets/bridge-secret.txt)"
 ```
 
 Returns counts of what it fetched, stored and triaged, plus any errors. Then
 `/health` again to see the totals climb.
+
+By default it looks back fifteen minutes, matching cron. To pull a real sample
+worth judging rather than waiting for mail to arrive, widen it — `minutes` is
+capped at a week, `max` at 100 messages per inbox:
+
+```sh
+curl -X POST "https://mr-karim.<subdomain>.workers.dev/admin/poll?minutes=1440&max=40" \
+  -H "x-bridge-secret: $(cat .secrets/bridge-secret.txt)"
+```
+
+Reading `$(cat ...)` into the header keeps the secret off screen, so the
+command is safe to screenshot.
 
 ---
 

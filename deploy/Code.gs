@@ -4925,7 +4925,6 @@ function seedDemoFamily() {
       birth_precision: row[3] ? 'exact' : 'unknown',
       birth_order_source: 'derived',
       is_living: 'TRUE',
-      notes: 'Demo family. Remove with clearDemoFamily().',
       status: 'active',
       created_by: actor,
       created_at: ST_now(),
@@ -5098,6 +5097,25 @@ function bindMeToSeeded() {
       'Run clearDemoFamily(), then seedDemoFamily(), then try again.');
   }
   return bindMeTo(map.S04);
+}
+
+/**
+ * Empties the notes field on everybody.
+ *
+ * Earlier seeds stamped a housekeeping line onto every person, which is
+ * reasonable for an invented family and wrong for a real one -- it showed up
+ * on the card of every relative. This clears the field wherever it is set.
+ */
+function clearAllNotes() {
+  var people = ST_readAll('People');
+  var cleared = 0;
+  for (var i = 0; i < people.length; i++) {
+    if (!people[i].notes) continue;
+    ST_update('People', 'person_id', people[i].person_id, { notes: '' });
+    cleared++;
+  }
+  ST_invalidate();
+  return cleared ? 'Cleared notes on ' + cleared + ' people.' : 'No notes to clear.';
 }
 
 /* ------------------------------------------------------------------ *

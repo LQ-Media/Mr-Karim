@@ -339,9 +339,23 @@ h1,h2,h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
 </head>
 <body>
 
+<!-- What the browser paints first, before any decision has been made.
+     Checking who somebody is takes a round trip, and showing the sign-in card
+     during it told a signed-in person they were signed out -- then corrected
+     itself seconds later. A neutral wait says the true thing throughout. -->
+<div class="gate" id="gateLoading">
+  <div class="box">
+    <div class="mark">&#127795;</div>
+    <h1><?= appName ?></h1>
+    <p id="loadingNote">Loading your family&hellip;</p>
+    <a class="btn ghost" id="loadingRetry" href="<?= signInUrl ?>" target="_top"
+       style="display:none; text-decoration:none">Sign in again</a>
+  </div>
+</div>
+
 <!-- Sign in. Nothing below this point renders until Google has confirmed who
      the visitor is and the server has verified the token it issued. -->
-<div class="gate" id="gateSignIn">
+<div class="gate" id="gateSignIn" style="display:none">
   <div class="box">
     <div class="mark">&#127795;</div>
     <h1><?= appName ?></h1>
@@ -517,8 +531,26 @@ function call(fnName) {
  * Routing
  * ------------------------------------------------------------------ */
 
+/**
+ * A splash with no way out is worse than the flash it replaced.
+ *
+ * A cold Apps Script deployment can take ten seconds or more to answer, so
+ * this waits well past that before saying anything -- then offers a way back
+ * to Google rather than leaving somebody looking at a tree icon for ever.
+ */
+function bootWatchdog() {
+  return setTimeout(function () {
+    var note = document.getElementById('loadingNote');
+    var retry = document.getElementById('loadingRetry');
+    if (note) note.textContent = 'This is taking longer than usual.';
+    if (retry) retry.style.display = '';
+  }, 25000);
+}
+
 function boot() {
+  var watchdog = bootWatchdog();
   call('api_me').then(function (me) {
+    clearTimeout(watchdog);
     S.me = me;
     document.getElementById('familyName').textContent = me.familyName || 'Family tree';
 
@@ -542,13 +574,19 @@ function boot() {
     }
     loadView(null);
   }).catch(function (err) {
+    clearTimeout(watchdog);
     signOutLocally();
     gate('gateSignIn');
     show('signInError', err.message);
   });
 }
 
-/* Start here: either we have a session, or the person signs in. */
+/* Start here: either we have a session, or the person signs in.
+ *
+ * Reading the stored session is synchronous, so this decision costs nothing.
+ * What costs is api_me, and the page stays on the neutral splash until that
+ * answers -- never on the sign-in card, which would be a claim we cannot
+ * support yet. */
 if (SIGN_IN_ERROR) {
   gate('gateSignIn');
   show('signInError', SIGN_IN_ERROR);
@@ -559,7 +597,7 @@ if (SIGN_IN_ERROR) {
 }
 
 function gate(id) {
-  ['gateSignIn', 'gatePending', 'gateClaim', 'gateStart', 'app'].forEach(function (g) {
+  ['gateLoading', 'gateSignIn', 'gatePending', 'gateClaim', 'gateStart', 'app'].forEach(function (g) {
     document.getElementById(g).style.display = g === id ? '' : 'none';
   });
 }

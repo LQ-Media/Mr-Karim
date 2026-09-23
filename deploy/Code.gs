@@ -4906,8 +4906,16 @@ function checkInstallation() {
   }
 
   var sheetId = props.getProperty(CFG.PROP_SHEET_ID);
-  report('Spreadsheet', sheetId ? SpreadsheetApp.openById(sheetId).getUrl() : 'not created',
-    !!sheetId, 'Run installFamilyTree().');
+  var sheetUrl = 'not created -- run installFamilyTree() first';
+  if (sheetId) {
+    try {
+      sheetUrl = SpreadsheetApp.openById(sheetId).getUrl();
+    } catch (openErr) {
+      sheetUrl = 'recorded, but could not be opened: ' + openErr.message;
+      sheetId = '';
+    }
+  }
+  report('Spreadsheet', sheetUrl, !!sheetId, 'Run installFamilyTree().');
 
   if (sheetId) {
     var missing = [];
@@ -4943,12 +4951,27 @@ function checkInstallation() {
     lines.push('      ' + url);
   }
 
-  var people = ST_readAll('People');
-  var users = ST_readAll('Users');
+  // Reading a tab that does not exist yet throws, and a report that dies on
+  // the first missing thing is useless precisely when it is needed most --
+  // before the install has run.
   lines.push('');
-  lines.push('  People in the tree: ' + people.length);
-  lines.push('  Accounts: ' + users.length +
-    ' (' + users.filter(function (u) { return u.role === 'pending'; }).length + ' waiting)');
+  if (sheetId) {
+    try {
+      var people = ST_readAll('People');
+      var users = ST_readAll('Users');
+      var waiting = 0;
+      for (var u = 0; u < users.length; u++) {
+        if (users[u].role === 'pending') waiting++;
+      }
+      lines.push('  People in the tree: ' + people.length);
+      lines.push('  Accounts: ' + users.length + ' (' + waiting + ' waiting)');
+    } catch (readErr) {
+      lines.push('  Could not read the tabs: ' + readErr.message);
+      problems.push('Run installFamilyTree() to build the missing tabs.');
+    }
+  } else {
+    lines.push('  No spreadsheet yet, so there is nothing to count.');
+  }
 
   var out = 'INSTALLATION\n\n' + lines.join('\n');
   if (problems.length) {

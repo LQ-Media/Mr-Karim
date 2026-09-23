@@ -380,76 +380,124 @@ function paintThumbs() {
  * Person detail
  * ------------------------------------------------------------------ */
 
+/* Person details already fetched this visit. Cleared on every write, so a
+ * card can never show what somebody has just changed away from. */
+var PCACHE = {};
+
+/** The name and title already on screen for someone, if they are on screen. */
+function knownCard(personId) {
+  var pools = [];
+  if (S.view) {
+    pools.push([S.view.centre]);
+    pools.push(S.view.parents, S.view.spouses, S.view.siblings, S.view.children);
+  }
+  if (MAP.data && MAP.data.people) pools.push(MAP.data.people);
+
+  for (var i = 0; i < pools.length; i++) {
+    var pool = pools[i] || [];
+    for (var j = 0; j < pool.length; j++) {
+      if (pool[j] && pool[j].personId === personId) return pool[j];
+    }
+  }
+  return null;
+}
+
+/**
+ * Opens someone's details.
+ *
+ * The round trip to Apps Script costs the better part of a second even when
+ * the server has everything cached, and "Loading..." for that long makes a tap
+ * feel unanswered. The name and title are already on the card that was tapped,
+ * so the panel opens with them immediately and the facts arrive underneath.
+ */
 function openPerson(personId) {
-  openSheet('<div class="loading">Loading&hellip;</div>');
+  var known = knownCard(personId);
+  openSheet(
+    '<h2>' + esc(known ? known.name : 'Loading\u2026') + '</h2>' +
+    (known ? '<div class="sub">You call them <strong>' + esc(known.yourTitle) +
+             '</strong></div>' : '') +
+    '<div class="loading">Loading&hellip;</div>');
+
+  var cached = PCACHE[personId];
+  if (cached) {
+    renderPerson(cached);
+    return;
+  }
+
   call('api_person', personId).then(function (p) {
-    var facts = [];
-    function fact(k, v) { if (v) facts.push('<div class="fact"><div class="k">' + k +
-      '</div><div class="v">' + esc(String(v)) + '</div></div>'); }
-
-    fact('Full name', p.full_name);
-    fact('Also known as', p.also_known_as);
-    fact('Born', datePhrase(p.birth_date, p.birth_precision));
-    fact('Birthplace', p.birth_place);
-    if (p.is_living === 'FALSE') {
-      fact('Died', datePhrase(p.death_date, p.death_precision));
-      fact('Place of death', p.death_place);
-      fact('Buried', p.burial_place);
-    }
-    fact('Occupation', p.occupation);
-    fact('Email', p.email);
-    fact('Mobile', p.mobile);
-    fact('Address', p.address);
-    if (p.derivedBirthOrder) {
-      fact('Birth order', p.derivedBirthOrder + ' of ' + p.siblingCount +
-        (p.birth_order ? '' : ' (worked out from birth dates)'));
-    }
-    fact('Notes', p.notes);
-
-    var html =
-      '<h2>' + esc(p.display_name) + '</h2>' +
-      '<div class="sub">You call them <strong>' + esc(p.yourTitle) + '</strong>' +
-        (p.titleSource === 'custom' ? ' (set by your family)' : '') + '</div>' +
-      '<div class="facts">' + (facts.join('') || '<div class="empty">Nothing recorded yet.</div>') + '</div>' +
-      '<div class="btn-row">' +
-        (p.editable ? '<button class="btn" id="editBtn">Edit</button>' +
-                      '<button class="btn ghost" id="photoBtn">Upload photo</button>' : '') +
-        '<button class="btn ghost" id="titleBtn">Rename title</button>' +
-      '</div>' +
-      (p.deletable
-        ? '<div class="btn-row"><button class="btn danger" id="deleteBtn">' +
-          'Remove from tree</button></div>'
-        : (p.deleteBlockedReason
-            ? '<div class="hint" style="margin-top:10px">' +
-              esc(p.deleteBlockedReason) + '</div>'
-            : '')) +
-      (p.editable && S.me.googlePhotos
-        ? '<button class="btn ghost" id="gphotoBtn" style="margin-top:8px">' +
-          'Choose from Google Photos</button>' +
-          '<div class="hint" style="margin-top:6px">The picture is copied into the ' +
-          'family album, so every relative can see it \u2014 a Google Photos link on ' +
-          'its own only works for you, and only for an hour.</div>'
-        : '') +
-      '<input type="file" id="photoInput" accept="image/*" class="sr">';
-
-    openSheet(html);
-
-    if (p.editable) {
-      document.getElementById('editBtn').onclick = function () { openEdit(p); };
-      document.getElementById('photoBtn').onclick = function () {
-        document.getElementById('photoInput').click();
-      };
-      document.getElementById('photoInput').onchange = function (e) {
-        if (e.target.files[0]) uploadPhoto(personId, e.target.files[0]);
-      };
-      var gphoto = document.getElementById('gphotoBtn');
-      if (gphoto) gphoto.onclick = function () { startGooglePhotos(personId); };
-    }
-    document.getElementById('titleBtn').onclick = function () { openTitle(p); };
-
-    var del = document.getElementById('deleteBtn');
-    if (del) del.onclick = function () { confirmDelete(p); };
+    PCACHE[personId] = p;
+    renderPerson(p);
   }).catch(fail);
+}
+
+function renderPerson(p) {
+  var personId = p.personId;
+  var facts = [];
+  function fact(k, v) { if (v) facts.push('<div class="fact"><div class="k">' + k +
+    '</div><div class="v">' + esc(String(v)) + '</div></div>'); }
+
+  fact('Full name', p.full_name);
+  fact('Also known as', p.also_known_as);
+  fact('Born', datePhrase(p.birth_date, p.birth_precision));
+  fact('Birthplace', p.birth_place);
+  if (p.is_living === 'FALSE') {
+    fact('Died', datePhrase(p.death_date, p.death_precision));
+    fact('Place of death', p.death_place);
+    fact('Buried', p.burial_place);
+  }
+  fact('Occupation', p.occupation);
+  fact('Email', p.email);
+  fact('Mobile', p.mobile);
+  fact('Address', p.address);
+  if (p.derivedBirthOrder) {
+    fact('Birth order', p.derivedBirthOrder + ' of ' + p.siblingCount +
+      (p.birth_order ? '' : ' (worked out from birth dates)'));
+  }
+  fact('Notes', p.notes);
+
+  var html =
+    '<h2>' + esc(p.display_name) + '</h2>' +
+    '<div class="sub">You call them <strong>' + esc(p.yourTitle) + '</strong>' +
+      (p.titleSource === 'custom' ? ' (set by your family)' : '') + '</div>' +
+    '<div class="facts">' + (facts.join('') || '<div class="empty">Nothing recorded yet.</div>') + '</div>' +
+    '<div class="btn-row">' +
+      (p.editable ? '<button class="btn" id="editBtn">Edit</button>' +
+                    '<button class="btn ghost" id="photoBtn">Upload photo</button>' : '') +
+      '<button class="btn ghost" id="titleBtn">Rename title</button>' +
+    '</div>' +
+    (p.deletable
+      ? '<div class="btn-row"><button class="btn danger" id="deleteBtn">' +
+        'Remove from tree</button></div>'
+      : (p.deleteBlockedReason
+          ? '<div class="hint" style="margin-top:10px">' +
+            esc(p.deleteBlockedReason) + '</div>'
+          : '')) +
+    (p.editable && S.me.googlePhotos
+      ? '<button class="btn ghost" id="gphotoBtn" style="margin-top:8px">' +
+        'Choose from Google Photos</button>' +
+        '<div class="hint" style="margin-top:6px">The picture is copied into the ' +
+        'family album, so every relative can see it \u2014 a Google Photos link on ' +
+        'its own only works for you, and only for an hour.</div>'
+      : '') +
+    '<input type="file" id="photoInput" accept="image/*" class="sr">';
+
+  openSheet(html);
+
+  if (p.editable) {
+    document.getElementById('editBtn').onclick = function () { openEdit(p); };
+    document.getElementById('photoBtn').onclick = function () {
+      document.getElementById('photoInput').click();
+    };
+    document.getElementById('photoInput').onchange = function (e) {
+      if (e.target.files[0]) uploadPhoto(personId, e.target.files[0]);
+    };
+    var gphoto = document.getElementById('gphotoBtn');
+    if (gphoto) gphoto.onclick = function () { startGooglePhotos(personId); };
+  }
+  document.getElementById('titleBtn').onclick = function () { openTitle(p); };
+
+  var del = document.getElementById('deleteBtn');
+  if (del) del.onclick = function () { confirmDelete(p); };
 }
 
 /**
@@ -847,6 +895,7 @@ function openReorder() {
  * list screen hidden behind it.
  */
 function refreshAfterWrite() {
+  PCACHE = {};
   if (MAP.on) {
     closeMap();
     openMap();

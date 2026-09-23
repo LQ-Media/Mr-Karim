@@ -19,7 +19,13 @@ var CFG = {
   PROP_WEBAPP_URL: 'WEBAPP_URL',
 
   CACHE_GRAPH_KEY: 'graph_v1',
-  CACHE_SECONDS: 300,
+
+  /* Six hours, the longest Google allows. Every write that touches People,
+   * Parentage, Unions or CustomTitles clears this cache before returning, so
+   * the expiry is a backstop rather than the thing keeping the tree current.
+   * At five minutes it was neither: a family browsing between edits rebuilt
+   * the graph from four sheet reads on almost every click. */
+  CACHE_SECONDS: 21600,
 
   /* Google caps a single cache entry at 100KB, so a large tree is split across
    * numbered chunks and reassembled on read. */

@@ -95,6 +95,8 @@ async function runCycle(env: Env): Promise<CycleReport> {
   const inboxes = [
     { account: "work", refresh: env.GMAIL_REFRESH_TOKEN_WORK },
     { account: "personal", refresh: env.GMAIL_REFRESH_TOKEN_PERSONAL },
+    // An unset refresh token means that inbox is not connected yet; the work
+    // account polls fine on its own while the personal one is pending.
   ].filter((inbox) => Boolean(inbox.refresh));
 
   for (const inbox of inboxes) {

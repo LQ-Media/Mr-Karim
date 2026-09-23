@@ -106,29 +106,61 @@ npm run db:migrate
 
 ## 5. Connect Gmail
 
-At **console.cloud.google.com**, in any project:
+> **Read this before clicking.** Google expires refresh tokens after **7 days**
+> for OAuth apps with user type *External* and publishing status *Testing*.
+> An always-on agent configured that way dies weekly. The way around it is
+> user type **Internal**, which Workspace domains can select and which is
+> exempt from both the 7-day expiry and Google's verification review.
+>
+> Internal only covers accounts inside `littlequrankids.sg`. A personal Gmail
+> cannot authorise against an Internal app — see *Personal Gmail* below.
 
-1. **APIs & Services → Library** → enable the **Gmail API**.
-2. **OAuth consent screen** → External → add yourself as a test user.
-   It never needs Google verification while you are the only user.
-3. **Credentials → Create OAuth client ID → Web application.**
+At **console.cloud.google.com**, signed in as `karim@littlequrankids.sg`:
+
+1. **Create a new project** and make sure its Organisation is
+   `littlequrankids.sg`, not "No organisation". The Internal option does not
+   appear otherwise, and changing it later means starting over.
+2. **APIs & Services → Library** → enable the **Gmail API**.
+3. **APIs & Services → OAuth consent screen** → User Type **Internal** →
+   Create. Fill in app name and support email; nothing else is required.
+4. **Data Access** → Add scope → `https://www.googleapis.com/auth/gmail.readonly`
+5. **Credentials → Create credentials → OAuth client ID → Web application.**
    Authorised redirect URI: `http://localhost:8788/callback`
-4. Add the client id and secret to `.env`:
+6. Add the client id and secret to `.env`:
 
 ```
 GOOGLE_CLIENT_ID=....apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=GOCSPX-...
 ```
 
-Then authorise each inbox in turn. Run it once signed in as
-`karim@littlequrankids.sg`, then again signed in as the personal account:
+Then authorise the work inbox:
 
 ```sh
 npm run auth:google
 ```
 
-It prints a refresh token each time. That token grants read access to the
-mailbox — treat it like a password.
+It prints a refresh token. That token grants read access to the mailbox —
+treat it like a password.
+
+### Personal Gmail
+
+An Internal app cannot authorise it. Three ways round, in order of preference:
+
+- **Pull it into the work inbox.** Gmail → Settings → Accounts → *Check mail
+  from other accounts* → add the personal address over POP. One OAuth
+  connection then covers both, and the imported mail arrives labelled. Costs
+  some latency: Gmail's own fetch interval is its own business, sometimes an
+  hour.
+- **Forward selectively.** A filter on the personal account forwarding only
+  what matters — bank, government, bills — to the work address. Less noise
+  than a full import, but you maintain the filter.
+- **A second External OAuth app**, accepting re-authorisation every 7 days.
+  Works, but it is a recurring chore and the system is silently blind between
+  the expiry and your noticing.
+
+Whichever you choose, `GMAIL_REFRESH_TOKEN_PERSONAL` stays unset until it is
+sorted. The Worker skips inboxes with no refresh token, so polling the work
+account alone works fine in the meantime.
 
 ## 6. Set secrets
 

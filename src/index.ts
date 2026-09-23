@@ -21,6 +21,7 @@ import type { Env } from "./types.ts";
 import {
   renderDashboard,
   renderLocked,
+  type LastRun,
   type QueueRow,
   type Totals,
 } from "./dashboard.ts";
@@ -112,7 +113,7 @@ export default {
         });
       }
 
-      const [queue, totals] = await Promise.all([
+      const [queue, totals, lastRun] = await Promise.all([
         env.DB.prepare(
           `SELECT m.id, m.source, m.sender, m.sender_name, m.subject,
                   m.received_at, t.category, t.urgency, t.needs_reply,
@@ -128,14 +129,15 @@ export default {
              (SELECT COUNT(*) FROM triage)   AS triaged,
              (SELECT COUNT(*) FROM bills WHERE status = 'open') AS open_bills`,
         ).first<Totals>(),
+        getState(env.DB, "last_run"),
       ]);
 
       return new Response(
-        renderDashboard(queue.results ?? [], totals ?? {
-          messages: 0,
-          triaged: 0,
-          open_bills: 0,
-        }),
+        renderDashboard(
+          queue.results ?? [],
+          totals ?? { messages: 0, triaged: 0, open_bills: 0 },
+          lastRun ? (JSON.parse(lastRun) as LastRun) : null,
+        ),
         { headers: { "content-type": "text/html; charset=utf-8" } },
       );
     }
@@ -230,6 +232,15 @@ async function runCycle(
       }
     }
   }
+
+  // A cron failure is otherwise invisible: console.log reaches nobody who is
+  // not watching `wrangler tail`. Persisting the report puts it on the
+  // dashboard, where it will actually be seen.
+  await setState(
+    env.DB,
+    "last_run",
+    JSON.stringify({ at: Math.floor(Date.now() / 1000), ...report }),
+  );
 
   return report;
 }

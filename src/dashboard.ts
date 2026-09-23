@@ -21,6 +21,15 @@ export interface QueueRow {
   reasoning: string;
 }
 
+export interface LastRun {
+  at: number;
+  window_minutes: number;
+  fetched: number;
+  stored: number;
+  triaged: number;
+  errors: string[];
+}
+
 export interface Totals {
   messages: number;
   triaged: number;
@@ -83,7 +92,11 @@ function card(row: QueueRow): string {
 </article>`;
 }
 
-export function renderDashboard(rows: QueueRow[], totals: Totals): string {
+export function renderDashboard(
+  rows: QueueRow[],
+  totals: Totals,
+  lastRun: LastRun | null = null,
+): string {
   const grouped = URGENCY_ORDER.map((urgency) => ({
     urgency,
     items: rows.filter((r) => r.urgency === urgency),
@@ -92,6 +105,33 @@ export function renderDashboard(rows: QueueRow[], totals: Totals): string {
   const actionable = rows.filter(
     (r) => r.urgency === "now" || r.urgency === "today",
   ).length;
+
+  const stuck = totals.messages > totals.triaged;
+  const errors = lastRun?.errors ?? [];
+
+  // Silence here would be worse than an ugly banner: an unclassified backlog
+  // means the agent is not doing its job, and the reason belongs on screen.
+  const alert =
+    errors.length > 0 || stuck
+      ? `<div class="alert">
+           <p><strong>${
+             errors.length > 0
+               ? `${errors.length} error${errors.length === 1 ? "" : "s"} on the last run`
+               : `${totals.messages - totals.triaged} message(s) stored but not classified`
+           }</strong></p>
+           ${errors
+             .slice(0, 5)
+             .map((e) => `<pre>${escape(e)}</pre>`)
+             .join("")}
+           ${
+             lastRun
+               ? `<p class="meta">Last run ${escape(whenLabel(lastRun.at))} ·
+                    fetched ${lastRun.fetched} · stored ${lastRun.stored} ·
+                    triaged ${lastRun.triaged}</p>`
+               : ""
+           }
+         </div>`
+      : "";
 
   const body =
     rows.length === 0
@@ -187,6 +227,18 @@ export function renderDashboard(rows: QueueRow[], totals: Totals): string {
     font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em;
   }
   details p { margin: 6px 0 0; color: var(--muted); font-size: 0.875rem; }
+  .alert {
+    border: 1px solid var(--now); border-radius: 10px;
+    padding: 14px 16px; margin-bottom: 18px;
+    background: color-mix(in srgb, var(--now) 8%, var(--surface));
+  }
+  .alert p { margin: 0 0 8px; }
+  .alert .meta { color: var(--muted); font-size: 0.8rem; margin: 8px 0 0; }
+  .alert pre {
+    margin: 0 0 6px; padding: 8px 10px; border-radius: 6px;
+    background: var(--bg); border: 1px solid var(--line);
+    font-size: 0.75rem; white-space: pre-wrap; overflow-wrap: anywhere;
+  }
   .empty {
     border: 1px dashed var(--line); border-radius: 10px;
     padding: 28px 20px; text-align: center; color: var(--muted);
@@ -207,6 +259,7 @@ export function renderDashboard(rows: QueueRow[], totals: Totals): string {
       <button id="refresh">Refresh</button>
     </div>
   </div>
+  ${alert}
   ${body}
   <p class="foot">Draft only. Nothing is ever sent without you.</p>
 </div>
@@ -221,8 +274,11 @@ export function renderDashboard(rows: QueueRow[], totals: Totals): string {
         credentials: "same-origin",
       });
       const data = await res.json();
-      poll.textContent = "Fetched " + data.fetched + ", triaged " + data.triaged;
-      setTimeout(() => location.reload(), 1200);
+      const failed = (data.errors || []).length;
+      poll.textContent =
+        "Fetched " + data.fetched + ", triaged " + data.triaged +
+        (failed ? ", " + failed + " failed" : "");
+      setTimeout(() => location.reload(), failed ? 2500 : 1200);
     } catch (err) {
       poll.textContent = "Failed — try again";
       poll.disabled = false;

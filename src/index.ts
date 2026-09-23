@@ -18,6 +18,12 @@ import {
 } from "./db.ts";
 import { TRIAGE_MODEL, buildSystemPrompt, triage } from "./triage.ts";
 import type { Env } from "./types.ts";
+import {
+  renderDashboard,
+  renderLocked,
+  type QueueRow,
+  type Totals,
+} from "./dashboard.ts";
 
 // Overlaps the 5-minute cron generously; duplicates are dropped on insert.
 const POLL_WINDOW_SECONDS = 15 * 60;
@@ -56,7 +62,7 @@ export default {
     // Runs the same work as cron, for checking setup without waiting.
     // ?minutes=N widens the lookback; ?max=N raises the per-inbox cap.
     if (pathname === "/admin/poll" && request.method === "POST") {
-      if (!isBridgeAuthorised(request, env)) {
+      if (!isBridgeAuthorised(request, env) && !isDashboardAuthorised(request, env)) {
         return new Response("unauthorised\n", { status: 401 });
       }
       const minutes = Number(url.searchParams.get("minutes"));
@@ -84,8 +90,54 @@ export default {
       return notYet("Bridge ingest");
     }
 
-    if (pathname === "/" || pathname.startsWith("/app")) {
-      return notYet("Dashboard");
+    if (pathname === "/" || pathname === "/app") {
+      const key = url.searchParams.get("k");
+      // Arriving with ?k= sets the cookie and redirects, so the secret does
+      // not linger in the address bar or get shared with a copied link.
+      if (key && secretMatches(key, env)) {
+        return new Response(null, {
+          status: 302,
+          headers: {
+            location: "/",
+            "set-cookie":
+              `mk=${encodeURIComponent(key)}; HttpOnly; Secure; ` +
+              `SameSite=Strict; Path=/; Max-Age=31536000`,
+          },
+        });
+      }
+      if (!isDashboardAuthorised(request, env)) {
+        return new Response(renderLocked(), {
+          status: 401,
+          headers: { "content-type": "text/html; charset=utf-8" },
+        });
+      }
+
+      const [queue, totals] = await Promise.all([
+        env.DB.prepare(
+          `SELECT m.id, m.source, m.sender, m.sender_name, m.subject,
+                  m.received_at, t.category, t.urgency, t.needs_reply,
+                  t.is_bill, t.summary, t.reasoning
+             FROM triage t
+             JOIN messages m ON m.id = t.message_id
+            ORDER BY m.received_at DESC
+            LIMIT 100`,
+        ).all<QueueRow>(),
+        env.DB.prepare(
+          `SELECT
+             (SELECT COUNT(*) FROM messages) AS messages,
+             (SELECT COUNT(*) FROM triage)   AS triaged,
+             (SELECT COUNT(*) FROM bills WHERE status = 'open') AS open_bills`,
+        ).first<Totals>(),
+      ]);
+
+      return new Response(
+        renderDashboard(queue.results ?? [], totals ?? {
+          messages: 0,
+          triaged: 0,
+          open_bills: 0,
+        }),
+        { headers: { "content-type": "text/html; charset=utf-8" } },
+      );
     }
 
     return new Response("not found\n", { status: 404 });
@@ -205,15 +257,26 @@ function verifyMetaWebhook(url: URL, env: Env): Response {
 const MIN_SECRET_LENGTH = 16;
 
 function isBridgeAuthorised(request: Request, env: Env): boolean {
+  return secretMatches(request.headers.get("x-bridge-secret"), env);
+}
+
+/** The dashboard carries the same secret in an HttpOnly cookie. */
+function isDashboardAuthorised(request: Request, env: Env): boolean {
+  const cookie = request.headers.get("cookie") ?? "";
+  const value = cookie.match(/(?:^|;\s*)mk=([^;]*)/)?.[1];
+  return secretMatches(value ? decodeURIComponent(value) : null, env);
+}
+
+function secretMatches(presented: string | null, env: Env): boolean {
   const expected = env.BRIDGE_SHARED_SECRET ?? "";
   if (expected.length < MIN_SECRET_LENGTH) return false;
 
-  const presented = request.headers.get("x-bridge-secret") ?? "";
-  if (presented.length !== expected.length) return false;
+  const candidate = presented ?? "";
+  if (candidate.length !== expected.length) return false;
 
   let diff = 0;
   for (let i = 0; i < expected.length; i++) {
-    diff |= presented.charCodeAt(i) ^ expected.charCodeAt(i);
+    diff |= candidate.charCodeAt(i) ^ expected.charCodeAt(i);
   }
   return diff === 0;
 }

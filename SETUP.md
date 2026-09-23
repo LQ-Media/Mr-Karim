@@ -230,6 +230,23 @@ command is safe to screenshot.
 
 ---
 
+## 9. Open the dashboard
+
+Visit once with your key appended, on the phone:
+
+```
+https://mr-karim.<subdomain>.workers.dev/?k=PASTE_BRIDGE_SHARED_SECRET
+```
+
+It redirects to `/` and stores the key in an HttpOnly cookie, so the secret
+leaves the address bar immediately and the plain URL works from then on. Add it
+to the home screen and it behaves like an app.
+
+The queue groups by urgency, most pressing first. Each card carries the
+one-line summary, the category, whether a reply is needed, whether it looks
+like a bill, and a *Why* toggle showing the reasoning. *Poll now* fetches the
+last 24 hours on demand.
+
 ## What works after this
 
 Every five minutes the Worker polls both inboxes for mail from the last
@@ -243,7 +260,6 @@ redeploy.
 ## Still to come
 
 - Drafting replies with Opus, and the approve/edit/send path
-- Dashboard, behind Cloudflare Access
 - Meta Cloud API connection via coexistence
 - Mac Studio bridge for personal WhatsApp, read-only
 - Bill extraction from PDFs, due-date reminders

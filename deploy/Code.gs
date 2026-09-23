@@ -4837,69 +4837,57 @@ function api_startTree(idToken, data) {
  */
 
 /* The same twenty-one people the Node test suite uses, so a title that is
- * correct here is correct there. [id, name, gender, birth date] */
+ * correct here is correct there.
+ *
+ * This is the Salim family as recorded on the 2024 Umrah passenger list:
+ * names, sex and dates of birth, and the relationships the roles and
+ * patronymics imply. Passport numbers, NRIC and phone numbers are
+ * deliberately not here -- a seed function has no use for them.
+ *
+ * It is one of the two trees: Su'aidah's side. Karim's own paternal line
+ * (bin Kamaruddin) is not on that list and has to be entered by hand.
+ *
+ * [id, name, gender, birth date] */
 var DEV_PEOPLE = [
-    ["P001","Ismail bin Abdullah","M","1920-03-02"],
-    ["P002","Aminah binti Yaakob","F","1924-07-19"],
-    ["P010","Osman bin Ismail","M","1945-01-10"],
-    ["P011","Fatimah binti Ismail","F","1948-05-22"],
-    ["P012","Rahim bin Ismail","M","1951-11-03"],
-    ["P013","Zainab binti Ismail","F","1954-02-14"],
-    ["P014","Sulaiman bin Ismail","M","1958-09-30"],
-    ["P003","Yusof bin Hamid","M","1925-04-04"],
-    ["P004","Halimah binti Omar","F","1928-12-01"],
-    ["P020","Salmah binti Yusof","F","1950-06-15"],
-    ["P021","Hassan bin Yusof","M","1955-08-08"],
-    ["P030","Mariam binti Salleh","F","1947-03-03"],
-    ["P040","Nurul binti Rahim","F","1975-04-01"],
-    ["P041","Karim bin Rahim","M","1978-10-12"],
-    ["P042","Faizal bin Rahim","M","1982-01-25"],
-    ["P043","Zaki bin Osman","M","1970-07-07"],
-    ["P050","Aisha binti Ibrahim","F","1980-02-20"],
-    ["P051","Ibrahim bin Daud","M","1952-05-05"],
-    ["P060","Hana binti Karim","F","2005-09-09"],
-    ["P061","Amir bin Latif","M","2003-03-13"],
-    ["P062","Latif bin Hamzah","M","1974-06-06"]
+    ["S01","Mohamed Salim bin Ali","M","1960-05-24"],
+    ["S02","Sa'diah bte Alimon","F","1962-07-09"],
+    ["S03","Siti Su'aidah binte Mohamed Salim","F","1986-12-31"],
+    ["S04","Nur Abdul Karim bin Kamaruddin","M","1988-03-24"],
+    ["S05","Siti Syahirah binte Mohamed Salim","F","1990-08-03"],
+    ["S06","Amali Afiq bin Nor Anuar","M","1990-10-26"],
+    ["S07","Saiful Azwan bin Mohamed Salim","M","1992-06-03"],
+    ["S08","Nur Farihin binte Kamal","F","1992-09-29"],
+    ["S09","Siti Syazwani binte Mohamed Salim","F","1998-05-30"],
+    ["S10","Nazrul Haque bin Abdolah","M","1998-09-24"],
+    ["S11","Aqilah Syukairah binti Nur Abdul Karim","F","2013-03-20"],
+    ["S12","Amna Safirah binte Nur Abdul Karim","F","2015-11-02"],
+    ["S13","Anwara Sumayyah binte Nur Abdul Karim","F","2020-09-03"],
+    ["S14","Bilal Saif bin Saiful Azwan","M","2021-04-29"],
+    ["S15","Nur Abbas Syakur bin Nur Abdul Karim","M","2022-06-05"],
+    ["S16","Muhammad Hadi bin Amali Afiq","M","2024-01-10"],
+    ["S17","Nurul Huda binte Amali Afiq","F","2024-01-10"],
+    ["S18","Umar Saif bin Saiful Azwan","M","2024-03-22"]
 ];
 
 /* [child, parent, role] */
 var DEV_PARENTAGE = [
-    ["P010","P001","father"],
-    ["P010","P002","mother"],
-    ["P011","P001","father"],
-    ["P011","P002","mother"],
-    ["P012","P001","father"],
-    ["P012","P002","mother"],
-    ["P013","P001","father"],
-    ["P013","P002","mother"],
-    ["P014","P001","father"],
-    ["P014","P002","mother"],
-    ["P020","P003","father"],
-    ["P020","P004","mother"],
-    ["P021","P003","father"],
-    ["P021","P004","mother"],
-    ["P040","P012","father"],
-    ["P040","P020","mother"],
-    ["P041","P012","father"],
-    ["P041","P020","mother"],
-    ["P042","P012","father"],
-    ["P042","P020","mother"],
-    ["P043","P010","father"],
-    ["P043","P030","mother"],
-    ["P060","P041","father"],
-    ["P060","P050","mother"],
-    ["P050","P051","father"],
-    ["P061","P062","father"]
+    ["S03","S01","father"], ["S03","S02","mother"],
+    ["S05","S01","father"], ["S05","S02","mother"],
+    ["S07","S01","father"], ["S07","S02","mother"],
+    ["S09","S01","father"], ["S09","S02","mother"],
+    ["S11","S04","father"], ["S11","S03","mother"],
+    ["S12","S04","father"], ["S12","S03","mother"],
+    ["S13","S04","father"], ["S13","S03","mother"],
+    ["S15","S04","father"], ["S15","S03","mother"],
+    ["S16","S06","father"], ["S16","S05","mother"],
+    ["S17","S06","father"], ["S17","S05","mother"],
+    ["S14","S07","father"], ["S14","S08","mother"],
+    ["S18","S07","father"], ["S18","S08","mother"]
 ];
 
 /* [partner, partner] */
 var DEV_UNIONS = [
-    ["P001","P002"],
-    ["P003","P004"],
-    ["P012","P020"],
-    ["P010","P030"],
-    ["P041","P050"],
-    ["P060","P061"]
+    ["S01","S02"], ["S03","S04"], ["S05","S06"], ["S07","S08"], ["S09","S10"]
 ];
 
 /**
@@ -4985,7 +4973,7 @@ function seedDemoFamily() {
   ST_props().setProperty('DEMO_ROWS', JSON.stringify(created));
   ST_invalidate();
 
-  var karim = idMap.P041;
+  var karim = idMap.S04;
   var message = 'Seeded ' + created.people.length + ' people.\n\n' +
     'To look around as Karim, run:  bindMeTo(\'' + karim + '\')\n' +
     'Then open the web app.\n\n' +
@@ -5224,21 +5212,22 @@ function verifyKinship() {
     var map = JSON.parse(demo).map;
     if (!map) return 'This demo family predates the check. Re-seed it to use verifyKinship().';
 
-    // Karim, his father's eldest and youngest brothers, his mother's brother,
-    // his sister, his cousin, and his daughter looking up at her
-    // great-grandfather. Each case is one thing a language does differently.
+    // Each case is one thing a language does differently, checked against
+    // people this family actually calls by these names. Karim's in-laws first,
+    // then the same family seen from his eldest daughter, where the Malay
+    // birth-order titles and the Arabic maternal words both come into play.
     var cases = [
-      [map.P041, map.P010, 'ms', 'Pak Long', 'eldest of five, so Long'],
-      [map.P041, map.P014, 'ms', 'Pak Su', 'youngest of five, so Su'],
-      [map.P041, map.P013, 'ms', 'Mak Anjang', 'fourth of five'],
-      [map.P041, map.P021, 'ms', 'Pak Su', 'mother\'s brother, youngest of two'],
-      [map.P041, map.P021, 'ar', 'Khal', 'maternal side, so Khal'],
-      [map.P041, map.P010, 'ar', '\'Amm', 'paternal side, so \'Amm'],
-      [map.P041, map.P040, 'ms', 'Kakak', 'elder sister'],
-      [map.P041, map.P042, 'ms', 'Adik', 'younger brother'],
-      [map.P041, map.P043, 'ms', 'Sepupu', 'first cousin'],
-      [map.P041, map.P062, 'ms', 'Besan', 'his child married theirs'],
-      [map.P060, map.P001, 'ms', 'Moyang', 'great-grandfather']
+      [map.S04, map.S01, 'ms', 'Bapa Mertua', 'his wife\'s father'],
+      [map.S04, map.S06, 'ms', 'Biras', 'married to his wife\'s sister -- English has no word'],
+      [map.S04, map.S06, 'ar', 'Silf', 'the same tie, in Arabic'],
+      [map.S04, map.S05, 'ms', 'Adik Ipar', 'wife\'s younger sister'],
+      [map.S11, map.S01, 'ms', 'Atuk', 'her mother\'s father'],
+      [map.S11, map.S05, 'ms', 'Mak Ngah', 'second of four, so Ngah'],
+      [map.S11, map.S07, 'ms', 'Pak Alang', 'third of four, so Alang'],
+      [map.S11, map.S09, 'ms', 'Mak Su', 'youngest of four, always Su'],
+      [map.S11, map.S07, 'ar', 'Khal', 'mother\'s brother, so Khal not \'Amm'],
+      [map.S11, map.S14, 'ar', 'Ibn al-Khal', 'mother\'s brother\'s son'],
+      [map.S11, map.S16, 'ar', 'Ibn al-Khalah', 'mother\'s sister\'s son']
     ];
 
     var passed = 0;
@@ -5252,7 +5241,7 @@ function verifyKinship() {
         graph.people[c[1]].display_name + ' [' + c[2] + '] = ' + got +
         (ok ? '' : ' (expected ' + c[3] + ')') + '   -- ' + c[4]);
     }
-    var result = 'KINSHIP CHECK against the demo family\n\n' + lines.join('\n') +
+    var result = 'KINSHIP CHECK against the Salim family\n\n' + lines.join('\n') +
       '\n\n  ' + passed + ' of ' + cases.length + ' correct.' +
       (passed === cases.length
         ? '\n  The engine is reading your sheet correctly.'

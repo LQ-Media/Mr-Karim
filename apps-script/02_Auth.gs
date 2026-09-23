@@ -42,7 +42,18 @@ function AUTH_clientId() {
   return id;
 }
 
+/**
+ * Where Google sends people back to.
+ *
+ * Stored rather than derived. ScriptApp.getService().getUrl() returns the /dev
+ * URL when called from the editor, and on a Workspace account it can return a
+ * domain-scoped /a/<domain>/ form -- so the value used here would not match the
+ * one registered in the Cloud Console, and the exchange fails with an error
+ * that explains nothing. The owner records the exact string they registered.
+ */
 function AUTH_redirectUri() {
+  var stored = ST_props().getProperty(CFG.PROP_WEBAPP_URL);
+  if (stored) return stored;
   return ScriptApp.getService().getUrl();
 }
 

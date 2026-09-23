@@ -272,17 +272,27 @@ function checkInstallation() {
   report('OAuth client secret', props.getProperty('OAUTH_CLIENT_SECRET') ? 'set' : 'NOT SET',
     !!props.getProperty('OAUTH_CLIENT_SECRET'), 'Run setOAuthCredentials(id, secret).');
 
-  var url = '';
-  try { url = ScriptApp.getService().getUrl(); } catch (err) { url = ''; }
-  report('Deployed at', url || 'not deployed yet', !!url,
-    'Deploy > New deployment > Web app, executing as you, access Anyone.');
+  var recorded = props.getProperty(CFG.PROP_WEBAPP_URL);
+  report('Web app URL', recorded || 'NOT RECORDED', !!recorded,
+    "Deploy > Manage deployments, copy the URL ending in /exec, then run " +
+    "setWebAppUrl('<that URL>').");
 
-  if (url) {
-    lines.push('');
+  lines.push('');
+  if (recorded) {
     lines.push('  The redirect URI registered in the Google Cloud Console must be');
     lines.push('  exactly this, character for character:');
     lines.push('');
-    lines.push('      ' + url);
+    lines.push('      ' + recorded);
+  } else {
+    var reported = '';
+    try { reported = ScriptApp.getService().getUrl(); } catch (urlErr) { reported = ''; }
+    lines.push('  This script reports its own URL as:');
+    lines.push('      ' + (reported || 'unavailable'));
+    lines.push('');
+    lines.push('  Do not register that one. Run from the editor it is the /dev');
+    lines.push('  address, and on a Workspace account it can carry an /a/<domain>/');
+    lines.push('  path that will not match. Use the /exec URL from Manage');
+    lines.push('  deployments, and record it with setWebAppUrl().');
   }
 
   // Reading a tab that does not exist yet throws, and a report that dies on

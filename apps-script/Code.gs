@@ -203,6 +203,24 @@ function ENTRY_ensureOwner(owner) {
  * The secret is held in Script Properties and used only server-side, to swap an
  * authorization code for an identity. It is never sent to a browser.
  */
+/**
+ * Records the web app's public URL, which is also its OAuth redirect URI.
+ *
+ * It has to be the /exec address of a real deployment: /dev is the editor's own
+ * test URL, it changes, and Google will not redirect to it.
+ */
+function setWebAppUrl(url) {
+  var clean = ENTRY_trim(url);
+  if (clean.indexOf('https://script.google.com/') !== 0) {
+    throw new Error('That does not look like an Apps Script web app URL.');
+  }
+  if (clean.slice(-5) !== '/exec') {
+    throw new Error('That is not the /exec URL. Deploy > Manage deployments > copy the Web app URL.');
+  }
+  ST_props().setProperty(CFG.PROP_WEBAPP_URL, clean);
+  return 'Redirect URI recorded. Register exactly this in the Cloud Console:\n' + clean;
+}
+
 function setOAuthCredentials(clientId, clientSecret) {
   var id = ENTRY_trim(clientId);
   var secret = ENTRY_trim(clientSecret);
@@ -217,7 +235,13 @@ function setOAuthCredentials(clientId, clientSecret) {
   var props = ST_props();
   props.setProperty(CFG.PROP_CLIENT_ID, id);
   props.setProperty('OAUTH_CLIENT_SECRET', secret);
-  return 'Sign-in configured. Redirect URI to register: ' + ScriptApp.getService().getUrl();
+
+  var uri = props.getProperty(CFG.PROP_WEBAPP_URL);
+  if (!uri) {
+    return 'Credentials saved, but no web app URL is recorded yet.\n' +
+      'Run setWebAppUrl(\'https://script.google.com/macros/s/.../exec\') too.';
+  }
+  return 'Sign-in configured. Redirect URI to register: ' + uri;
 }
 
 function ENTRY_trim(value) {
@@ -227,11 +251,28 @@ function ENTRY_trim(value) {
   return String(value).replace(/^\s+/, '').replace(/\s+$/, '');
 }
 
-/** The exact redirect URI to paste into the Google Cloud Console. */
+/**
+ * The exact redirect URI to paste into the Google Cloud Console.
+ *
+ * Prints the recorded one where there is one. Otherwise it says so plainly
+ * rather than offering the derived value, which from the editor is the /dev
+ * URL and is not what should be registered.
+ */
 function showRedirectUri() {
-  var url = ScriptApp.getService().getUrl();
-  Logger.log(url);
-  return url;
+  var stored = ST_props().getProperty(CFG.PROP_WEBAPP_URL);
+  var out;
+  if (stored) {
+    out = stored;
+  } else {
+    out = 'Not recorded yet.\n\n' +
+      'Deploy > Manage deployments, copy the Web app URL (it ends in /exec),\n' +
+      "then run setWebAppUrl('<that URL>').\n\n" +
+      'For reference, this script reports its own URL as:\n' +
+      '  ' + ScriptApp.getService().getUrl() + '\n' +
+      'From the editor that is the /dev address, which is NOT the one to register.';
+  }
+  Logger.log(out);
+  return out;
 }
 
 /** Prints where everything lives. Useful when picking the install up later. */

@@ -156,10 +156,21 @@ function verifyMetaWebhook(url: URL, env: Env): Response {
   return new Response("verification failed\n", { status: 403 });
 }
 
-/** Constant-time comparison so the shared secret can't be timing-guessed. */
+/**
+ * Constant-time comparison so the shared secret can't be timing-guessed.
+ *
+ * The empty case has to be rejected explicitly: with no secret configured,
+ * expected and presented are both zero-length, the loop never runs, and a
+ * plain `diff === 0` would authorise every caller. A missing secret must
+ * close the endpoint, not open it.
+ */
+const MIN_SECRET_LENGTH = 16;
+
 function isBridgeAuthorised(request: Request, env: Env): boolean {
-  const presented = request.headers.get("x-bridge-secret") ?? "";
   const expected = env.BRIDGE_SHARED_SECRET ?? "";
+  if (expected.length < MIN_SECRET_LENGTH) return false;
+
+  const presented = request.headers.get("x-bridge-secret") ?? "";
   if (presented.length !== expected.length) return false;
 
   let diff = 0;

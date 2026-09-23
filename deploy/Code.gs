@@ -5081,6 +5081,25 @@ function bindMeTo(personId) {
   return email + ' now opens the app as ' + graph.people[personId].display_name + '.';
 }
 
+/**
+ * Binds your account to Karim in the seeded family.
+ *
+ * The editor's Run dropdown cannot pass arguments, so bindMeTo() can only be
+ * reached from there by writing a wrapper by hand. This is that wrapper, kept
+ * with the seed it belongs to.
+ */
+function bindMeToSeeded() {
+  var raw = ST_props().getProperty('DEMO_ROWS');
+  if (!raw) throw new Error('Nothing has been seeded yet. Run seedDemoFamily() first.');
+
+  var map = JSON.parse(raw).map;
+  if (!map || !map.S04) {
+    throw new Error('That seed is from an older version of this file. ' +
+      'Run clearDemoFamily(), then seedDemoFamily(), then try again.');
+  }
+  return bindMeTo(map.S04);
+}
+
 /* ------------------------------------------------------------------ *
  * Checks
  * ------------------------------------------------------------------ */

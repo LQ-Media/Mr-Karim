@@ -6,17 +6,24 @@
    and redefined once for dark mode, so nothing is hard-coded further down and
    the two themes cannot drift apart. */
 :root {
-  --bg: #f1f7f2;
+  /* One hue drives the whole palette. Each token keeps its own saturation,
+     lightness and small hue offset, so at 140deg this is exactly the pastel
+     green it has always been, and any other hue rotates the scheme as a whole
+     rather than recolouring one button. Meaning-carrying colours -- warning,
+     danger, the two gender tints -- deliberately do not rotate. */
+  --hue: 140deg;
+
+  --bg: hsl(calc(var(--hue) - 10deg) 27.3% 95.7%);
   --surface: #ffffff;
-  --surface-2: #e4f0e7;
-  --line: #cfe4d5;
-  --line-2: #b4d5be;
-  --ink: #1b2a20;
-  --ink-2: #55695b;
-  --ink-3: #88a08f;
-  --accent: #4e9b74;
-  --accent-soft: #daefe2;
-  --accent-ink: #2b6949;
+  --surface-2: hsl(calc(var(--hue) - 5deg) 28.6% 91.8%);
+  --line: hsl(calc(var(--hue) - 2.9deg) 28% 85.3%);
+  --line-2: hsl(calc(var(--hue) - 1.8deg) 28.2% 77.1%);
+  --ink: hsl(var(--hue) 21.7% 13.5%);
+  --ink-2: hsl(calc(var(--hue) - 2deg) 10.5% 37.3%);
+  --ink-3: hsl(calc(var(--hue) - 2.5deg) 11.2% 58%);
+  --accent: hsl(calc(var(--hue) + 9.6deg) 33% 45.7%);
+  --accent-soft: hsl(calc(var(--hue) + 2.9deg) 39.6% 89.6%);
+  --accent-ink: hsl(calc(var(--hue) + 9deg) 41.9% 29%);
   --warn: #9a7730;
   --warn-soft: #f7efdc;
   --danger: #a55446;
@@ -32,17 +39,43 @@
   --shadow: 0 1px 2px rgba(27,42,32,.05), 0 6px 20px rgba(27,42,32,.07);
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
 }
+/* Dark twice over: once for a device that asks for it, once for somebody who
+   chose it here against a light device. Same tokens both times. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0f1610; --surface: #18211a; --surface-2: #212c24; --line: #2c3a30;
-    --line-2: #3c4d41;
-    --ink: #e6eee8; --ink-2: #9fb3a5; --ink-3: #738574;
-    --accent: #79c79b; --accent-soft: #1c3a2a; --accent-ink: #a5dcbd;
+    --bg: hsl(calc(var(--hue) - 11.4deg) 18.9% 7.3%);
+    --surface: hsl(calc(var(--hue) - 6.7deg) 15.8% 11.2%);
+    --surface-2: hsl(calc(var(--hue) - 3.6deg) 14.3% 15.1%);
+    --line: hsl(calc(var(--hue) - 2.9deg) 13.7% 20%);
+    --line-2: hsl(calc(var(--hue) - 2.4deg) 12.4% 26.9%);
+    --ink: hsl(calc(var(--hue) - 5deg) 19% 91.8%);
+    --ink-2: hsl(calc(var(--hue) - 2deg) 11.6% 66.3%);
+    --ink-3: hsl(calc(var(--hue) - 16.7deg) 7.3% 48.6%);
+    --accent: hsl(calc(var(--hue) + 6.2deg) 41.1% 62.7%);
+    --accent-soft: hsl(calc(var(--hue) + 8deg) 34.9% 16.9%);
+    --accent-ink: hsl(calc(var(--hue) + 6.2deg) 44% 75.5%);
     --warn: #cfa863; --warn-soft: #33290f; --danger: #dd8a7d; --danger-soft: #3b201c;
     --male: #1e2b32; --male-line: #3a5765; --male-ink: #9cc2d3;
     --female: #2e2431; --female-line: #54405a; --female-ink: #c9a5c4;
     --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.35);
   }
+}
+:root[data-theme="dark"] {
+    --bg: hsl(calc(var(--hue) - 11.4deg) 18.9% 7.3%);
+    --surface: hsl(calc(var(--hue) - 6.7deg) 15.8% 11.2%);
+    --surface-2: hsl(calc(var(--hue) - 3.6deg) 14.3% 15.1%);
+    --line: hsl(calc(var(--hue) - 2.9deg) 13.7% 20%);
+    --line-2: hsl(calc(var(--hue) - 2.4deg) 12.4% 26.9%);
+    --ink: hsl(calc(var(--hue) - 5deg) 19% 91.8%);
+    --ink-2: hsl(calc(var(--hue) - 2deg) 11.6% 66.3%);
+    --ink-3: hsl(calc(var(--hue) - 16.7deg) 7.3% 48.6%);
+    --accent: hsl(calc(var(--hue) + 6.2deg) 41.1% 62.7%);
+    --accent-soft: hsl(calc(var(--hue) + 8deg) 34.9% 16.9%);
+    --accent-ink: hsl(calc(var(--hue) + 6.2deg) 44% 75.5%);
+    --warn: #cfa863; --warn-soft: #33290f; --danger: #dd8a7d; --danger-soft: #3b201c;
+    --male: #1e2b32; --male-line: #3a5765; --male-ink: #9cc2d3;
+    --female: #2e2431; --female-line: #54405a; --female-ink: #c9a5c4;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.35);
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; padding: 0; }
@@ -266,6 +299,57 @@ h1,h2,h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
   @keyframes pulse { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
 }
 .loading { display: grid; place-items: center; padding: 60px 0; color: var(--ink-3); }
+
+/* ---- Colour scheme ---- */
+
+.swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 4px; }
+.swatch {
+  border: 2px solid transparent; background: none; padding: 6px 2px; cursor: pointer;
+  border-radius: var(--radius-sm); font: inherit; color: var(--ink-2); font-size: 12px;
+  display: grid; justify-items: center; gap: 6px;
+}
+.swatch .dot {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, .55);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .18);
+}
+.swatch.on { border-color: var(--accent); color: var(--ink); font-weight: 650; }
+.swatch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.modes { display: flex; gap: 8px; margin-top: 6px; }
+.modes button {
+  flex: 1; padding: 10px; border-radius: var(--radius-sm); font: inherit; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink-2);
+}
+.modes button.on { border-color: var(--accent); color: var(--accent-ink); font-weight: 650; }
+
+/* ---- Reframing a portrait ---- */
+
+/* touch-action:none so a drag pans the photo instead of scrolling the sheet. */
+.cropbox {
+  position: relative; width: 100%; max-width: 320px; aspect-ratio: 1 / 1;
+  margin: 0 auto; border-radius: var(--radius); overflow: hidden;
+  background: var(--surface-2); touch-action: none; cursor: grab;
+  user-select: none; -webkit-user-select: none;
+}
+.cropbox.dragging { cursor: grabbing; }
+.cropbox img {
+  position: absolute; top: 0; left: 0; transform-origin: 0 0;
+  max-width: none; -webkit-user-drag: none; pointer-events: none;
+}
+
+/* Cards show portraits in a circle, so the circle is what the guide shows.
+   The dimmed corners are still saved -- a profile shows the whole square. */
+.cropmask { position: absolute; inset: 0; pointer-events: none; }
+.cropmask::before {
+  content: ''; position: absolute; inset: 7%; border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, .9);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, .38);
+}
+
+.cropzoom { display: flex; align-items: center; gap: 10px; margin: 16px auto 0; max-width: 320px; }
+.cropzoom input { flex: 1; accent-color: var(--accent); }
+.cropzoom .z { color: var(--ink-3); font-size: 17px; line-height: 1; }
 
 .admin-item {
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);

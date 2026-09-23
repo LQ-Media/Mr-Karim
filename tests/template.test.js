@@ -67,6 +67,43 @@ for (const file of fs.readdirSync(DIR).filter((f) => f.endsWith('.html'))) {
   }
 }
 
+/* ---- Everything the page calls must actually reach the page --------
+ *
+ * The layout engine runs on the server for api_map AND in the browser, which
+ * redraws the chart on every drag. It lived only in the .gs, so the browser
+ * had no copy and the chart died with "LAY_edges is not defined" -- a failure
+ * no server test can see, because on the server the function is right there.
+ */
+{
+  const built = path.join(__dirname, '..', 'deploy', 'Index.html');
+  if (!fs.existsSync(built)) {
+    failures.push('deploy/Index.html is missing -- run tools/build-deploy-bundle.js.');
+  } else {
+    const page = fs.readFileSync(built, 'utf8');
+    const client = fs.readFileSync(path.join(DIR, 'Client.html'), 'utf8');
+
+    // Whatever the client calls by these names has to be defined in the page.
+    const CALLED = /\b(LAY_[A-Za-z0-9_]+)\s*\(/g;
+    const needed = new Set();
+    let hit;
+    while ((hit = CALLED.exec(client)) !== null) needed.add(hit[1]);
+
+    if (!needed.size) {
+      failures.push('Client.html calls no LAY_ function -- has the chart moved?');
+    }
+    for (const name of needed) {
+      if (new RegExp('function\\s+' + name + '\\s*\\(').test(page)) {
+        pass++;
+      } else {
+        failures.push(
+          `deploy/Index.html -- Client.html calls ${name}(), which the page never defines.\n` +
+          '      The chart is laid out in the browser, so the layout engine has to be\n' +
+          '      inlined into the page, not only bundled into the server.');
+      }
+    }
+  }
+}
+
 console.log(`\ntemplate: ${pass} passed, ${failures.length} failed\n`);
 if (failures.length) {
   failures.forEach((f) => console.log('  FAIL  ' + f));

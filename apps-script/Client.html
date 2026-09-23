@@ -469,7 +469,8 @@ function renderPerson(p) {
     '<div class="facts">' + (facts.join('') || '<div class="empty">Nothing recorded yet.</div>') + '</div>' +
     '<div class="btn-row">' +
       (p.editable ? '<button class="btn" id="editBtn">Edit</button>' +
-                    '<button class="btn ghost" id="photoBtn">Upload photo</button>' : '') +
+                    '<button class="btn ghost" id="photoBtn">' +
+                    (p.hasPhoto ? 'Replace photo' : 'Upload photo') + '</button>' : '') +
       '<button class="btn ghost" id="titleBtn">Rename title</button>' +
     '</div>' +
     (p.deletable
@@ -479,6 +480,10 @@ function renderPerson(p) {
           ? '<div class="hint" style="margin-top:10px">' +
             esc(p.deleteBlockedReason) + '</div>'
           : '')) +
+    (p.editable && p.hasPhoto
+      ? '<div class="btn-row"><button class="btn ghost" id="reframeBtn">' +
+        'Reframe photo</button></div>'
+      : '') +
     (p.editable && S.me.googlePhotos
       ? '<button class="btn ghost" id="gphotoBtn" style="margin-top:8px">' +
         'Choose from Google Photos</button>' +
@@ -496,8 +501,12 @@ function renderPerson(p) {
       document.getElementById('photoInput').click();
     };
     document.getElementById('photoInput').onchange = function (e) {
-      if (e.target.files[0]) uploadPhoto(personId, e.target.files[0]);
+      if (e.target.files[0]) openCropFromFile(personId, e.target.files[0]);
+      // Cleared so choosing the same file twice still fires a change event.
+      e.target.value = '';
     };
+    var reframe = document.getElementById('reframeBtn');
+    if (reframe) reframe.onclick = function () { openCropExisting(personId); };
     var gphoto = document.getElementById('gphotoBtn');
     if (gphoto) gphoto.onclick = function () { startGooglePhotos(personId); };
   }
@@ -1027,41 +1036,305 @@ document.addEventListener('change', function (e) {
  * image capped at 1200px and a thumbnail at 256px, which is what the card grid
  * loads.
  */
-function uploadPhoto(personId, file) {
-  toast('Preparing photo…');
-  Promise.all([downscale(file, 1200, 0.82), downscale(file, 256, 0.75)])
-    .then(function (sizes) {
-      return call('api_uploadPhoto', personId,
-        { full: sizes[0], thumb: sizes[1], mime: 'image/jpeg' });
-    })
-    .then(function (res) {
-      if (res.status === 'pending_approval') return toast('Photo sent for approval.');
-      delete S.thumbs[personId];
-      toast('Photo saved.');
-      closeSheet();
-      loadView(S.focusId);
-    })
+/**
+ * Framing a portrait before it is saved.
+ *
+ * A phone photograph is rarely a square with the face in the middle, and cards
+ * show portraits in a circle -- so uploading straight from the camera roll
+ * reliably produced a chin or an ear. This crops in the browser, where the
+ * picture already is: nothing is uploaded until the framing is agreed, and the
+ * bytes that arrive are the bytes that will be shown.
+ *
+ * Kept deliberately small: pan and zoom, no rotation or filters. Somebody
+ * adding twelve relatives on a phone wants the face centred and to move on.
+ */
+var CROP = { img: null, personId: '', scale: 1, min: 1, x: 0, y: 0, box: 0, pointers: {} };
+
+var CROP_OUT = 1000;   // Saved square, in pixels.
+var CROP_THUMB = 256;
+var CROP_MAX_ZOOM = 6;
+
+function openCropFromFile(personId, file) {
+  readAsDataUrl(file)
+    .then(function (src) { openCrop(personId, src, 'Frame the photo'); })
     .catch(fail);
 }
 
-function downscale(file, maxEdge, quality) {
+/** Reframing what is already saved, without hunting for the original file. */
+function openCropExisting(personId) {
+  toast('Fetching photo…');
+  call('api_photo', personId).then(function (src) {
+    if (!src) return fail(new Error('There is no photo to reframe yet.'));
+    openCrop(personId, src, 'Reframe the photo');
+  }).catch(fail);
+}
+
+function readAsDataUrl(file) {
   return new Promise(function (resolve, reject) {
     var reader = new FileReader();
     reader.onerror = function () { reject(new Error('That file could not be read.')); };
-    reader.onload = function () {
-      var img = new Image();
-      img.onerror = function () { reject(new Error('That does not look like an image.')); };
-      img.onload = function () {
-        var scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
-        var canvas = document.createElement('canvas');
-        canvas.width = Math.round(img.width * scale);
-        canvas.height = Math.round(img.height * scale);
-        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', quality).split(',')[1]);
-      };
-      img.src = reader.result;
-    };
+    reader.onload = function () { resolve(reader.result); };
     reader.readAsDataURL(file);
+  });
+}
+
+function openCrop(personId, src, heading) {
+  var img = new Image();
+  img.onerror = function () { fail(new Error('That does not look like an image.')); };
+  img.onload = function () {
+    openSheet(
+      '<h2>' + esc(heading) + '</h2>' +
+      '<div class="sub">Drag to move, pinch or use the slider to zoom. The circle ' +
+        'is what shows on a card.</div>' +
+      '<div class="cropbox" id="cropBox">' +
+        '<img id="cropImg" alt="">' +
+        '<div class="cropmask"></div>' +
+      '</div>' +
+      '<div class="cropzoom">' +
+        '<span class="z">&#9679;</span>' +
+        '<input type="range" id="cropZoom" min="1" max="' + (CROP_MAX_ZOOM * 100) +
+          '" value="100" aria-label="Zoom">' +
+        '<span class="z" style="font-size:22px">&#9679;</span>' +
+      '</div>' +
+      '<div class="btn-row">' +
+        '<button class="btn" id="cropSave">Save photo</button>' +
+        '<button class="btn ghost" onclick="closeSheet()">Cancel</button>' +
+      '</div>');
+
+    var box = document.getElementById('cropBox');
+    var el = document.getElementById('cropImg');
+    el.src = src;
+    el.width = img.naturalWidth;
+    el.height = img.naturalHeight;
+
+    CROP.img = img;
+    CROP.personId = personId;
+    CROP.box = box.clientWidth;
+    CROP.pointers = {};
+    // The smallest zoom that still fills the square: below it the crop would
+    // include empty space, which is never what somebody wants.
+    CROP.min = CROP.box / Math.min(img.naturalWidth, img.naturalHeight);
+    CROP.scale = CROP.min;
+    CROP.x = (CROP.box - img.naturalWidth * CROP.scale) / 2;
+    CROP.y = (CROP.box - img.naturalHeight * CROP.scale) / 2;
+    cropDraw();
+
+    cropBindDrag(box);
+    document.getElementById('cropZoom').oninput = function () {
+      cropZoomTo(CROP.min * (Number(this.value) / 100), CROP.box / 2, CROP.box / 2);
+    };
+    document.getElementById('cropSave').onclick = function () {
+      busy(this, true);
+      saveCrop(personId);
+    };
+  };
+  img.src = src;
+}
+
+function cropDraw() {
+  cropClamp();
+  var el = document.getElementById('cropImg');
+  if (el) {
+    el.style.transform = 'translate(' + CROP.x + 'px,' + CROP.y + 'px) scale(' + CROP.scale + ')';
+  }
+}
+
+/** The square is always covered, so the photo can never be dragged off it. */
+function cropClamp() {
+  if (CROP.scale < CROP.min) CROP.scale = CROP.min;
+  var w = CROP.img.naturalWidth * CROP.scale;
+  var h = CROP.img.naturalHeight * CROP.scale;
+  CROP.x = Math.min(0, Math.max(CROP.box - w, CROP.x));
+  CROP.y = Math.min(0, Math.max(CROP.box - h, CROP.y));
+}
+
+/** Zooms about a point, so what is under the fingers stays under them. */
+function cropZoomTo(scale, atX, atY) {
+  var next = Math.max(CROP.min, Math.min(CROP.min * CROP_MAX_ZOOM, scale));
+  var ratio = next / CROP.scale;
+  CROP.x = atX - (atX - CROP.x) * ratio;
+  CROP.y = atY - (atY - CROP.y) * ratio;
+  CROP.scale = next;
+  cropDraw();
+  var slider = document.getElementById('cropZoom');
+  if (slider) slider.value = Math.round((CROP.scale / CROP.min) * 100);
+}
+
+function cropBindDrag(box) {
+  var last = null;
+  var pinch = 0;
+
+  function points() {
+    var out = [];
+    for (var id in CROP.pointers) {
+      if (CROP.pointers.hasOwnProperty(id)) out.push(CROP.pointers[id]);
+    }
+    return out;
+  }
+
+  box.addEventListener('pointerdown', function (e) {
+    box.setPointerCapture(e.pointerId);
+    CROP.pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+    box.classList.add('dragging');
+    last = { x: e.clientX, y: e.clientY };
+    pinch = 0;
+  });
+
+  box.addEventListener('pointermove', function (e) {
+    if (!CROP.pointers[e.pointerId]) return;
+    CROP.pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+    var all = points();
+
+    if (all.length >= 2) {
+      var dx = all[0].x - all[1].x;
+      var dy = all[0].y - all[1].y;
+      var span = Math.sqrt(dx * dx + dy * dy);
+      if (pinch) {
+        var rect = box.getBoundingClientRect();
+        cropZoomTo(CROP.scale * (span / pinch),
+          (all[0].x + all[1].x) / 2 - rect.left,
+          (all[0].y + all[1].y) / 2 - rect.top);
+      }
+      pinch = span;
+      last = null;
+      return;
+    }
+
+    if (!last) { last = { x: e.clientX, y: e.clientY }; return; }
+    CROP.x += e.clientX - last.x;
+    CROP.y += e.clientY - last.y;
+    last = { x: e.clientX, y: e.clientY };
+    cropDraw();
+  });
+
+  function release(e) {
+    delete CROP.pointers[e.pointerId];
+    if (!points().length) { box.classList.remove('dragging'); last = null; pinch = 0; }
+  }
+  box.addEventListener('pointerup', release);
+  box.addEventListener('pointercancel', release);
+
+  box.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    var rect = box.getBoundingClientRect();
+    cropZoomTo(CROP.scale * (e.deltaY < 0 ? 1.12 : 1 / 1.12),
+      e.clientX - rect.left, e.clientY - rect.top);
+  }, { passive: false });
+}
+
+/** Renders the framed square at one size. */
+function cropToDataUrl(size, quality) {
+  var canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  var ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, size, size);
+
+  // What the viewport is showing, expressed in the photograph's own pixels.
+  var span = CROP.box / CROP.scale;
+  ctx.drawImage(CROP.img, -CROP.x / CROP.scale, -CROP.y / CROP.scale, span, span,
+    0, 0, size, size);
+  return canvas.toDataURL('image/jpeg', quality).split(',')[1];
+}
+
+function saveCrop(personId) {
+  toast('Saving photo…');
+  var payload = {
+    full: cropToDataUrl(CROP_OUT, 0.85),
+    thumb: cropToDataUrl(CROP_THUMB, 0.75),
+    mime: 'image/jpeg'
+  };
+  call('api_uploadPhoto', personId, payload).then(function (res) {
+    busy(null);
+    if (res.status === 'pending_approval') {
+      closeSheet();
+      return toast('Photo sent for approval.');
+    }
+    delete S.thumbs[personId];
+    delete PCACHE[personId];
+    toast('Photo saved.');
+    closeSheet();
+    refreshAfterWrite();
+  }).catch(function (e) { busy(null); fail(e); });
+}
+
+/* ------------------------------------------------------------------ *
+ * Colour scheme
+ * ------------------------------------------------------------------ */
+
+/* One hue drives every tinted token in the stylesheet, so a scheme is a single
+ * number. Names are the colour a family would say, not the hue. */
+var SCHEMES = [
+  { name: 'Green', hue: 140 }, { name: 'Teal', hue: 178 },
+  { name: 'Blue', hue: 212 },  { name: 'Indigo', hue: 252 },
+  { name: 'Plum', hue: 295 },  { name: 'Rose', hue: 342 },
+  { name: 'Clay', hue: 22 },   { name: 'Olive', hue: 92 }
+];
+
+/* The viewer's own choice, not the family's: it is how this person likes to
+ * look at the tree, so it stays in their browser and is never written to the
+ * sheet where it would follow everyone else around. */
+function themeRead(key, fallback) {
+  try { return localStorage.getItem(key) || fallback; } catch (e) { return fallback; }
+}
+function themeWrite(key, value) {
+  try { localStorage.setItem(key, value); } catch (e) { /* private mode */ }
+}
+
+function currentHue() { return Number(themeRead('pk_hue', '140')) || 140; }
+function currentMode() { return themeRead('pk_mode', 'system'); }
+
+function applyHue(hue) {
+  document.documentElement.style.setProperty('--hue', hue + 'deg');
+  themeWrite('pk_hue', String(hue));
+}
+
+function applyMode(mode) {
+  if (mode === 'light' || mode === 'dark') {
+    document.documentElement.setAttribute('data-theme', mode);
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+  }
+  themeWrite('pk_mode', mode);
+}
+
+function openTheme() {
+  var hue = currentHue();
+  var mode = currentMode();
+
+  var swatches = SCHEMES.map(function (s) {
+    return '<button class="swatch' + (s.hue === hue ? ' on' : '') + '" data-hue="' + s.hue + '">' +
+      '<span class="dot" style="background:hsl(' + (s.hue + 9.6) + 'deg 33% 45.7%)"></span>' +
+      esc(s.name) + '</button>';
+  }).join('');
+
+  var modes = ['system', 'light', 'dark'].map(function (m) {
+    var label = m === 'system' ? 'Match device' : (m === 'light' ? 'Light' : 'Dark');
+    return '<button data-mode="' + m + '"' + (m === mode ? ' class="on"' : '') + '>' +
+      label + '</button>';
+  }).join('');
+
+  openSheet(
+    '<h2>Colour scheme</h2>' +
+    '<div class="sub">Changes how the tree looks for you on this device. ' +
+      'Nobody else sees it.</div>' +
+    '<div class="swatches">' + swatches + '</div>' +
+    '<div class="field" style="margin-top:20px"><label>Light or dark</label>' +
+      '<div class="modes">' + modes + '</div></div>' +
+    '<div class="btn-row"><button class="btn" onclick="closeSheet()">Done</button></div>');
+
+  Array.prototype.forEach.call(document.querySelectorAll('.swatch'), function (el) {
+    el.onclick = function () {
+      applyHue(Number(el.getAttribute('data-hue')));
+      openTheme();   // Repainted so the ring lands on what was just chosen.
+    };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.modes button'), function (el) {
+    el.onclick = function () {
+      applyMode(el.getAttribute('data-mode'));
+      openTheme();
+    };
   });
 }
 
@@ -1213,6 +1486,7 @@ function runSearch(q) {
 
 document.getElementById('btnHome').onclick = function () { loadView(null); };
 document.getElementById('btnMap').onclick = openMap;
+document.getElementById('btnTheme').onclick = openTheme;
 document.getElementById('btnMenu').onclick = openSettings;
 document.getElementById('btnAdmin').onclick = openAdmin;
 

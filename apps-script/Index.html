@@ -5,6 +5,20 @@
   <meta charset="utf-8">
   <?!= include('Styles'); ?>
 </head>
+<script>
+/* Read and applied before anything paints. Left until the main script runs,
+   a chosen scheme would appear as a flash of the default one first. */
+(function () {
+  try {
+    var hue = localStorage.getItem('pk_hue');
+    if (hue) document.documentElement.style.setProperty('--hue', hue + 'deg');
+    var mode = localStorage.getItem('pk_mode');
+    if (mode === 'light' || mode === 'dark') {
+      document.documentElement.setAttribute('data-theme', mode);
+    }
+  } catch (e) { /* private mode: the default scheme is a fine answer */ }
+}());
+</script>
 <body>
 
 <!-- What the browser paints first, before any decision has been made.
@@ -78,6 +92,7 @@
     <button class="icon-btn" id="btnHome" title="Back to me">&#9679;</button>
     <div class="brand" id="familyName">Family tree</div>
     <button class="icon-btn" id="btnMap" title="Whole family as a chart">&#9783;</button>
+    <button class="icon-btn" id="btnTheme" title="Colour scheme">&#9673;</button>
     <button class="icon-btn" id="btnAdmin" title="Admin" style="display:none">&#9881;</button>
     <button class="icon-btn" id="btnMenu" title="Settings">&#9776;</button>
   </div>
@@ -115,6 +130,7 @@
      their photos, so the app can carry on where they left off. */
   var RESUME_PHOTOS_FOR = <?!= JSON.stringify(resumePhotosFor) ?>;
 </script>
+<?!= include('Layout'); ?>
 <?!= include('Client'); ?>
 
 </body>

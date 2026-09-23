@@ -200,9 +200,24 @@ function AUTH_exchangeCode(code) {
     }
   });
   if (response.getResponseCode() !== 200) {
-    throw new Error('Google did not accept that. Please try again.');
+    // Google's own words, not ours. The common failure here is a redirect_uri
+    // that differs between the sign-in link and this exchange, and a generic
+    // "please try again" sends the person round the same loop for ever.
+    throw new Error('Google rejected the sign-in: ' + AUTH_tokenError(response) +
+      '\n\nRedirect URI used: ' + AUTH_redirectUri());
   }
   return JSON.parse(response.getContentText());
+}
+
+/** What Google said went wrong, without echoing anything we sent it. */
+function AUTH_tokenError(response) {
+  try {
+    var body = JSON.parse(response.getContentText());
+    var code = body.error || 'unknown_error';
+    return body.error_description ? code + ' (' + body.error_description + ')' : code;
+  } catch (err) {
+    return 'HTTP ' + response.getResponseCode();
+  }
 }
 
 /* ------------------------------------------------------------------ *

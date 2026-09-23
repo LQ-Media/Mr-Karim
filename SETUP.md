@@ -139,8 +139,20 @@ Then authorise the work inbox:
 npm run auth:google
 ```
 
-It prints a refresh token. That token grants read access to the mailbox —
-treat it like a password.
+Copy the printed URL into the browser, sign in as the account you are
+connecting, and approve. Leave the terminal running while you do — it is
+listening for the redirect.
+
+The token is written to `.secrets/gmail-work.txt`, never printed. Upload it
+without looking at it, then delete the local copy:
+
+```sh
+npx wrangler secret put GMAIL_REFRESH_TOKEN_WORK < .secrets/gmail-work.txt
+rm .secrets/gmail-work.txt
+```
+
+That token grants read access to the mailbox. Treat it like a password: do not
+`cat` it, screenshot it, or paste it anywhere.
 
 ### Personal Gmail
 

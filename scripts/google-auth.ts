@@ -2,7 +2,11 @@
  * One-time Google OAuth helper. Run once per inbox; prints a refresh token to
  * store as a Worker secret.
  *
- *   npm run auth:google
+ *   npm run auth:google              # work inbox
+ *   npm run auth:google -- personal  # personal inbox
+ *
+ * The token is written to .secrets/ rather than printed, so it can be piped
+ * into wrangler without ever appearing on screen.
  *
  * Needs GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env, and
  * http://localhost:8788/callback registered as an authorised redirect URI on
@@ -10,10 +14,22 @@
  */
 
 import { createServer } from "node:http";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { GMAIL_SCOPES } from "../src/gmail.ts";
 
 const PORT = 8788;
 const REDIRECT = `http://localhost:${PORT}/callback`;
+
+// Which inbox this run is for, so the token lands in a predictable file:
+//   npm run auth:google            -> work
+//   npm run auth:google -- personal
+const LABEL = process.argv[2] === "personal" ? "personal" : "work";
+const SECRET_NAME = `GMAIL_REFRESH_TOKEN_${LABEL.toUpperCase()}`;
+
+const here = dirname(fileURLToPath(import.meta.url));
+const outPath = join(here, "..", ".secrets", `gmail-${LABEL}.txt`);
 
 const clientId = process.env.GOOGLE_CLIENT_ID;
 const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -92,12 +108,20 @@ const server = createServer(async (req, res) => {
     .writeHead(200, { "content-type": "text/html" })
     .end("<p>Done. Close this tab and return to the terminal.</p>");
 
+  // Deliberately never printed. A token on screen ends up in scrollback,
+  // in screenshots, and pasted into chats; a file can be piped straight
+  // into wrangler without a human ever seeing it.
+  mkdirSync(dirname(outPath), { recursive: true, mode: 0o700 });
+  writeFileSync(outPath, json.refresh_token, { mode: 0o600 });
+
   console.log(
-    `\nRefresh token for this account:\n\n${json.refresh_token}\n\n` +
-      `Store it with whichever applies:\n` +
-      `  npx wrangler secret put GMAIL_REFRESH_TOKEN_WORK\n` +
-      `  npx wrangler secret put GMAIL_REFRESH_TOKEN_PERSONAL\n\n` +
-      `It grants read access to that mailbox — treat it like a password.\n`,
+    `\nRefresh token for the ${LABEL} inbox saved to:\n  ${outPath}\n\n` +
+      `Upload it without displaying it:\n\n` +
+      `  npx wrangler secret put ${SECRET_NAME} < ${outPath}\n\n` +
+      `Then delete the local copy:\n\n` +
+      `  rm ${outPath}\n\n` +
+      `It grants read access to that mailbox. Do not cat it, screenshot it,\n` +
+      `or paste it anywhere — treat it like a password.\n`,
   );
 
   server.close();

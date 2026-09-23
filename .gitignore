@@ -10,3 +10,6 @@ bridge/auth/
 
 # Your own real messages — never committed
 test/real.txt
+
+# Refresh tokens written by scripts/google-auth.ts
+.secrets/

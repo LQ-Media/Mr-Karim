@@ -334,6 +334,89 @@ function find(store, id) { return rows(store, 'People').find((p) => p.person_id 
     env.ADM_pendingChanges(ADMIN).length, (n) => n === 0, '0');
 }
 
+
+/* ================= Removing someone ================================ */
+{
+  const { env, store } = makeApp(buildFamily());
+
+  // P042 (Faizal) is a leaf: a brother with no children and no account.
+  const res = env.PPL_deletePerson(ADMIN, 'P042');
+  check('a childless person can be removed', res.status, (s) => s === 'deleted', 'deleted');
+
+  const graph = env.ST_graph();
+  check('and is gone from the tree', graph.people.P042, (p) => p === undefined, 'undefined');
+
+  // The row survives, so a mistake is recoverable from the sheet itself.
+  const row = find(store, 'P042');
+  check('but the row is kept, marked', row && row.status, (s) => s === 'deleted', 'deleted');
+
+  // Siblings must not keep a dangling link to someone who is no longer there.
+  check('their parentage links are marked removed',
+    rows(store, 'Parentage').filter((l) => l.child_id === 'P042' && l.status !== 'removed').length,
+    (n) => n === 0, '0 live links');
+
+  check('their siblings remain', env.KIN_childrenOf(graph, 'P012').length,
+    (n) => n === 2, '2 children left');
+
+  check('the removal is audited',
+    store.audit.filter((a) => a.action === 'delete_person').length,
+    (n) => n === 1, '1 entry');
+}
+
+{
+  const { env } = makeApp(buildFamily());
+
+  // Removing a parent would leave their children hanging off nothing, so the
+  // app refuses rather than silently detaching a branch.
+  let message = '';
+  try { env.PPL_deletePerson(ADMIN, 'P012'); } catch (err) { message = err.message; }
+  check('someone with children cannot be removed', message,
+    (m) => /children/i.test(m), 'a message about their children');
+
+  check('and they are still in the tree', env.ST_graph().people.P012,
+    (p) => !!p, 'still present');
+}
+
+{
+  const { env } = makeApp(buildFamily());
+
+  let message = '';
+  try { env.PPL_deletePerson(ADMIN, ADMIN.personId); } catch (err) { message = err.message; }
+  check('you cannot remove your own card', message,
+    (m) => /this is you/i.test(m), 'a message saying it is you');
+}
+
+{
+  const { env, store } = makeApp(buildFamily());
+
+  // A relative outside their own branch proposes rather than deletes.
+  const cousin = { email: 'zaki@example.test', personId: 'P043', role: 'member',
+                   lang: 'ms', isAdmin: false, isPending: false, canInvite: false };
+  const res = env.PPL_deletePerson(cousin, 'P042');
+  check('a distant relative can only propose a removal', res.status,
+    (s) => s === 'pending_approval', 'pending_approval');
+
+  check('and nothing is removed yet', env.ST_graph().people.P042, (p) => !!p, 'still present');
+
+  // Approving it applies the same delete, credited to whoever asked for it.
+  const change = rows(store, 'PendingChanges')[0];
+  env.ADM_applyChange(ADMIN, change, JSON.parse(change.payload_json));
+  check('approving the proposal removes them', env.ST_graph().people.P042,
+    (p) => p === undefined, 'undefined');
+}
+
+{
+  const { env, store } = makeApp(buildFamily());
+
+  // Someone who signs in as this person would be orphaned by the delete.
+  store.tables.Users.push({ email: 'faizal@example.test', person_id: 'P042',
+                            role: 'member', status: 'active' });
+  let message = '';
+  try { env.PPL_deletePerson(ADMIN, 'P042'); } catch (err) { message = err.message; }
+  check('someone with an account cannot be removed', message,
+    (m) => /signs in/i.test(m), 'a message about their account');
+}
+
 console.log(`\nwrites: ${pass} passed, ${failures.length} failed\n`);
 if (failures.length) {
   failures.forEach((f) => console.log('  FAIL  ' + f));

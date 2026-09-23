@@ -163,6 +163,12 @@ function api_person(idToken, personId) {
       hasPhoto: !!person.photo_file_id
     };
 
+    // Worked out here rather than in the browser, so the button offered and the
+    // answer given on pressing it come from the same rule.
+    var blocked = PPL_deleteBlockedReason(graph, session, personId);
+    out.deletable = !blocked;
+    out.deleteBlockedReason = blocked;
+
     var fields = ['display_name', 'full_name', 'also_known_as', 'honorific', 'gender',
       'birth_date', 'birth_precision', 'birth_place', 'birth_order', 'is_living',
       'death_date', 'death_precision', 'death_place', 'burial_place', 'email',
@@ -353,6 +359,12 @@ function api_addPerson(idToken, anchorId, relationship, data, options) {
 function api_updatePerson(idToken, personId, changes) {
   return API_run(idToken, function (session) {
     return PPL_updatePerson(session, personId, changes);
+  });
+}
+
+function api_deletePerson(idToken, personId) {
+  return API_run(idToken, function (session) {
+    return PPL_deletePerson(session, personId);
   });
 }
 

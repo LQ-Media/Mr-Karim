@@ -392,6 +392,13 @@ function openPerson(personId) {
                       '<button class="btn ghost" id="photoBtn">Upload photo</button>' : '') +
         '<button class="btn ghost" id="titleBtn">Rename title</button>' +
       '</div>' +
+      (p.deletable
+        ? '<div class="btn-row"><button class="btn danger" id="deleteBtn">' +
+          'Remove from tree</button></div>'
+        : (p.deleteBlockedReason
+            ? '<div class="hint" style="margin-top:10px">' +
+              esc(p.deleteBlockedReason) + '</div>'
+            : '')) +
       (p.editable && S.me.googlePhotos
         ? '<button class="btn ghost" id="gphotoBtn" style="margin-top:8px">' +
           'Choose from Google Photos</button>' +
@@ -415,7 +422,41 @@ function openPerson(personId) {
       if (gphoto) gphoto.onclick = function () { startGooglePhotos(personId); };
     }
     document.getElementById('titleBtn').onclick = function () { openTitle(p); };
+
+    var del = document.getElementById('deleteBtn');
+    if (del) del.onclick = function () { confirmDelete(p); };
   }).catch(fail);
+}
+
+/**
+ * Deleting a relative is worth a second look, so the name is spelled out and
+ * the confirm button is the one that has to be reached for.
+ */
+function confirmDelete(p) {
+  openSheet(
+    '<h2>Remove ' + esc(p.display_name) + '?</h2>' +
+    '<div class="sub">They come off the family tree, along with the lines joining ' +
+      'them to everyone else. Nothing is erased from the spreadsheet, so a family ' +
+      'admin can put this back if it was a mistake.</div>' +
+    '<div class="btn-row">' +
+      '<button class="btn danger" id="confirmDel">Remove</button>' +
+      '<button class="btn ghost" onclick="closeSheet()">Cancel</button>' +
+    '</div>');
+
+  document.getElementById('confirmDel').onclick = function () {
+    busy(this, true);
+    call('api_deletePerson', p.personId).then(function (res) {
+      closeSheet();
+      if (res.status === 'pending_approval') {
+        toast('Sent to a family admin for approval.');
+        return;
+      }
+      toast('Removed.');
+      // Centring on someone who is no longer there would fail the next read.
+      if (S.focusId === p.personId) S.focusId = S.me.personId;
+      refreshAfterWrite();
+    }).catch(function (e) { busy(null); fail(e); });
+  };
 }
 
 function openEdit(p) {

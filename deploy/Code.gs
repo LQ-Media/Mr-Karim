@@ -1498,6 +1498,114 @@ function PPL_reorderSiblings(session, parentId, orderedIds) {
   return { status: 'reordered', count: orderedIds.length };
 }
 
+/* ------------------------------------------------------------------ *
+ * Removing someone
+ * ------------------------------------------------------------------ */
+
+/**
+ * Why this person cannot be removed, or '' when they can be.
+ *
+ * Shared by the detail view and the delete itself so the button a person sees
+ * and the answer they get on pressing it can never disagree.
+ */
+function PPL_deleteBlockedReason(graph, session, personId) {
+  var person = graph.people[personId];
+  if (!person) return 'That person is no longer in the tree.';
+
+  if (session.personId === personId) {
+    return 'This is you. Ask another admin to remove your own card.';
+  }
+
+  var children = KIN_childrenOf(graph, personId);
+  if (children.length) {
+    return 'They have ' + children.length + (children.length === 1 ? ' child' : ' children') +
+      ' in the tree. Remove or reassign ' + (children.length === 1 ? 'that child' : 'those children') +
+      ' first, so no branch is left floating.';
+  }
+
+  var users = ST_readAll('Users');
+  for (var i = 0; i < users.length; i++) {
+    if (users[i].person_id === personId && users[i].status !== 'removed') {
+      return 'A family member signs in as this person (' + users[i].email +
+        '). Remove their account first.';
+    }
+  }
+
+  return '';
+}
+
+/**
+ * Removes someone from the tree.
+ *
+ * The row is kept and marked, rather than erased. A family tree is a shared
+ * record: a mistaken deletion should be recoverable from the sheet, and the
+ * audit log should still say who removed whom.
+ */
+function PPL_deletePerson(session, personId) {
+  AUTH_requireActive(session);
+  var graph = ST_graph();
+  var person = graph.people[personId];
+  if (!person) throw new Error('That person is no longer in the tree.');
+
+  var blocked = PPL_deleteBlockedReason(graph, session, personId);
+  if (blocked) throw new Error(blocked);
+
+  if (!AUTH_canEditDirectly(session, graph, personId)) {
+    var change = PPL_queueChange(session, 'delete_person', personId,
+      { personId: personId },
+      'Remove ' + person.display_name + ' from the tree');
+    return { status: 'pending_approval', changeId: change.change_id };
+  }
+
+  PPL_applyDelete(session.email, personId);
+  return { status: 'deleted', personId: personId };
+}
+
+function PPL_applyDelete(actorEmail, personId) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var graph = ST_graph();
+    var person = graph.people[personId];
+    if (!person) throw new Error('That person is no longer in the tree.');
+
+    var links = ST_readAll('Parentage');
+    var removedLinks = 0;
+    for (var i = 0; i < links.length; i++) {
+      var link = links[i];
+      if (link.status === 'removed') continue;
+      if (link.child_id !== personId && link.parent_id !== personId) continue;
+      ST_update('Parentage', 'link_id', link.link_id, { status: 'removed' });
+      removedLinks++;
+    }
+
+    var unions = ST_readAll('Unions');
+    var removedUnions = 0;
+    for (var j = 0; j < unions.length; j++) {
+      var union = unions[j];
+      if (union.status === 'removed') continue;
+      if (union.partner_a_id !== personId && union.partner_b_id !== personId) continue;
+      ST_update('Unions', 'union_id', union.union_id, { status: 'removed' });
+      removedUnions++;
+    }
+
+    ST_update('People', 'person_id', personId, {
+      status: 'deleted',
+      updated_by: actorEmail,
+      updated_at: ST_now()
+    });
+
+    ST_audit(actorEmail, 'delete_person', 'People', personId, {
+      display_name: person.display_name,
+      links_removed: removedLinks,
+      unions_removed: removedUnions
+    });
+    ST_invalidate();
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 /* ================================================================== *
  * 04_Photos.gs                                                   *
  * ================================================================== */
@@ -1681,7 +1789,9 @@ function REL_buildGraph(data) {
   for (var i = 0; i < people.length; i++) {
     var person = people[i];
     if (!person.person_id) continue;
-    if (person.status === 'merged') continue; // Losers of a merge are followed, not shown.
+    // Losers of a merge are followed, not shown; deleted people are gone from
+    // the tree but kept in the sheet so a mistake can be undone.
+    if (person.status === 'merged' || person.status === 'deleted') continue;
     graph.people[person.person_id] = person;
   }
 
@@ -3703,6 +3813,9 @@ function ADM_applyChange(session, change, payload) {
     case 'update_person':
       PPL_applyUpdate(author, payload.personId, payload.changes);
       return;
+    case 'delete_person':
+      PPL_applyDelete(author, payload.personId);
+      return;
     case 'add_parentage':
       PPL_addParentLink(author, payload.childId, payload.parentId,
         payload.role, payload.relationType);
@@ -4184,6 +4297,12 @@ function api_person(idToken, personId) {
       hasPhoto: !!person.photo_file_id
     };
 
+    // Worked out here rather than in the browser, so the button offered and the
+    // answer given on pressing it come from the same rule.
+    var blocked = PPL_deleteBlockedReason(graph, session, personId);
+    out.deletable = !blocked;
+    out.deleteBlockedReason = blocked;
+
     var fields = ['display_name', 'full_name', 'also_known_as', 'honorific', 'gender',
       'birth_date', 'birth_precision', 'birth_place', 'birth_order', 'is_living',
       'death_date', 'death_precision', 'death_place', 'burial_place', 'email',
@@ -4374,6 +4493,12 @@ function api_addPerson(idToken, anchorId, relationship, data, options) {
 function api_updatePerson(idToken, personId, changes) {
   return API_run(idToken, function (session) {
     return PPL_updatePerson(session, personId, changes);
+  });
+}
+
+function api_deletePerson(idToken, personId) {
+  return API_run(idToken, function (session) {
+    return PPL_deletePerson(session, personId);
   });
 }
 

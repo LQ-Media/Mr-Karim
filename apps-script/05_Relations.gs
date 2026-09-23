@@ -24,7 +24,9 @@ function REL_buildGraph(data) {
   for (var i = 0; i < people.length; i++) {
     var person = people[i];
     if (!person.person_id) continue;
-    if (person.status === 'merged') continue; // Losers of a merge are followed, not shown.
+    // Losers of a merge are followed, not shown; deleted people are gone from
+    // the tree but kept in the sheet so a mistake can be undone.
+    if (person.status === 'merged' || person.status === 'deleted') continue;
     graph.people[person.person_id] = person;
   }
 

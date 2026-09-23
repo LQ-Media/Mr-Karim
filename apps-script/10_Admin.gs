@@ -77,6 +77,9 @@ function ADM_applyChange(session, change, payload) {
     case 'update_person':
       PPL_applyUpdate(author, payload.personId, payload.changes);
       return;
+    case 'delete_person':
+      PPL_applyDelete(author, payload.personId);
+      return;
     case 'add_parentage':
       PPL_addParentLink(author, payload.childId, payload.parentId,
         payload.role, payload.relationType);

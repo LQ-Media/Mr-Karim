@@ -192,6 +192,55 @@ function clearDemoFamily() {
   return 'Removed ' + created.people.length + ' demo people.';
 }
 
+/**
+ * Empties the tree completely, including people entered by hand.
+ *
+ * clearDemoFamily() only removes what it seeded, which is the right default --
+ * it must never take a relative's real work with it. This is the other case:
+ * a trial run that should be thrown away before the family arrives. It refuses
+ * unless the confirmation names the number of people it is about to remove, so
+ * it cannot be run by reflex from the function dropdown.
+ *
+ * Accounts, invitations, settings and the audit log survive. People, the links
+ * between them, the merge queue and anything waiting for approval do not.
+ */
+function clearTree(confirmation) {
+  var people = ST_readAll('People');
+  var expected = 'DELETE ALL ' + people.length;
+
+  if (confirmation !== expected) {
+    throw new Error('This removes every person in the tree and cannot be undone.\n\n' +
+      'There ' + (people.length === 1 ? 'is 1 person' : 'are ' + people.length + ' people') +
+      ' recorded. To go ahead, run:\n\n    clearTree(\'' + expected + '\')');
+  }
+
+  var tabs = ['People', 'Parentage', 'Unions', 'CustomTitles', 'MergeQueue', 'PendingChanges'];
+  for (var i = 0; i < tabs.length; i++) clearAllRows(tabs[i]);
+
+  // Every account is unbound, or it would open on a record that is gone.
+  var users = ST_readAll('Users');
+  for (var u = 0; u < users.length; u++) {
+    if (users[u].person_id) ST_update('Users', 'email', users[u].email, { person_id: '' });
+  }
+
+  // Let seedDemoFamily() run again from a clean slate.
+  ST_props().deleteProperty('DEMO_ROWS');
+
+  ST_audit(Session.getEffectiveUser().getEmail(), 'clear_tree', 'People', '',
+    { removed: people.length });
+  ST_invalidate();
+
+  return 'Removed ' + people.length + ' people and every link between them.\n' +
+    'Accounts and settings were kept. You can run seedDemoFamily() now.';
+}
+
+/** Empties a tab, keeping its header row. */
+function clearAllRows(tabName) {
+  var sheet = ST_sheet(tabName);
+  var lastRow = sheet.getLastRow();
+  if (lastRow > 1) sheet.deleteRows(2, lastRow - 1);
+}
+
 /** Deletes rows bottom-up, so earlier deletions do not shift later row numbers. */
 function removeRows(tabName, keyColumn, ids) {
   if (!ids || !ids.length) return;

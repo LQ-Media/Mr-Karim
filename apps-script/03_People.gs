@@ -646,10 +646,6 @@ function PPL_deleteBlockedReason(graph, session, personId) {
   var person = graph.people[personId];
   if (!person) return 'That person is no longer in the tree.';
 
-  if (session.personId === personId) {
-    return 'This is you. Ask another admin to remove your own card.';
-  }
-
   var children = KIN_childrenOf(graph, personId);
   if (children.length) {
     return 'They have ' + children.length + (children.length === 1 ? ' child' : ' children') +
@@ -657,12 +653,16 @@ function PPL_deleteBlockedReason(graph, session, personId) {
       ' first, so no branch is left floating.';
   }
 
+  // Removing your own card is allowed -- the account is unbound with it and the
+  // app asks who you are next time. Cutting somebody ELSE loose from their own
+  // record is not yours to decide.
   var users = ST_readAll('Users');
   for (var i = 0; i < users.length; i++) {
-    if (users[i].person_id === personId && users[i].status !== 'removed') {
-      return 'A family member signs in as this person (' + users[i].email +
-        '). Remove their account first.';
-    }
+    if (users[i].person_id !== personId) continue;
+    if (users[i].status === 'removed') continue;
+    if (String(users[i].email).toLowerCase() === String(session.email).toLowerCase()) continue;
+    return 'A family member signs in as this person (' + users[i].email +
+      '). Remove their account first.';
   }
 
   return '';
@@ -728,6 +728,14 @@ function PPL_applyDelete(actorEmail, personId) {
       updated_by: actorEmail,
       updated_at: ST_now()
     });
+
+    // An account left pointing at a removed person would open on a record that
+    // is no longer there. Unbind it, and the app asks who they are next time.
+    var accounts = ST_readAll('Users');
+    for (var u = 0; u < accounts.length; u++) {
+      if (accounts[u].person_id !== personId) continue;
+      ST_update('Users', 'email', accounts[u].email, { person_id: '' });
+    }
 
     ST_audit(actorEmail, 'delete_person', 'People', personId, {
       display_name: person.display_name,

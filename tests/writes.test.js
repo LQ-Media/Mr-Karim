@@ -378,12 +378,22 @@ function find(store, id) { return rows(store, 'People').find((p) => p.person_id 
 }
 
 {
-  const { env } = makeApp(buildFamily());
+  const { env, store } = makeApp(buildFamily());
 
-  let message = '';
-  try { env.PPL_deletePerson(ADMIN, ADMIN.personId); } catch (err) { message = err.message; }
-  check('you cannot remove your own card', message,
-    (m) => /this is you/i.test(m), 'a message saying it is you');
+  // Removing your own card is allowed: a sole admin who mistyped themselves has
+  // nobody else to ask. The account is unbound with it, so nothing points at a
+  // record that is gone, and the app asks who they are next time.
+  const self = { email: 'faizal@example.test', personId: 'P042', role: 'owner',
+                 lang: 'ms', isAdmin: true, isPending: false, canInvite: true };
+  store.tables.Users.push({ email: 'faizal@example.test', person_id: 'P042',
+                            role: 'owner', status: 'active' });
+
+  const res = env.PPL_deletePerson(self, 'P042');
+  check('you can remove your own card', res.status, (s) => s === 'deleted', 'deleted');
+
+  const account = rows(store, 'Users').find((u) => u.email === 'faizal@example.test');
+  check('and your account is unbound with it', account.person_id,
+    (v) => v === '', 'empty');
 }
 
 {

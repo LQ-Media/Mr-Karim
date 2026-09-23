@@ -427,6 +427,33 @@ function find(store, id) { return rows(store, 'People').find((p) => p.person_id 
     (m) => /signs in/i.test(m), 'a message about their account');
 }
 
+/* ================= Counting the tree ============================== */
+{
+  const { env, store } = makeApp(buildFamily());
+
+  // api_me counts rows rather than building the graph, because it is the first
+  // call every visit makes. The two must agree about who counts, or the app
+  // offers to start a tree that already has people in it.
+  const size = () => env.API_treeSize();
+  const graphSize = () => Object.keys(env.ST_graph().people).length;
+
+  check('the count matches the graph', size(), (n) => n === graphSize(), 'equal');
+
+  env.PPL_deletePerson(ADMIN, 'P042');
+  check('a removed person drops out of both', size(),
+    (n) => n === graphSize(), 'still equal');
+  check('and the count went down', size(), (n) => n === 20, '20');
+
+  // A merge loser is followed, not shown, and must not be counted either.
+  rows(store, 'People')[0].status = 'merged';
+  check('a merged record drops out of both', size(),
+    (n) => n === graphSize(), 'still equal');
+
+  // A blank row at the bottom of a sheet is ordinary; it is nobody.
+  store.tables.People.push({ person_id: '', display_name: '' });
+  check('a blank row is not a person', size(), (n) => n === graphSize(), 'still equal');
+}
+
 console.log(`\nwrites: ${pass} passed, ${failures.length} failed\n`);
 if (failures.length) {
   failures.forEach((f) => console.log('  FAIL  ' + f));

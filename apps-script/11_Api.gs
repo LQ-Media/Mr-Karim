@@ -26,7 +26,6 @@ function API_run(idToken, handler) {
 function api_me(idToken) {
   return API_run(idToken, function (session) {
     var settings = ST_settings();
-    var graph = ST_graph();
     var out = {
       email: session.email,
       role: session.role,
@@ -38,9 +37,14 @@ function api_me(idToken) {
       googlePhotos: String(settings.enable_google_photos).toUpperCase() === 'TRUE',
       personId: session.personId,
       needsBinding: !session.isPending && !session.personId,
-      treeSize: Object.keys(graph.people).length
+      treeSize: API_treeSize()
     };
-    if (out.needsBinding) out.unclaimed = API_unclaimedPeople(graph, session);
+
+    // The graph is only built for someone who has not been placed in the tree
+    // yet, which is a first visit and nothing else. Everyone else gets the
+    // shell now and waits for the graph on api_view, with the app already on
+    // screen rather than a splash.
+    if (out.needsBinding) out.unclaimed = API_unclaimedPeople(ST_graph(), session);
     if (session.isAdmin) {
       out.adminCounts = {
         pendingChanges: API_countPending('PendingChanges'),
@@ -595,6 +599,26 @@ function API_unclaimedPeople(graph, session) {
     });
   }
   return out;
+}
+
+/**
+ * How many people are in the tree.
+ *
+ * Counted from the People tab rather than from the graph, because this is the
+ * first call every visit makes and building the graph means reading four tabs
+ * and resolving every link -- seconds on a cold deployment, spent before
+ * anything appears on screen. The same two statuses REL_buildGraph drops are
+ * dropped here, so the two can never disagree about who counts.
+ */
+function API_treeSize() {
+  var people = ST_readAll('People');
+  var count = 0;
+  for (var i = 0; i < people.length; i++) {
+    if (!people[i].person_id) continue;
+    if (people[i].status === 'merged' || people[i].status === 'deleted') continue;
+    count++;
+  }
+  return count;
 }
 
 function API_countPending(tab) {

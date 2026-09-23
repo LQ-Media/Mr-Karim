@@ -86,7 +86,8 @@ function install(sandbox, seed) {
 function makeApp(seed) {
   const sandbox = loadEngine([
     '00_Config.gs', '05_Relations.gs', '06_Kinship.gs', '07_Titles.gs',
-    '08_Matching.gs', '02_Auth.gs', '03_People.gs', '09_Merge.gs', '10_Admin.gs'
+    '08_Matching.gs', '02_Auth.gs', '03_People.gs', '09_Merge.gs', '10_Admin.gs',
+    '11_Api.gs'
   ]);
   const store = install(sandbox, seed);
   return { env: sandbox, store };

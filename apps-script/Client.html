@@ -122,7 +122,14 @@ function boot() {
               (me.adminCounts.mergeQueue || 0);
       var btn = document.getElementById('btnAdmin');
       btn.style.display = '';
-      if (n) btn.innerHTML = '&#9881;<span class="dot">' + n + '</span>';
+      var had = btn.querySelector('.dot');
+      if (had) had.remove();
+      if (n) {
+        var dot = document.createElement('span');
+        dot.className = 'dot';
+        dot.textContent = String(n);
+        btn.appendChild(dot);
+      }
     }
     loadView(null);
   }).catch(function (err) {
@@ -1806,11 +1813,15 @@ function openMap() {
   wrap.id = 'mapwrap';
   wrap.innerHTML =
     '<div class="maptop">' +
-      '<button class="icon-btn" id="mapClose" title="Back">&#8592;</button>' +
       '<div class="ttl">Whole family</div>' +
-      '<button class="icon-btn" id="mapMe" title="Find me">&#9673;</button>' +
-      '<button class="icon-btn" id="mapFit" title="Fit everyone">&#9635;</button>' +
-      '<button class="icon-btn" id="mapTidy" title="Re-arrange">&#8634;</button>' +
+      '<button class="icon-btn" id="mapClose" title="Back to the list">' +
+        '<span class="ico">&#8592;</span><span class="lbl">Back</span></button>' +
+      '<button class="icon-btn" id="mapMe" title="Centre on your own card">' +
+        '<span class="ico">&#9673;</span><span class="lbl">Find me</span></button>' +
+      '<button class="icon-btn" id="mapFit" title="Zoom out to everyone">' +
+        '<span class="ico">&#9635;</span><span class="lbl">Fit all</span></button>' +
+      '<button class="icon-btn" id="mapTidy" title="Undo your arrangement">' +
+        '<span class="ico">&#8634;</span><span class="lbl">Tidy up</span></button>' +
     '</div>' +
     '<div class="stage" id="stage"><div class="world" id="world">' +
       '<svg id="wires"></svg></div></div>' +

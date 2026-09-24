@@ -99,20 +99,36 @@ h1,h2,h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
 .topbar {
   position: sticky; top: 0; z-index: 30; background: var(--bg);
   border-bottom: 1px solid var(--line); padding: 10px 16px;
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
 }
 .topbar .brand { font-weight: 700; font-size: 17px; flex: 1; min-width: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* The bare round form, still used for the chevron on a card. */
 .icon-btn {
   width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center;
   background: var(--surface-2); color: var(--ink-2); font-size: 16px; flex: none;
-  position: relative; border: 1px solid transparent;
+  position: relative; border: 1px solid transparent; font-family: var(--font);
 }
 .icon-btn:hover { border-color: var(--line); }
 .icon-btn .dot {
   position: absolute; top: 4px; right: 4px; min-width: 16px; height: 16px;
   border-radius: 8px; background: var(--danger); color: #fff; font-size: 10px;
   font-weight: 700; display: grid; place-items: center; padding: 0 4px;
+}
+
+/* In the two bars every button says what it is. A row of symbols is a quiz,
+   and the people using this are relatives on a phone, not anybody who will
+   learn an icon language first. */
+.topbar .icon-btn, .maptop .icon-btn {
+  width: auto; height: 38px; padding: 0 13px; border-radius: 999px;
+  display: inline-flex; align-items: center; gap: 7px; font-size: 15px;
+}
+.topbar .icon-btn .lbl, .maptop .icon-btn .lbl {
+  font-size: 12.5px; font-weight: 650; white-space: nowrap;
+}
+.topbar .icon-btn .dot, .maptop .icon-btn .dot { top: -3px; right: -3px; }
+
 }
 
 /* ---- Search ---- */
@@ -376,7 +392,7 @@ h1,h2,h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
 .mapwrap { position: fixed; inset: 0; z-index: 40; background: var(--bg);
   display: flex; flex-direction: column; }
 .maptop { flex: none; display: flex; gap: 8px; align-items: center; padding: 10px 16px;
-  border-bottom: 1px solid var(--line); background: var(--bg); }
+  border-bottom: 1px solid var(--line); background: var(--bg); flex-wrap: wrap; }
 .maptop .ttl { font-weight: 700; font-size: 15px; flex: 1; min-width: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .stage { flex: 1; position: relative; overflow: hidden; background: var(--surface-2);
@@ -441,6 +457,20 @@ h1,h2,h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
   text-transform: uppercase; opacity: .7; margin-bottom: 3px; }
 
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+/* Beside the icon needs room a phone does not have: five labelled pills want
+   about 450px and a handset gives 358. Below that the label moves under the
+   icon and the buttons share the row evenly, which fits and still names
+   everything. The title takes a line of its own rather than being squeezed. */
+@media (max-width: 559px) {
+  .topbar .brand, .maptop .ttl { flex: 1 0 100%; }
+  .topbar .icon-btn, .maptop .icon-btn {
+    flex: 1; height: auto; min-width: 0; padding: 6px 4px;
+    flex-direction: column; gap: 3px; border-radius: var(--radius-sm);
+  }
+  .topbar .icon-btn .lbl, .maptop .icon-btn .lbl {
+    font-size: 11px; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+  }
+  .topbar .icon-btn .dot, .maptop .icon-btn .dot { top: 2px; right: 6px; }
 </style>
 </head>
 <script>
@@ -527,12 +557,17 @@ h1,h2,h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
 <!-- The app. -->
 <div id="app" style="display:none">
   <div class="topbar">
-    <button class="icon-btn" id="btnHome" title="Back to me">&#9679;</button>
     <div class="brand" id="familyName">Family tree</div>
-    <button class="icon-btn" id="btnMap" title="Whole family as a chart">&#9783;</button>
-    <button class="icon-btn" id="btnTheme" title="Colour scheme">&#9673;</button>
-    <button class="icon-btn" id="btnAdmin" title="Admin" style="display:none">&#9881;</button>
-    <button class="icon-btn" id="btnMenu" title="Settings">&#9776;</button>
+    <button class="icon-btn" id="btnHome" title="Back to your own card">
+      <span class="ico">&#9679;</span><span class="lbl">Me</span></button>
+    <button class="icon-btn" id="btnMap" title="The whole family as a chart">
+      <span class="ico">&#9783;</span><span class="lbl">Chart</span></button>
+    <button class="icon-btn" id="btnTheme" title="Colour scheme">
+      <span class="ico">&#9673;</span><span class="lbl">Colour</span></button>
+    <button class="icon-btn" id="btnAdmin" title="Approvals and merges" style="display:none">
+      <span class="ico">&#9881;</span><span class="lbl">Admin</span></button>
+    <button class="icon-btn" id="btnMenu" title="Settings and sign out">
+      <span class="ico">&#9776;</span><span class="lbl">Menu</span></button>
   </div>
 
   <div class="wrap">
@@ -1343,7 +1378,14 @@ function boot() {
               (me.adminCounts.mergeQueue || 0);
       var btn = document.getElementById('btnAdmin');
       btn.style.display = '';
-      if (n) btn.innerHTML = '&#9881;<span class="dot">' + n + '</span>';
+      var had = btn.querySelector('.dot');
+      if (had) had.remove();
+      if (n) {
+        var dot = document.createElement('span');
+        dot.className = 'dot';
+        dot.textContent = String(n);
+        btn.appendChild(dot);
+      }
     }
     loadView(null);
   }).catch(function (err) {
@@ -3027,11 +3069,15 @@ function openMap() {
   wrap.id = 'mapwrap';
   wrap.innerHTML =
     '<div class="maptop">' +
-      '<button class="icon-btn" id="mapClose" title="Back">&#8592;</button>' +
       '<div class="ttl">Whole family</div>' +
-      '<button class="icon-btn" id="mapMe" title="Find me">&#9673;</button>' +
-      '<button class="icon-btn" id="mapFit" title="Fit everyone">&#9635;</button>' +
-      '<button class="icon-btn" id="mapTidy" title="Re-arrange">&#8634;</button>' +
+      '<button class="icon-btn" id="mapClose" title="Back to the list">' +
+        '<span class="ico">&#8592;</span><span class="lbl">Back</span></button>' +
+      '<button class="icon-btn" id="mapMe" title="Centre on your own card">' +
+        '<span class="ico">&#9673;</span><span class="lbl">Find me</span></button>' +
+      '<button class="icon-btn" id="mapFit" title="Zoom out to everyone">' +
+        '<span class="ico">&#9635;</span><span class="lbl">Fit all</span></button>' +
+      '<button class="icon-btn" id="mapTidy" title="Undo your arrangement">' +
+        '<span class="ico">&#8634;</span><span class="lbl">Tidy up</span></button>' +
     '</div>' +
     '<div class="stage" id="stage"><div class="world" id="world">' +
       '<svg id="wires"></svg></div></div>' +

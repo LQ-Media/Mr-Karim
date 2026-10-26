@@ -81,4 +81,12 @@ export async function migrate() {
     await q(`INSERT INTO admins (email, role, added_by) VALUES ($1, 'owner', 'setup')
              ON CONFLICT (email) DO UPDATE SET role = 'owner'`, [email]);
   }
+  // Session-signing key: SESSION_SECRET if set, otherwise one made once and kept in the database.
+  if (!String(process.env.SESSION_SECRET || "").trim()) {
+    const { randomBytes } = await import("node:crypto");
+    await q(`INSERT INTO settings (key, value, updated_by) VALUES ('session_secret', $1, 'setup') ON CONFLICT (key) DO NOTHING`,
+      [JSON.stringify(randomBytes(32).toString("base64url"))]);
+    const { rows } = await q(`SELECT value FROM settings WHERE key = 'session_secret'`);
+    process.env.SESSION_SECRET = rows[0].value;
+  }
 }

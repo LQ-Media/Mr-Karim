@@ -1,0 +1,66 @@
+/* Ain's Kitchen dashboard: same Design 1 language, tuned for working. */
+body.admin main{padding-bottom:40px}
+.adminmain{display:flex;flex-direction:column;gap:16px;padding-block:8px 40px}
+.signin{align-items:center;text-align:center;gap:16px;padding-top:30px}
+.signin img{border-radius:50%;box-shadow:0 0 0 3px #FFFFFF,0 10px 24px rgba(59,42,32,.16)}
+.signin .bigcta{align-self:stretch;max-width:420px;margin-inline:auto;width:100%}
+.admintabs{position:sticky;top:calc(env(safe-area-inset-top,0px) + 70px);z-index:10}
+.small-btn{min-height:40px;padding:0 14px;font-size:13px}
+.ocard{display:grid;grid-template-columns:1fr auto;gap:6px 12px;background:#FFFFFF;border:2px solid var(--ink);border-radius:20px;padding:14px;text-align:left;color:var(--ink);cursor:pointer;transition:transform .15s;width:100%}
+.ocard:hover{transform:translateY(-2px)}
+.ocard .ref{font-family:var(--display);font-weight:700;font-size:18px}
+.ocard .who{font-weight:700}
+.ocard .when{font-size:13px;color:var(--muted);font-weight:700}
+.ocard .amt{font-family:var(--display);font-weight:700;font-size:18px;text-align:right}
+.ocard .pills{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:900;letter-spacing:.04em;border-radius:10px;padding:4px 9px;border:1.5px solid var(--ink);background:#FFFFFF;text-transform:uppercase}
+.pill.new,.pill.change,.pill.proof_sent{background:var(--butter)}
+.pill.confirmed,.pill.baking,.pill.delivering{background:#DDE7F0}
+.pill.delivered,.pill.paid{background:#E9F0E4}
+.pill.cancelled{background:#EEE;color:#6E6E6E;border-color:#9A9A9A}
+.pill.unpaid{background:#FFFFFF}
+.daygroup{font-family:var(--display);font-weight:700;font-size:16px;margin-top:6px}
+.empty-note{background:#FFFFFF;border:2px dashed var(--line);border-radius:18px;padding:22px;text-align:center;color:var(--muted);font-weight:700}
+
+.drawer{position:fixed;inset:0;z-index:60;background:var(--bg);overflow-y:auto;padding-top:env(safe-area-inset-top,0px)}
+.drawerpanel{display:flex;flex-direction:column;gap:14px;padding-block:14px 60px}
+.box{background:#FFFFFF;border:2px solid var(--ink);border-radius:20px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.box h3{font-family:var(--display);font-weight:700;font-size:18px;margin:0}
+.box.hot{background:#FFF6DA}
+.statusrow{display:flex;flex-wrap:wrap;gap:8px}
+.statusrow .chip[aria-pressed="true"]{background:var(--ink);color:var(--butter)}
+.itemrow{display:grid;grid-template-columns:1fr 70px 90px auto;gap:8px;align-items:start;border-bottom:1px dashed var(--line);padding-bottom:10px}
+.itemrow:last-child{border-bottom:0}
+.itemrow .field input,.itemrow .field textarea{min-height:40px;padding:8px 10px;font-size:14px}
+.itemrow textarea{min-height:56px!important}
+@media (max-width:520px){.itemrow{grid-template-columns:1fr 1fr}.itemrow .wide{grid-column:1/-1}}
+.proofs{display:flex;gap:10px;flex-wrap:wrap}
+.proofs a img{width:110px;height:150px;object-fit:cover;border-radius:12px;border:2px solid var(--ink)}
+.wabtns{display:flex;flex-wrap:wrap;gap:8px}
+.wabtns a{min-height:40px;padding:0 12px;border-radius:20px;background:var(--wa);color:#FFFFFF;font-weight:800;font-size:13px;display:inline-flex;align-items:center;text-decoration:none}
+.diff{font-size:13.5px;display:flex;flex-direction:column;gap:4px}
+.diff del{color:#9A4A3A}.diff ins{text-decoration:none;font-weight:800}
+select{font:inherit;min-height:46px;border-radius:12px;border:2px solid var(--line);background:#FFFFFF;padding:0 10px;color:var(--ink)}
+
+/* menu editor */
+.mcard{background:#FFFFFF;border:2px solid var(--ink);border-radius:20px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.mcard.off{opacity:.62;border-style:dashed}
+.mcard h3{font-family:var(--display);font-weight:700;font-size:18px;margin:0;display:flex;align-items:center;gap:10px;justify-content:space-between}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.mrow{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) auto auto;gap:8px;align-items:end;background:var(--chip);border:1.5px solid var(--line);border-radius:14px;padding:8px}
+.mrow.off{opacity:.55}
+.mrow .field label{font-size:11px}
+.mrow .field input,.mrow select{min-height:40px;padding:6px 8px;font-size:14px}
+@media (max-width:560px){.mrow{grid-template-columns:1fr 1fr}.mrow .grow{grid-column:1/-1}}
+.chk{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:13px;min-height:40px}
+.chk input{width:20px;height:20px;accent-color:var(--accent)}
+.del{min-height:40px;min-width:40px;border-radius:12px;border:1.5px solid var(--line);background:#FFFFFF;color:#9A4A3A;font-weight:900}
+.addbtn{align-self:flex-start;min-height:42px;padding:0 14px;border-radius:21px;border:2px dashed var(--ink);background:#FFFFFF;font-weight:800}
+.photoedit{display:flex;gap:12px;align-items:center}
+.photoedit img{width:84px;height:104px;object-fit:cover;border-radius:12px;border:2px solid var(--ink);background:var(--stage)}
+.colorin{width:44px;height:40px;border:1.5px solid var(--line);border-radius:10px;padding:2px;background:#FFFFFF}
+.card-form{background:#FFFFFF;border:2px solid var(--ink);border-radius:20px;padding:14px}
+.adminrow{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#FFFFFF;border:2px solid var(--ink);border-radius:18px;padding:12px 14px}
+.adminrow b{display:block}
+.adminrow small{color:var(--muted);font-weight:700}
+body.admin .bgsprinkles{display:none}

@@ -1,0 +1,21 @@
+{
+  "name": "saifs-bakery",
+  "private": true,
+  "type": "module",
+  "version": "2.0.0",
+  "description": "The Saif's Bakery: ordering app with orders, payments and an admin dashboard",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "jose": "^6.2.3",
+    "pg": "^8.16.3",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "pg-mem": "^3.0.5"
+  }
+}

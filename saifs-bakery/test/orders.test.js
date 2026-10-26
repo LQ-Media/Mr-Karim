@@ -132,3 +132,35 @@ test("accounts: ordering needs sign-in; login, wrong password, my orders, admin 
   assert.equal(r.status, 200);
   cust = saved;
 });
+
+test("website editor: texts, colours, pages; hidden drafts; unsafe links dropped; admin only", async () => {
+  const saved = cust; cust = "";
+  let r = await j("GET", "/api/site");
+  assert.equal(r.data.canEdit, false); assert.deepEqual(r.data.pages, []);
+  r = await j("PUT", "/api/admin/site", { text: {} });
+  assert.equal(r.status, 401);
+  r = await j("PUT", "/api/admin/site", {
+    text: { "home.hero.l1": "Cakes for", "bad key!": "x", "home.empty": "   " },
+    theme: { accent: "#123456", bg: "red" },
+    pages: [
+      { title: "About Ain", slug: "About Ain!", nav: true, blocks: [
+        { t: "heading", text: "Hello" }, { t: "text", text: "We bake **with love**." },
+        { t: "image", src: "javascript:alert(1)" }, { t: "image", src: "/u/abc123.jpg", alt: "Ain" },
+        { t: "button", text: "Order", href: "javascript:alert(1)" }, { t: "button", text: "Shop", href: "#shop" }, { t: "script", text: "x" } ] },
+      { title: "Raya menu", slug: "raya", published: false, blocks: [] }
+    ] }, cookie);
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.data.text, { "home.hero.l1": "Cakes for" });
+  assert.deepEqual(r.data.theme, { accent: "#123456" });
+  const about = r.data.pages[0];
+  assert.equal(about.slug, "about-ain");
+  assert.deepEqual(about.blocks.map((b) => b.t), ["heading", "text", "image", "button", "button"]);
+  assert.equal(about.blocks[3].href, "#home");
+  r = await j("GET", "/api/site");
+  assert.deepEqual(r.data.pages.map((p) => p.slug), ["about-ain"]);
+  r = await j("GET", "/api/site", null, cookie);
+  assert.equal(r.data.canEdit, true); assert.equal(r.data.pages.length, 2);
+  r = await j("PUT", "/api/admin/site", { pages: [{ title: "A", slug: "x" }, { title: "B", slug: "x" }] }, cookie);
+  assert.match(r.data.error, /Two pages/);
+  cust = saved;
+});

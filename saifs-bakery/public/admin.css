@@ -89,3 +89,18 @@ body.admin .bgsprinkles{display:none}
 .custrow .newpw a{color:var(--wa);font-weight:800}
 .admintabs button{white-space:nowrap}
 @media (min-width:960px){#tab-customers{max-width:860px}}
+
+/* website tab */
+.textrow{display:flex;flex-direction:column;gap:6px;background:#FFFFFF;border:1.5px solid var(--line);border-radius:14px;padding:10px 12px}
+.textrow.changed{border:2px solid var(--ink);background:#FFFBEF}
+.textrow label{font-size:12px;font-weight:800;color:var(--muted)}
+.textrow textarea{flex:1;font:inherit;font-size:15px;border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;resize:vertical;min-height:42px}
+.colprev{margin-top:6px;border-radius:18px;padding:18px;background:var(--g);color:var(--i);border:2px solid var(--i);display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+.colprev b{font-family:var(--display);font-size:24px}
+.colprev mark{background:var(--b);color:var(--i);padding:0 6px;border-radius:8px}
+.colprev .pbtn{background:var(--a);color:#FFFFFF;border-radius:22px;padding:10px 18px;font-weight:900}
+.blockcard h3 .pill{text-transform:none;font-size:12px}
+.addblocks .addbtn{align-self:auto}
+.del:disabled{opacity:.35}
+#tab-website .row .primary.small-btn{color:#FFFFFF}
+@media (min-width:960px){#tab-website{max-width:900px}#tab-website #siteBody{display:flex;flex-direction:column;gap:12px}}

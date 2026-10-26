@@ -8,7 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import QRCode from "qrcode";
 import { q, migrate } from "./lib/db.js";
-import { startGoogle, finishGoogle, logout, requireAdmin, googleConfigured, hashPassword, checkPassword, setCustomer, clearCustomer, currentCustomer, requireCustomer } from "./lib/auth.js";
+import { startGoogle, finishGoogle, logout, requireAdmin, googleConfigured, hashPassword, checkPassword, setCustomer, clearCustomer, currentCustomer, requireCustomer, currentAdmin } from "./lib/auth.js";
 import { paynowPayload, paynowAccount } from "./lib/paynow.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -32,6 +32,50 @@ export class UserError extends Error {}
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const str = (v, n) => String(v == null ? "" : v).trim().slice(0, n);
 const money = (n) => (n == null ? null : Number(n));
+
+/* ---------- website content (texts, colours, extra pages) edited by admins ---------- */
+const EMPTY_SITE = { text: {}, theme: {}, pages: [] };
+export async function getSite() {
+  const { rows } = await q("SELECT value FROM settings WHERE key = 'site'");
+  return rows.length ? Object.assign(clone(EMPTY_SITE), rows[0].value) : clone(EMPTY_SITE);
+}
+const HEX = /^#[0-9a-fA-F]{6}$/;
+const SLUG = /^[a-z0-9][a-z0-9-]{0,39}$/;
+const safeSrc = (v) => { v = str(v, 500); return /^(\/u\/[A-Za-z0-9]+\.[a-z]{2,4}|img\/[A-Za-z0-9._\/-]+|https:\/\/[^\s"'<>]+)$/.test(v) ? v : ""; };
+const safeHref = (v) => { v = str(v, 500); return /^(#[A-Za-z0-9\/_-]*|\/[A-Za-z0-9._\/#?=&-]*|https:\/\/[^\s"'<>]+|mailto:[^\s"'<>]+|tel:\+?[0-9 ]+)$/.test(v) ? v : ""; };
+export function cleanSite(b) {
+  b = b || {};
+  const text = {};
+  const tk = Object.keys(b.text || {});
+  if (tk.length > 600) throw new UserError("Too many text changes.");
+  for (const k of tk) {
+    if (!/^[a-z0-9._-]{1,60}$/.test(k)) continue;
+    const v = b.text[k];
+    if (typeof v === "string" && v.trim() !== "") text[k] = v.slice(0, 3000);
+  }
+  const theme = {};
+  for (const k of ["accent", "butter", "bg", "ink"]) if (HEX.test(String((b.theme || {})[k] || ""))) theme[k] = b.theme[k];
+  const pages = [], slugs = new Set();
+  const list = Array.isArray(b.pages) ? b.pages : [];
+  if (list.length > 30) throw new UserError("Up to 30 pages.");
+  for (const p of list) {
+    const slug = str(p.slug, 40).toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
+    const title = str(p.title, 120);
+    if (!title) throw new UserError("Every page needs a title.");
+    if (!SLUG.test(slug)) throw new UserError("Page “" + title + "” needs a web address made of letters, numbers and dashes.");
+    if (slugs.has(slug)) throw new UserError("Two pages use the address “" + slug + "”.");
+    slugs.add(slug);
+    const blocks = [];
+    for (const bl of (Array.isArray(p.blocks) ? p.blocks : []).slice(0, 80)) {
+      if (bl.t === "heading") blocks.push({ t: "heading", text: str(bl.text, 200) });
+      else if (bl.t === "text") blocks.push({ t: "text", text: String(bl.text == null ? "" : bl.text).slice(0, 6000) });
+      else if (bl.t === "image") { const src = safeSrc(bl.src); if (src) blocks.push({ t: "image", src, alt: str(bl.alt, 200), caption: str(bl.caption, 300) }); }
+      else if (bl.t === "button") { const href = safeHref(bl.href); blocks.push({ t: "button", text: str(bl.text, 80) || "Find out more", href: href || "#home" }); }
+    }
+    pages.push({ id: slug, slug, title, nav: !!p.nav, published: p.published !== false, blocks });
+  }
+  return { text, theme, pages };
+}
 
 export async function getCatalog() {
   const { rows } = await q("SELECT value FROM settings WHERE key = 'catalog'");
@@ -106,6 +150,20 @@ export function createApp() {
     const { rows } = await q("SELECT mime, data FROM images WHERE id = $1", [String(req.params.id).replace(/\.\w+$/, "")]);
     if (!rows.length) return res.status(404).end();
     res.set("Content-Type", rows[0].mime).set("Cache-Control", "public, max-age=31536000, immutable").send(rows[0].data);
+  }));
+
+  /* ---------- website content ---------- */
+  app.get("/api/site", wrap(async (req, res) => {
+    const site = await getSite(), admin = await currentAdmin(req);
+    if (!admin) site.pages = site.pages.filter((p) => p.published);
+    res.set("Cache-Control", "no-store").json(Object.assign(site, { canEdit: !!admin }));
+  }));
+  app.put("/api/admin/site", requireAdmin(), wrap(async (req, res) => {
+    const site = cleanSite(req.body);
+    if (JSON.stringify(site).length > 400000) throw new UserError("The website content is too large.");
+    await q(`INSERT INTO settings (key, value, updated_by, updated_at) VALUES ('site', $1, $2, now())
+             ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = now()`, [JSON.stringify(site), req.admin.email]);
+    res.json(site);
   }));
 
   /* ---------- customer accounts ---------- */

@@ -109,6 +109,17 @@ export function requireAdmin(roleNeeded) {
   };
 }
 
+/** The signed-in admin row (email, role, name), or null. For pages that only need to know. */
+export async function currentAdmin(req) {
+  const token = parseCookies(req)[SESSION];
+  if (!token) return null;
+  try {
+    const { payload } = await jwtVerify(token, secret());
+    const { rows } = await q("SELECT email, role, name FROM admins WHERE email = $1", [payload.email]);
+    return rows[0] || null;
+  } catch { return null; }
+}
+
 /* ---------- customers ---------- */
 export async function hashPassword(pw) {
   const salt = randomBytes(16);

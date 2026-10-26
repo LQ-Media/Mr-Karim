@@ -28,9 +28,11 @@ function orderLink(o) { return location.origin + "/#order/" + o.token; }
 $(".admintabs").addEventListener("click", function (e) {
   var b = e.target.closest("[data-tab]"); if (!b) return;
   if (CAT_DIRTY && b.dataset.tab !== "menu" && !confirmLeave()) return;
+  if (SITE_DIRTY && b.dataset.tab !== "website") { toast("Save or undo your website changes first."); return; }
   $$(".admintabs [data-tab]").forEach(function (x) { x.setAttribute("aria-selected", x === b); });
-  ["orders", "menu", "customers", "admins"].forEach(function (t) { $("#tab-" + t).hidden = t !== b.dataset.tab; });
+  ["orders", "menu", "website", "customers", "admins"].forEach(function (t) { $("#tab-" + t).hidden = t !== b.dataset.tab; });
   if (b.dataset.tab === "customers") loadCustomers();
+  if (b.dataset.tab === "website") loadSite();
   if (b.dataset.tab === "orders") loadOrders();
   if (b.dataset.tab === "menu") loadMenu();
   if (b.dataset.tab === "admins") loadAdmins();
@@ -303,6 +305,141 @@ $("#custList").addEventListener("click", function (e) {
   }).catch(function (er) { toast(er.message); });
 });
 
+/* ---------------- website: pages, texts, colours ---------------- */
+var SITE = null, SITE_DIRTY = false, SITE_SEC = "pages", PAGE_OPEN = null, TEXT_DEFS = null;
+var DYNAMIC_TEXTS = [["cart.empty", "Your basket is empty."], ["cart.add-more", "Add more"], ["cart.choose-date", "Choose a date"],
+  ["account.signin-title", "Welcome back"], ["account.signup-title", "Create your account"], ["account.lede", "Track your orders, pay by PayNow and reorder faster."],
+  ["account.lede-checkout", "Sign in or create an account to place your order. Your basket is saved."], ["custom.photo-hint", "Ain will bake it with your changes"], ["page.missing", "That page isn’t here any more."]];
+var BLOCKS = { heading: "Heading", text: "Paragraph", image: "Photo", button: "Button" };
+function siteDirty(v) { SITE_DIRTY = v; $("#siteDirty").textContent = v ? "Unsaved changes" : "No unsaved changes"; }
+function loadSite() {
+  if (SITE) { renderSite(); return; }
+  Promise.all([api("GET", "/api/site"), TEXT_DEFS ? null : fetch("/", { credentials: "same-origin" }).then(function (r) { return r.text(); })]).then(function (r) {
+    SITE = { text: r[0].text || {}, theme: r[0].theme || {}, pages: r[0].pages || [] };
+    if (r[1]) {
+      var doc = new DOMParser().parseFromString(r[1], "text/html"), defs = [], seen = {};
+      $$("[data-hero]", doc).forEach(function (ln) { var k = "home.hero.l" + ln.getAttribute("data-hero"); defs.push([k, ln.textContent.replace(/\s+/g, " ").trim(), "Home: big headline line " + ln.getAttribute("data-hero")]); seen[k] = 1; });
+      $$("[data-t]", doc).forEach(function (el) { var k = el.getAttribute("data-t"); if (seen[k]) return; seen[k] = 1; defs.push([k, el.textContent.trim(), ""]); });
+      DYNAMIC_TEXTS.forEach(function (d) { if (!seen[d[0]]) defs.push([d[0], d[1], ""]); });
+      TEXT_DEFS = defs;
+    }
+    renderSite();
+  }).catch(function (e) { toast(e.message); });
+}
+var AREA = { header: "Header", home: "Home", shop: "Shop", gallery: "Custom designs", custom: "Cake builder", cart: "Basket", date: "Delivery date", send: "Review & place order", account: "Sign in & account", foot: "Footer", nav: "Menu bar", page: "Pages" };
+function renderSite() {
+  $("#siteSections").innerHTML = [["pages", "Pages"], ["texts", "All texts"], ["colours", "Colours"]].map(function (s) { return '<button class="chip" type="button" data-ssec="' + s[0] + '" aria-pressed="' + (SITE_SEC === s[0]) + '">' + s[1] + "</button>"; }).join("");
+  var h = "";
+  if (SITE_SEC === "pages") {
+    if (PAGE_OPEN != null && SITE.pages[PAGE_OPEN]) h = pageEditor(SITE.pages[PAGE_OPEN], PAGE_OPEN);
+    else {
+      h = SITE.pages.map(function (p, i) {
+        return '<div class="adminrow"><span><b>' + esc(p.title) + "</b><small>/#page/" + esc(p.slug) + " · " + (p.published ? "Published" : "Draft") + (p.nav ? " · in menu" : "") + " · " + p.blocks.length + " blocks</small></span>" +
+          '<span class="row gap"><a class="secondary small-btn" href="/#page/' + esc(p.slug) + '" target="_blank" rel="noopener">View</a><button class="primary small-btn" type="button" data-openpage="' + i + '">Edit</button></span></div>';
+      }).join("") || '<div class="empty-note">No extra pages yet. Add an About page, FAQ, or a seasonal menu.</div>';
+      h += '<button class="addbtn" type="button" id="addPage">+ New page</button>';
+    }
+  }
+  if (SITE_SEC === "texts") {
+    h = '<div class="field"><label for="textSearch">Find a text</label><input id="textSearch" type="search" placeholder="e.g. squeal, Order, Delivery"></div><div id="textList" class="stack"></div>';
+  }
+  if (SITE_SEC === "colours") {
+    var defs = { accent: "#A84D2E", butter: "#F2C66D", bg: "#FBF5EC", ink: "#3B2A20" };
+    h = '<div class="mcard"><h3>Colours</h3><p class="small muted">These change the whole shop: buttons, highlights, background and text. Keep text dark on a light background so it stays easy to read.</p><div class="mgrid">' +
+      [["accent", "Buttons & accents"], ["butter", "Highlight"], ["bg", "Background"], ["ink", "Text & outlines"]].map(function (c) {
+        return '<div class="field"><label for="col_' + c[0] + '">' + c[1] + '</label><input class="colorin" id="col_' + c[0] + '" type="color" data-scol="' + c[0] + '" value="' + esc(SITE.theme[c[0]] || defs[c[0]]) + '"></div>'; }).join("") +
+      '</div><button class="secondary" type="button" id="resetCols">Back to original colours</button>' +
+      '<div class="colprev" style="--a:' + esc(SITE.theme.accent || defs.accent) + ";--b:" + esc(SITE.theme.butter || defs.butter) + ";--g:" + esc(SITE.theme.bg || defs.bg) + ";--i:" + esc(SITE.theme.ink || defs.ink) + '"><b>Cakes that make them <mark>squeal.</mark></b><span class="pbtn">Design my cake</span></div></div>';
+  }
+  $("#siteBody").innerHTML = h;
+  if (SITE_SEC === "texts") renderTexts();
+}
+function pageEditor(p, i) {
+  var b = p.blocks.map(function (bl, k) {
+    var f = "";
+    if (bl.t === "heading") f = '<div class="field"><label for="bk' + k + '">Heading</label><input id="bk' + k + '" data-bk="' + k + '" data-bf="text" value="' + esc(bl.text) + '"></div>';
+    if (bl.t === "text") f = '<div class="field"><label for="bk' + k + '">Paragraph <span class="muted">(**two stars** = bold)</span></label><textarea id="bk' + k + '" rows="4" data-bk="' + k + '" data-bf="text">' + esc(bl.text) + "</textarea></div>";
+    if (bl.t === "image") f = '<div class="photoedit"><img src="' + esc(bl.src || "img/logo.png") + '" alt=""><label class="addbtn" style="display:inline-flex;align-items:center;cursor:pointer"><input type="file" accept="image/*" data-bkphoto="' + k + '" hidden>' + (bl.src ? "Change photo" : "Choose photo") + "</label></div>" +
+      '<div class="fields two"><div class="field"><label for="bka' + k + '">Describe the photo (for screen readers)</label><input id="bka' + k + '" data-bk="' + k + '" data-bf="alt" value="' + esc(bl.alt) + '"></div><div class="field"><label for="bkc' + k + '">Caption (optional)</label><input id="bkc' + k + '" data-bk="' + k + '" data-bf="caption" value="' + esc(bl.caption) + '"></div></div>';
+    if (bl.t === "button") f = '<div class="fields two"><div class="field"><label for="bk' + k + '">Button text</label><input id="bk' + k + '" data-bk="' + k + '" data-bf="text" value="' + esc(bl.text) + '"></div><div class="field"><label for="bkh' + k + '">Goes to</label><select id="bkh' + k + '" data-bk="' + k + '" data-bf="href">' + linkOptions(bl.href) + "</select></div></div>";
+    return '<div class="mcard blockcard"><h3><span class="pill">' + BLOCKS[bl.t] + '</span><span class="row gap"><button class="del" type="button" data-bmove="' + k + '" data-dir="-1" aria-label="Move up"' + (k === 0 ? " disabled" : "") + '>↑</button><button class="del" type="button" data-bmove="' + k + '" data-dir="1" aria-label="Move down"' + (k === p.blocks.length - 1 ? " disabled" : "") + '>↓</button><button class="del" type="button" data-bdel="' + k + '" aria-label="Remove block">✕</button></span></h3>' + f + "</div>";
+  }).join("");
+  return '<div class="row"><button class="secondary small-btn" type="button" id="backPages">← All pages</button><a class="secondary small-btn" href="/#page/' + esc(p.slug) + '" target="_blank" rel="noopener">View page</a></div>' +
+    '<div class="mcard"><div class="fields two"><div class="field"><label for="pTitle">Page title</label><input id="pTitle" data-pf="title" value="' + esc(p.title) + '"></div>' +
+    '<div class="field"><label for="pSlug">Web address</label><input id="pSlug" data-pf="slug" value="' + esc(p.slug) + '"><small class="muted">saifbakery…/#page/' + esc(p.slug) + "</small></div></div>" +
+    '<div class="row gap"><label class="chk"><input type="checkbox" data-pf="published"' + (p.published ? " checked" : "") + '> Published (customers can see it)</label><label class="chk"><input type="checkbox" data-pf="nav"' + (p.nav ? " checked" : "") + "> Show in the footer and home page</label></div></div>" +
+    b + '<div class="row gap addblocks">' + Object.keys(BLOCKS).map(function (k) { return '<button class="addbtn" type="button" data-addblock="' + k + '">+ ' + BLOCKS[k] + "</button>"; }).join("") + "</div>" +
+    '<button class="secondary" type="button" id="delPage" style="align-self:flex-start;color:#9A4A3A">Delete this page</button>';
+}
+function linkOptions(cur) {
+  var opts = [["#home", "Home"], ["#shop", "Ready-made shop"], ["#gallery", "Custom cake designs"], ["#cart", "Basket"], ["#account", "Sign in / account"]].concat(SITE.pages.map(function (p) { return ["#page/" + p.slug, "Page: " + p.title]; }));
+  var wa = "https://wa.me/" + String((CAT && CAT.shop && CAT.shop.whatsapp) || "6580142315").replace(/\D/g, "");
+  opts.push([wa, "WhatsApp Ain"], ["https://instagram.com/bake.withthesaifs", "Instagram"]);
+  if (cur && !opts.some(function (o) { return o[0] === cur; })) opts.push([cur, cur]);
+  return opts.map(function (o) { return '<option value="' + esc(o[0]) + '"' + (o[0] === cur ? " selected" : "") + ">" + esc(o[1]) + "</option>"; }).join("");
+}
+function renderTexts() {
+  var term = ($("#textSearch") && $("#textSearch").value.trim().toLowerCase()) || "";
+  var list = (TEXT_DEFS || []).filter(function (d) { var v = SITE.text[d[0]] || ""; return !term || (d[1] + " " + v + " " + d[0]).toLowerCase().indexOf(term) >= 0; });
+  var last = "", h = "";
+  list.forEach(function (d) {
+    var area = d[0].split(".")[0];
+    if (area !== last) { last = area; h += '<div class="daygroup">' + esc(AREA[area] || area) + "</div>"; }
+    var v = SITE.text[d[0]], changed = v != null;
+    h += '<div class="textrow' + (changed ? " changed" : "") + '"><label for="tx_' + esc(d[0]) + '">' + esc(d[2] || ("Was: " + d[1])) + "</label>" +
+      '<div class="row gap"><textarea id="tx_' + esc(d[0]) + '" rows="' + (d[1].length > 60 ? 2 : 1) + '" data-tkey="' + esc(d[0]) + '" placeholder="' + esc(d[1]) + '">' + esc(changed ? v : d[1]) + "</textarea>" +
+      (changed ? '<button class="del" type="button" data-treset="' + esc(d[0]) + '" aria-label="Back to the original text">↺</button>' : "") + "</div></div>";
+  });
+  $("#textList").innerHTML = h || '<div class="empty-note">No text matches.</div>';
+}
+$("#siteSections").addEventListener("click", function (e) { var b = e.target.closest("[data-ssec]"); if (b) { SITE_SEC = b.dataset.ssec; PAGE_OPEN = null; renderSite(); } });
+$("#siteBody").addEventListener("input", function (e) {
+  var x = e.target;
+  if (x.id === "textSearch") { renderTexts(); return; }
+  if (x.dataset.tkey) { var def = (TEXT_DEFS.filter(function (d) { return d[0] === x.dataset.tkey; })[0] || [])[1]; if (x.value.trim() === "" || x.value === def) delete SITE.text[x.dataset.tkey]; else SITE.text[x.dataset.tkey] = x.value; x.closest(".textrow").classList.toggle("changed", x.dataset.tkey in SITE.text); siteDirty(true); return; }
+  if (x.dataset.scol) { SITE.theme[x.dataset.scol] = x.value; var pv = $(".colprev"); if (pv) pv.style.setProperty({ accent: "--a", butter: "--b", bg: "--g", ink: "--i" }[x.dataset.scol], x.value); siteDirty(true); return; }
+  var p = SITE.pages[PAGE_OPEN]; if (!p) return;
+  if (x.dataset.pf) { p[x.dataset.pf] = x.type === "checkbox" ? x.checked : (x.dataset.pf === "slug" ? x.value.toLowerCase().replace(/[^a-z0-9-]+/g, "-") : x.value); siteDirty(true); return; }
+  if (x.dataset.bk) { p.blocks[+x.dataset.bk][x.dataset.bf] = x.value; siteDirty(true); }
+});
+$("#siteBody").addEventListener("change", function (e) {
+  var x = e.target, p = SITE.pages[PAGE_OPEN];
+  if (x.tagName === "SELECT" && x.dataset.bk && p) { p.blocks[+x.dataset.bk].href = x.value; siteDirty(true); }
+  if (x.type === "checkbox" && x.dataset.pf && p) { p[x.dataset.pf] = x.checked; siteDirty(true); }
+  if (x.dataset.bkphoto && x.files[0] && p) {
+    shrink(x.files[0], 1600).then(function (data) { return api("POST", "/api/admin/images", { image: data }); })
+      .then(function (r) { p.blocks[+x.dataset.bkphoto].src = r.url; siteDirty(true); renderSite(); toast("Photo added. Save the website to publish it."); }).catch(function (er) { toast(er.message); });
+  }
+});
+$("#siteBody").addEventListener("click", function (e) {
+  var t = e.target, x, p = SITE.pages[PAGE_OPEN];
+  if ((x = t.closest("[data-treset]"))) { delete SITE.text[x.dataset.treset]; siteDirty(true); renderTexts(); return; }
+  if (t.closest("#resetCols")) { SITE.theme = {}; siteDirty(true); renderSite(); return; }
+  if ((x = t.closest("[data-openpage]"))) { PAGE_OPEN = +x.dataset.openpage; renderSite(); return; }
+  if (t.closest("#backPages")) { PAGE_OPEN = null; renderSite(); return; }
+  if (t.closest("#addPage")) {
+    var n = 1; while (SITE.pages.some(function (q) { return q.slug === "new-page-" + n; })) n++;
+    SITE.pages.push({ slug: "new-page-" + n, title: "New page", nav: true, published: false, blocks: [{ t: "heading", text: "A heading" }, { t: "text", text: "" }] });
+    PAGE_OPEN = SITE.pages.length - 1; siteDirty(true); renderSite(); var ti = $("#pTitle"); if (ti) { ti.focus(); ti.select(); } return;
+  }
+  if (!p) return;
+  if ((x = t.closest("[data-addblock]"))) { var bt = x.dataset.addblock; p.blocks.push(bt === "image" ? { t: "image", src: "", alt: "", caption: "" } : bt === "button" ? { t: "button", text: "Order a cake", href: "#gallery" } : { t: bt, text: "" }); siteDirty(true); renderSite(); return; }
+  if ((x = t.closest("[data-bdel]"))) { p.blocks.splice(+x.dataset.bdel, 1); siteDirty(true); renderSite(); return; }
+  if ((x = t.closest("[data-bmove]"))) { var k = +x.dataset.bmove, d = +x.dataset.dir, tmp = p.blocks[k]; p.blocks[k] = p.blocks[k + d]; p.blocks[k + d] = tmp; siteDirty(true); renderSite(); return; }
+  if (t.closest("#delPage")) {
+    if (!t.dataset.sure) { t.dataset.sure = 1; t.textContent = "Tap again to delete the page"; return; }
+    SITE.pages.splice(PAGE_OPEN, 1); PAGE_OPEN = null; siteDirty(true); renderSite();
+  }
+});
+$("#saveSite").addEventListener("click", function () {
+  var missing = SITE.pages.some(function (p) { return p.blocks.some(function (b) { return b.t === "image" && !b.src; }); });
+  api("PUT", "/api/admin/site", SITE).then(function (d) {
+    SITE = { text: d.text, theme: d.theme, pages: d.pages }; if (PAGE_OPEN != null && !SITE.pages[PAGE_OPEN]) PAGE_OPEN = null;
+    siteDirty(false); renderSite(); toast(missing ? "Saved. Photo blocks without a photo were left out." : "Website saved. Customers see it now.");
+  }).catch(function (e) { toast(e.message); });
+});
+window.addEventListener("beforeunload", function (e) { if (SITE_DIRTY) { e.preventDefault(); e.returnValue = ""; } });
+
 /* ---------------- admins ---------------- */
 function loadAdmins() {
   api("GET", "/api/admin/admins").then(function (rows) {
@@ -326,8 +463,9 @@ $("#addAdmin").addEventListener("submit", function (e) {
 /* ---------------- boot ---------------- */
 api("GET", "/api/admin/me").then(function (me) {
   ME = me; $("#signin").hidden = true; $("#app").hidden = false; $("#signOut").hidden = false;
-  if (location.search) history.replaceState(null, "", "/admin.html");
-  loadOrders();
+  if (location.search) history.replaceState(null, "", "/admin.html" + location.hash);
+  var startTab = document.querySelector('.admintabs [data-tab="' + location.hash.slice(1) + '"]');
+  if (startTab && location.hash !== "#orders") startTab.click(); else loadOrders();
   setInterval(function () { if ($("#drawer").hidden && !$("#tab-orders").hidden) loadOrders(); }, 60000);
 }).catch(function () {});
 })();

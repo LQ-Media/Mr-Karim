@@ -489,3 +489,46 @@ a.primary.wa{background:var(--wa);color:#FFFFFF;animation:wapulse 2s infinite}
 @media (min-width:1280px){.grid2{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media (min-width:960px) and (max-width:1359px){body:not(.admin) .brand small{display:none}}
 .myorder>span:first-child{color:var(--ink);font-size:14px}
+
+/* ===== Website editor (admins only) ===== */
+.siteeditbtn{position:fixed;left:16px;bottom:calc(92px + env(safe-area-inset-bottom,0px));z-index:30;height:46px;padding:0 16px 0 14px;border-radius:23px;border:2px solid var(--ink);background:var(--butter);color:var(--ink);font-weight:900;font-size:14px;display:flex;align-items:center;gap:8px;box-shadow:0 10px 24px rgba(59,42,32,.22);cursor:pointer}
+.siteeditbtn[hidden]{display:none}
+#siteBar{position:fixed;left:0;right:0;top:0;z-index:80;background:#3B2A20;color:#FBF5EC;box-shadow:0 8px 24px rgba(0,0,0,.25);padding:8px max(12px,env(safe-area-inset-left,0px)) 8px}
+#siteBar .sb-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;max-width:1180px;margin:0 auto}
+#siteBar .sb-title{font-family:var(--display);font-size:16px;color:#F2C66D}
+#siteBar .sb-hint{font-size:12.5px;font-weight:700;opacity:.85}
+#siteBar .sb-spacer{flex:1}
+#siteBar button,#siteBar select,#siteBar summary,#siteBar .sb-link{min-height:38px;border-radius:19px;border:1.5px solid rgba(255,255,255,.35);background:transparent;color:#FBF5EC;font:inherit;font-weight:800;font-size:13px;padding:0 12px;cursor:pointer;display:inline-flex;align-items:center;text-decoration:none}
+#siteBar select{background:#3B2A20;max-width:190px}
+#siteBar .sb-save{background:#F2C66D;color:#3B2A20;border-color:#F2C66D}
+#siteBar .sb-save:disabled{opacity:.6;cursor:default}
+#siteBar .sb-danger{color:#FFC9BC;border-color:rgba(255,201,188,.5)}
+#siteBar .sb-chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:800}
+#siteBar .sb-chk input{width:18px;height:18px;accent-color:#F2C66D}
+#siteBar details{position:relative}
+#siteBar summary{list-style:none}
+#siteBar summary::-webkit-details-marker{display:none}
+#siteBar .sb-pop{position:absolute;top:44px;left:0;z-index:2;background:#FFFFFF;color:#3B2A20;border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:8px;min-width:230px;box-shadow:0 14px 34px rgba(0,0,0,.25)}
+#siteBar .sb-pop label{display:flex;align-items:center;gap:10px;font-weight:800;font-size:13px}
+#siteBar .sb-pop input[type=color]{width:40px;height:32px;border:1.5px solid #EADBC8;border-radius:8px;padding:2px;background:#FFFFFF}
+#siteBar .sb-pop button{color:#3B2A20;border-color:#EADBC8}
+#siteBar .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+body.site-editing{padding-top:var(--sbh,58px)}
+body.site-editing .top{top:var(--sbh,58px)}
+body.site-editing [contenteditable]{outline:2px dashed rgba(168,77,46,.55);outline-offset:3px;border-radius:6px;cursor:text;min-width:1ch}
+body.site-editing [contenteditable]:hover{outline-color:var(--accent);background:rgba(242,198,109,.18)}
+body.site-editing [contenteditable]:focus{outline:2px solid var(--accent);background:rgba(242,198,109,.28)}
+body.site-editing .burst-title .w,body.site-editing .h1 .pw{animation:none}
+@media (max-width:700px){#siteBar .sb-hint{display:none}}
+@media (min-width:960px){body.site-editing .tabs{top:calc(var(--sbh,58px) + 12px)}}
+
+/* ===== Extra pages ===== */
+.sitepage{max-width:760px}
+.sitepage .h2{margin-top:10px}
+.pagetext{font-size:16px;line-height:1.65;margin:0}
+.pageimg{margin:0}
+.pageimg img{width:100%;border-radius:22px;border:4px solid #FFFFFF;box-shadow:0 14px 34px rgba(59,42,32,.16);display:block}
+.pageimg figcaption{font-size:13px;color:var(--muted);font-weight:700;margin-top:8px;text-align:center}
+.pagebtn{align-self:flex-start;padding:0 26px}
+#sitePages a{color:var(--accent);font-weight:800;text-decoration:none}
+@media (min-width:960px){.siteeditbtn{bottom:24px;left:24px}}

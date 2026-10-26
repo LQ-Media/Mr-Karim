@@ -42,8 +42,8 @@ function deliveryFee(sub) { return P.deliveryFee(C, sub); }
 function priceText(n) { return C.shop.showPrices && isNum(n) ? money(n) : null; }
 
 /* ---------------- routing ---------------- */
-var VIEWS = ["home", "shop", "product", "gallery", "custom", "cart", "date", "send", "order", "account"];
-var TAB = { home: "home", shop: "shop", product: "shop", gallery: "gallery", custom: "gallery", cart: "cart", date: "cart", send: "cart", order: "cart", account: "" };
+var VIEWS = ["home", "shop", "product", "gallery", "custom", "cart", "date", "send", "order", "account", "page"];
+var TAB = { home: "home", shop: "shop", product: "shop", gallery: "gallery", custom: "gallery", cart: "cart", date: "cart", send: "cart", order: "cart", account: "", page: "" };
 var live = null;
 function route() {
   var parts = (location.hash || "#home").slice(1).split("/"), v = parts[0];
@@ -57,13 +57,15 @@ function route() {
   document.body.dataset.mode = $("#v-" + v).dataset.mode;
   $$(".tabs a").forEach(function (a) { if (a.dataset.tab === TAB[v]) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
   ({ home: renderHome, shop: renderShop, product: renderProduct, gallery: renderGallery, custom: renderCustom, cart: renderCart, date: renderDate, send: renderSend,
-     order: function () { loadOrder(parts[1]); }, account: renderAccount })[v]();
+     order: function () { loadOrder(parts[1]); }, account: renderAccount, page: function () { window.SaifsSite.renderPage(decodeURIComponent(parts[1] || "")); } })[v]();
   if (v !== "custom" && live) live.stop();
   popWords($("#v-" + v));
   window.scrollTo(0, 0);
 }
 function popWords(view) {
+  if (window.SaifsSite && window.SaifsSite.editing()) return;
   $$(".h1, .h2.big", view).forEach(function (h) {
+    var inner = h.querySelector("[data-t]"); if (inner && !h.dataset.t) h.dataset.t = inner.dataset.t;
     if (h.dataset.popped === h.textContent) return;
     var text = h.textContent.trim();
     h.setAttribute("aria-label", text);
@@ -84,6 +86,8 @@ function sprinkleBurst(host) {
   for (var i = 0; i < 36; i++) { var a = i / 36 * Math.PI * 2, r = 110 + (i * 37) % 120; h += '<span style="--dx:' + Math.round(Math.cos(a) * r) + 'px;--dy:' + Math.round(Math.sin(a) * r - 60) + 'px;--rot:' + ((i * 47) % 720) + 'deg;background:' + cols[i % 7] + '"></span>'; }
   var b = document.createElement("div"); b.className = "burstbox"; b.setAttribute("aria-hidden", "true"); b.innerHTML = h; host.appendChild(b);
 }
+function TT(key, def, rich) { return window.SaifsSite ? window.SaifsSite.span(key, def, rich) : esc(def); }
+function T(key, def) { return window.SaifsSite ? window.SaifsSite.t(key, def) : def; }
 function go(v) { if (location.hash === "#" + v) route(); else location.hash = v; }
 window.addEventListener("hashchange", route);
 function toast(msg) { var t = $("#toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(function () { t.classList.remove("on"); }, 2600); }
@@ -230,7 +234,7 @@ function setupStage() {
     box.insertAdjacentHTML("beforeend", '<div class="viewtoggle"><button type="button" data-sv="photo" aria-pressed="' + (S.stageView === "photo") + '">Ain’s cake</button><button type="button" data-sv="3d" aria-pressed="' + (S.stageView === "3d") + '">3D preview</button></div>');
   } else S.stageView = "3d";
   var photo = S.stageView === "photo";
-  ref.hidden = !photo; $("#stageLbl").hidden = !!c.photo || !window.Cake3D; $("#stageHint").textContent = photo ? "Ain will bake it with your changes" : "Drag to turn · a guide, not the final design";
+  ref.hidden = !photo; $("#stageLbl").hidden = !!c.photo || !window.Cake3D; $("#stageHint").textContent = photo ? T("custom.photo-hint", "Ain will bake it with your changes") : T("custom.drag-to-turn-a-guide-not-the", "Drag to turn · a guide, not the final design");
 }
 $("#stageBox").addEventListener("click", function (e) { var b = e.target.closest("[data-sv]"); if (b) { S.stageView = b.dataset.sv; setupStage(); updateCustom(); } });
 function customSpec(c) {
@@ -315,12 +319,12 @@ function renderCart() {
   if (S.edit) { eb.hidden = false; eb.innerHTML = '<b>' + (S.edit.mode === "edit" ? "Editing order " : "Changing order ") + esc(S.edit.ref) + '</b><span>' + (S.edit.mode === "edit" ? "Make your changes, then save." : "Ain will approve your changes.") + '</span><button class="rm" type="button" id="stopEdit">Stop editing</button>'; }
   else eb.hidden = true;
   if (!S.cart.length) {
-    $("#cartList").innerHTML = '<div class="empty"><p class="lede">' + (S.edit ? "This order has no items. Add something, or cancel the order from its page." : "Your basket is empty.") + '</p><div class="row gap" style="justify-content:center"><a class="secondary" href="#shop">Shop ready-made</a><a class="primary" href="#gallery">Start a custom order</a></div></div>';
+    $("#cartList").innerHTML = '<div class="empty"><p class="lede">' + (S.edit ? "This order has no items. Add something, or cancel the order from its page." : TT("cart.empty", "Your basket is empty.")) + '</p><div class="row gap" style="justify-content:center"><a class="secondary" href="#shop">Shop ready-made</a><a class="primary" href="#gallery">Start a custom order</a></div></div>';
     $("#cartFoot").innerHTML = "";
   } else {
     $("#cartList").innerHTML = S.cart.map(function (i, n) { return lineHtml(i, n, true); }).join("");
     $("#cartFoot").innerHTML = '<div class="summary">' + totalsHtml() + '<div class="r small muted"><span>Needs ' + lead() + " days’ notice · delivery only</span><span></span></div></div>" +
-      '<div class="row gap" style="margin-top:12px"><a class="secondary" href="#shop">Add more</a><a class="primary" href="#date" style="flex:1">' + (S.edit ? "Next: delivery details" : "Choose a date") + '</a></div>';
+      '<div class="row gap" style="margin-top:12px"><a class="secondary" href="#shop">' + TT("cart.add-more", "Add more") + '</a><a class="primary" href="#date" style="flex:1">' + (S.edit ? "Next: delivery details" : TT("cart.choose-date", "Choose a date")) + '</a></div>';
   }
   renderMyOrders();
 }
@@ -563,8 +567,8 @@ function renderAccount() {
   var next = S.after ? "#" + S.after : "#account";
   box.innerHTML = '<div class="authcard">' +
     '<img src="img/logo.png" alt="" width="72" height="72" class="authlogo">' +
-    '<h1 class="h1">' + (acctMode === "signup" ? "Create your account" : "Welcome back") + "</h1>" +
-    '<p class="lede">' + (S.after ? "Sign in or create an account to place your order. Your basket is saved." : "Track your orders, pay by PayNow and reorder faster.") + "</p>" +
+    '<h1 class="h1">' + (acctMode === "signup" ? TT("account.signup-title", "Create your account") : TT("account.signin-title", "Welcome back")) + "</h1>" +
+    '<p class="lede">' + (S.after ? TT("account.lede-checkout", "Sign in or create an account to place your order. Your basket is saved.") : TT("account.lede", "Track your orders, pay by PayNow and reorder faster.")) + "</p>" +
     (err ? '<p class="err" role="alert">' + esc(err) + "</p>" : "") +
     '<div class="seg" role="tablist"><button type="button" role="tab" data-amode="signin" aria-selected="' + (acctMode === "signin") + '">Sign in</button><button type="button" role="tab" data-amode="signup" aria-selected="' + (acctMode === "signup") + '">Create account</button></div>' +
     (S.google !== false ? '<a class="googlebtn" href="/api/auth/google/start?as=customer&amp;next=' + encodeURIComponent(next) + '">' + GOOGLE_SVG + "Continue with Google</a>" +
@@ -620,7 +624,7 @@ function boot() {
   badges(); bgSprinkles(); acctBadge(); route();
 }
 fetch("/api/catalog").then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
-  .then(function (cat) { applyCatalog(cat); return loadMe(); }).catch(function () { API = false; })
-  .then(boot);
+  .then(function (cat) { applyCatalog(cat); return Promise.all([loadMe(), window.SaifsSite ? window.SaifsSite.load() : null]); }).catch(function () { API = false; })
+  .then(function () { if (window.SaifsSite) window.SaifsSite.init(); boot(); });
 if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(function () {});
 })();

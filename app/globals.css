@@ -1,0 +1,335 @@
+@import "tailwindcss";
+
+/* ── Silat & Solat ────────────────────────────────────────────────────────────
+   Padi gold on warm cream, with near-black ink. Flat and calm: the brand is the
+   bowing rice stalk, not shine. The five mosque colours (lib/branches.js) mark
+   branches only; they are never decoration.
+
+   Contrast: raw gold #D9A521 is a FILL. Gold text on cream uses --accent-press.
+   Text on a gold fill is ink (--on-gold), never white.
+
+   The variable names match the LQK apps so the shared Quran reader and prayer
+   widget (components/quran, components/SolatWidget.js) style themselves. */
+:root {
+  --font-oswald: "Oswald", "Arial Narrow", sans-serif;
+  --font-nunito: "Nunito Sans", system-ui, sans-serif;
+  --font-naskh: "Noto Naskh Arabic";
+  --font-amiri: "Amiri";
+  --page: #f6f0e1;
+  --surface: #fbf8f0;
+  --surface-2: #f3ebd7;
+  --surface-3: #ece1c8;
+
+  --accent: #d9a521;
+  --accent-hover: #c99419;
+  --accent-press: #74570f;
+  --accent-soft: #f1e5c2;
+  --accent-soft-2: #ebd9a6;
+  --accent-soft-3: #e2cb86;
+  --accent-wash: #f7edd0;
+  --accent-deep: #a9800f;
+
+  --olive: #17140f;
+  --gold: #d9a521;
+  --on-gold: #17140f;
+  --gold-line: rgba(169, 128, 15, 0.28);
+
+  --ink: #17140f;
+  --ink-strong: #0e0c09;
+  --muted: #5e564a;
+  --muted-2: #6b6253;
+  --muted-3: #8f8572;
+  --hairline: #e2d8c2;
+  --hairline-2: #ece3cf;
+
+  --ok-bg: #e9f2e4;
+  --ok-fg: #3d6a2c;
+  --ok-solid: #4f8a3a;
+  --warn-bg: #fbefd6;
+  --warn-fg: #8a5a12;
+  --danger-bg: #f8e3e1;
+  --danger-fg: #8a2a22;
+  --info-bg: #e6edf8;
+  --info-fg: #1e3e75;
+
+  --metal-gold: linear-gradient(135deg, #e6b844 0%, #d9a521 60%, #cf9a19 100%);
+  --metal-gold-soft: linear-gradient(135deg, #f7edd0 0%, #f1e5c2 100%);
+  --metal-olive: linear-gradient(135deg, #2a251e 0%, #17140f 100%);
+  --metal-cream: linear-gradient(160deg, #fdfbf5 0%, #fbf8f0 100%);
+
+  --hero-grad: var(--metal-olive);
+  --logo-grad: var(--metal-gold);
+
+  --shadow-card: 0 1px 2px rgba(23, 20, 15, 0.05), 0 8px 20px rgba(23, 20, 15, 0.05);
+  --shadow-metal: 0 1px 2px rgba(23, 20, 15, 0.05), 0 8px 20px rgba(23, 20, 15, 0.05);
+  --shadow-lift: 0 14px 30px rgba(23, 20, 15, 0.1);
+  --shadow-cta: 0 6px 16px rgba(169, 128, 15, 0.25);
+}
+
+@theme inline {
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-press: var(--accent-press);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-soft-2: var(--accent-soft-2);
+  --color-accent-soft-3: var(--accent-soft-3);
+  --color-accent-wash: var(--accent-wash);
+  --color-accent-deep: var(--accent-deep);
+  --color-olive: var(--olive);
+  --color-gold: var(--gold);
+  --color-on-gold: var(--on-gold);
+  --color-ink: var(--ink);
+  --color-ink-strong: var(--ink-strong);
+  --color-muted: var(--muted);
+  --color-muted-2: var(--muted-2);
+  --color-muted-3: var(--muted-3);
+  --color-hairline: var(--hairline);
+  --color-hairline-2: var(--hairline-2);
+  --color-ok-bg: var(--ok-bg);
+  --color-ok-fg: var(--ok-fg);
+  --color-ok-solid: var(--ok-solid);
+  --color-warn-bg: var(--warn-bg);
+  --color-warn-fg: var(--warn-fg);
+  --color-danger-bg: var(--danger-bg);
+  --color-danger-fg: var(--danger-fg);
+  --color-info-bg: var(--info-bg);
+  --color-info-fg: var(--info-fg);
+
+  --font-heading: var(--font-oswald);
+  --font-body: var(--font-nunito);
+  --font-arabic: var(--font-naskh), var(--font-amiri), "Noto Naskh Arabic", serif;
+
+  --radius-card: 18px;
+  --radius-inner: 16px;
+  --radius-row: 14px;
+  --radius-control: 12px;
+  --radius-pill: 999px;
+
+  --shadow-card: var(--shadow-card);
+  --shadow-lift: var(--shadow-lift);
+  --shadow-cta: var(--shadow-cta);
+}
+
+html {
+  background: var(--page);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font-body);
+  overflow-x: hidden;
+}
+
+.font-heading {
+  font-family: var(--font-heading);
+}
+
+.font-arabic {
+  font-family: var(--font-naskh), var(--font-amiri), "Noto Naskh Arabic", serif;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-heading);
+  color: var(--olive);
+  font-weight: 600;
+  letter-spacing: 0.005em;
+}
+
+.kicker {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* Cards and fills. Names kept from the LQK apps for the shared components. */
+.metal-card,
+.card {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+}
+
+.metal-gold-fill {
+  background: var(--metal-gold);
+  color: var(--on-gold);
+  box-shadow: var(--shadow-cta);
+}
+
+.metal-chip {
+  background: var(--metal-gold);
+  color: var(--on-gold);
+}
+
+/* Buttons. Real <button>/<a> elements carry these; 48px tall for thumbs. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 12px 18px;
+  border-radius: var(--radius-control);
+  font-weight: 800;
+  font-size: 15px;
+  text-align: center;
+  transition: transform 120ms ease, background-color 150ms ease;
+}
+.btn:active {
+  transform: scale(0.98);
+}
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.btn-gold {
+  background: var(--gold);
+  color: var(--on-gold);
+}
+.btn-gold:hover {
+  background: var(--accent-hover);
+}
+.btn-ink {
+  background: var(--ink);
+  color: var(--page);
+}
+.btn-ink:hover {
+  background: #2a251e;
+}
+.btn-line {
+  border: 1.5px solid var(--ink);
+  color: var(--ink);
+  background: transparent;
+}
+.btn-line:hover {
+  background: var(--surface-2);
+}
+.btn-sm {
+  min-height: 38px;
+  padding: 7px 12px;
+  font-size: 13px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.input {
+  font: inherit;
+  font-weight: 400;
+  font-size: 15px;
+  padding: 11px 12px;
+  min-height: 46px;
+  border-radius: 10px;
+  border: 1px solid #b8ae98;
+  background: #fff;
+  color: var(--ink);
+  width: 100%;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 9px;
+  border-radius: 7px;
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+.ss-rise {
+  animation: ssRise 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes ssRise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* LQK class names used by the shared reader. */
+.lqk-rise {
+  animation: ssRise 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.lqk-pop {
+  animation: ssPop 0.2s cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+@keyframes ssPop {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.lqk-toast {
+  animation: ssToast 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes ssToast {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 16px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent-deep);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* The grading certificate prints as an A4 landscape page on its own. */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 12mm;
+  }
+  html,
+  body {
+    background: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  nav[aria-label="Main"],
+  nav[aria-label="Sidebar"],
+  header[data-topbar],
+  .no-print {
+    display: none !important;
+  }
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ss-rise,
+  .lqk-rise,
+  .lqk-pop,
+  .lqk-toast {
+    animation: none;
+  }
+}

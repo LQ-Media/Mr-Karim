@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Saif's Bakery</title>
+<meta name="description" content="Custom cakes, cupcakes, tarts and bakes from The Saif's Bakery, a Muslim-owned home bakery in Singapore. Order ready-made bakes or design your own cake.">
+<meta name="theme-color" content="#FBF5EC">
+<meta name="color-scheme" content="light only">
+<meta property="og:title" content="The Saif's Bakery">
+<meta property="og:description" content="Custom cakes and cupcakes, baked at home in Singapore by Ain.">
+<meta property="og:image" content="img/og.jpg">
+<link rel="icon" href="img/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="img/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,650;1,9..144,500&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700;6..12,800&display=swap">
+<link rel="stylesheet" href="styles.css?v=7">
+</head>
+<body data-mode="tabs">
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="wrap topbar">
+    <a href="#home" class="brand" aria-label="The Saif's Bakery, home">
+      <img src="img/logo.png" alt="" width="46" height="46">
+      <span><b>The Saif’s Bakery</b><small>Muslim-owned home bakery · Singapore</small></span>
+    </a>
+    <a href="#cart" class="iconbtn" aria-label="Your order">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>
+      <span class="badge" data-n="0" id="cartBadge">0</span>
+    </a>
+  </div>
+</header>
+
+<main id="main" class="wrap">
+  <!-- HOME -->
+  <section class="view" id="v-home" data-mode="tabs">
+    <div class="homehero">
+      <div class="sprinkles" id="sprinkles" aria-hidden="true"></div>
+      <h1 class="burst-title" aria-label="Cakes that make them squeal.">
+        <span class="ln" aria-hidden="true"><span class="w" style="--d:.05s">Cakes</span> <span class="w" style="--d:.15s">that</span></span>
+        <span class="ln" aria-hidden="true"><span class="w em" style="--d:.25s">make</span> <span class="w" style="--d:.35s">them</span></span>
+        <span class="ln" aria-hidden="true"><span class="w hl" style="--d:.45s">squeal.</span></span>
+      </h1>
+      <div class="marquee" aria-label="Cakes Ain has baked">
+        <div class="mrow"><div class="track l" id="row1"></div></div>
+        <div class="mrow"><div class="track r" id="row2"></div></div>
+      </div>
+      <svg class="spinbadge" viewBox="0 0 100 100" width="86" height="86" aria-hidden="true"><defs><path id="badgeCircle" d="M50,50 m-36,0 a36,36 0 1,1 72,0 a36,36 0 1,1 -72,0"/></defs><circle cx="50" cy="50" r="48" fill="#3B2A20"/><text font-family="Nunito Sans, sans-serif" font-weight="800" font-size="10" fill="#F2C66D" letter-spacing="1.6"><textPath href="#badgeCircle">MUSLIM-OWNED · HOME BAKED ·</textPath></text></svg>
+      <div class="ctas">
+        <a class="bigcta" href="#gallery">Design my cake
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+        <a class="ghostcta" href="#shop">Shop ready-made bakes</a>
+      </div>
+    </div>
+    <div class="family">
+      <div class="faces" aria-hidden="true">
+        <span class="f1">Ain</span><span class="f2">B</span><span class="f3">U</span>
+      </div>
+      <p>Baked by <strong>Ain</strong> in our home kitchen, with her boys <strong>Bilal</strong> and <strong>Umar</strong> close by. <span id="readyNote"></span></p>
+    </div>
+    <a class="insta" id="instaLink" href="#" target="_blank" rel="noopener">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg>
+      Follow @bake.withthesaifs for new bakes
+    </a>
+  </section>
+
+  <!-- SHOP -->
+  <section class="view" id="v-shop" data-mode="tabs" hidden>
+    <h1 class="h1">Ready-made bakes</h1>
+    <p class="lede">Ain’s own line, made with the same recipes as her custom cakes.</p>
+    <div class="seg" role="tablist" id="shopTabs"></div>
+    <div class="chips" id="occChips" aria-label="Occasion"></div>
+    <div class="grid2" id="shopGrid"></div>
+  </section>
+
+  <!-- PRODUCT -->
+  <section class="view" id="v-product" data-mode="step" hidden></section>
+
+  <!-- GALLERY -->
+  <section class="view" id="v-gallery" data-mode="tabs" hidden>
+    <span class="eyebrow">Custom order · step 1 of 4</span>
+    <h1 class="h1">Pick a cake Ain has made, then make it yours</h1>
+    <div class="chips" id="galTheme" aria-label="Filter designs"></div>
+    <div class="grid2" id="galGrid"></div>
+    <button class="upload" id="startBlank" type="button">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      Start from a blank cake
+    </button>
+  </section>
+
+  <!-- CUSTOMISE -->
+  <section class="view" id="v-custom" data-mode="step" hidden>
+    <div class="stephead">
+      <a href="#gallery" class="iconbtn" aria-label="Back to designs"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a>
+      <div><span class="eyebrow" id="cBase">Step 2 of 4</span><h1 class="h2 big">Make it yours</h1></div>
+    </div>
+    <div class="stage">
+      <div class="stagebox" id="stageBox">
+        <canvas id="stageCanvas" aria-label="3D preview of your cake. Drag to turn it."></canvas>
+        <img id="stageRef" alt="" hidden>
+        <span class="lbl" id="stageLbl">Live 3D preview</span>
+        <span class="hint" id="stageHint">Drag to turn · a guide, not the final design</span>
+      </div>
+    </div>
+    <div id="cOpts"></div>
+    <div class="actionbar">
+      <div class="sum"><small id="cSum"></small><b id="cPrice"></b></div>
+      <button class="primary" id="cAdd" type="button">Add to order</button>
+    </div>
+  </section>
+
+  <!-- CART -->
+  <section class="view" id="v-cart" data-mode="tabs" hidden>
+    <h1 class="h1">Your order</h1>
+    <div id="cartList" class="stack"></div>
+    <div id="cartFoot"></div>
+  </section>
+
+  <!-- DATE -->
+  <section class="view" id="v-date" data-mode="step" hidden>
+    <div class="stephead">
+      <a href="#cart" class="iconbtn" aria-label="Back to your order"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a>
+      <div><span class="eyebrow">Step 3 of 4</span><h1 class="h2 big">When do you need it?</h1></div>
+    </div>
+    <div class="cal">
+      <div class="calhead">
+        <button class="iconbtn" id="calPrev" type="button" aria-label="Previous month"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <b id="calTitle"></b>
+        <button class="iconbtn" id="calNext" type="button" aria-label="Next month"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+      </div>
+      <div class="calgrid" id="calGrid"></div>
+      <p class="small muted" id="leadNote"></p>
+    </div>
+    <fieldset class="group plain">
+      <legend><span>Deliver to</span><span id="delNote"></span></legend>
+      <div class="field"><label for="addr">Delivery address</label><input id="addr" autocomplete="street-address" placeholder="Block, street, unit, postal code" required></div>
+    </fieldset>
+    <fieldset class="group plain">
+      <legend><span>Time slot</span></legend>
+      <div class="opts" id="slotOpts"></div>
+    </fieldset>
+    <div class="actionbar">
+      <div class="sum"><small id="dWhenLbl">Pick a date</small><b id="dWhen" class="when">–</b></div>
+      <button class="primary" id="dNext" type="button" disabled>Review</button>
+    </div>
+  </section>
+
+  <!-- SEND -->
+  <section class="view" id="v-send" data-mode="step" hidden>
+    <div class="stephead">
+      <a href="#date" class="iconbtn" aria-label="Back to date"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a>
+      <div><span class="eyebrow">Step 4 of 4</span><h1 class="h2 big">Review &amp; send to Ain</h1></div>
+    </div>
+    <div class="summary" id="sendSummary"></div>
+    <form id="sendForm" class="stack" novalidate>
+      <div class="fields two">
+        <div class="field"><label for="sName">Your name</label><input id="sName" autocomplete="name" required></div>
+        <div class="field"><label for="sPhone">Your phone</label><input id="sPhone" type="tel" autocomplete="tel" placeholder="+65" required></div>
+      </div>
+      <div class="field"><label for="sNotes">Anything else? (optional)</label><textarea id="sNotes" rows="2" placeholder="e.g. it's a surprise, please don't call after 9pm"></textarea></div>
+      <p class="how">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 0 1-13.5 7.8L3 21l1.2-4.5A9 9 0 1 1 21 12z"/></svg>
+        <span>Your order opens in WhatsApp, ready to send to Ain. She confirms the details and payment (PayNow) in the chat. You can send reference photos there too.</span>
+      </p>
+      <p class="err" id="sendErr" role="alert"></p>
+      <div class="actionbar">
+        <div class="sum"><small id="estLbl">Price</small><b id="estAmt">Confirmed by Ain</b></div>
+        <button class="primary wa" type="submit">Send on WhatsApp</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- DONE -->
+  <section class="view done" id="v-done" data-mode="tabs" hidden>
+    <div class="ok"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+    <h1 class="h1">Almost done</h1>
+    <p class="lede" id="doneText">Press send in WhatsApp so Ain gets your order. She’ll reply to confirm.</p>
+    <div class="copybox" id="copyBox" hidden>
+      <p class="small muted">WhatsApp didn’t open? Copy your order and send it to Ain on Instagram or WhatsApp.</p>
+      <textarea id="orderText" rows="8" readonly></textarea>
+      <div class="row gap"><button class="secondary" id="copyBtn" type="button">Copy order</button><a class="secondary" id="reopenWa" href="#" target="_blank" rel="noopener">Open WhatsApp again</a></div>
+    </div>
+    <a class="secondary" href="#home">Back to home</a>
+  </section>
+
+  <footer class="foot">
+    <img src="img/logo.png" alt="" width="56" height="56">
+    <p><b>The Saif’s Bakery</b><br>Muslim-owned home bakery in Singapore.<br>Islandwide delivery only.</p>
+    <p><a id="footInsta" href="#" target="_blank" rel="noopener">Instagram @bake.withthesaifs</a></p>
+  </footer>
+</main>
+
+<nav class="tabs" aria-label="Main">
+  <div class="wrap">
+    <a href="#home" data-tab="home">Home</a>
+    <a href="#shop" data-tab="shop">Shop</a>
+    <a href="#gallery" data-tab="gallery">Custom</a>
+    <a href="#cart" data-tab="cart">Order<span class="badge" data-n="0" id="tabBadge">0</span></a>
+  </div>
+</nav>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="config.js?v=7"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
+<script src="cake3d.js?v=7" defer></script>
+<script src="app.js?v=7" defer></script>
+</body>
+</html>

@@ -1,0 +1,304 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import Icon from "@/components/Icon";
+
+// "18:2", "18 2", "18.2" — a surah:ayah reference typed straight into search.
+const REF = /^(\d{1,3})\s*[:.\-\s]\s*(\d{1,3})$/;
+
+export default function BrowseSheet({ state, store, onClose, autoFocusSearch = false }) {
+  const [tab, setTab] = useState("surah");
+  const [query, setQuery] = useState("");
+  const [ayahSurah, setAyahSurah] = useState(String(state.chapterId));
+  const [ayahNum, setAyahNum] = useState("1");
+
+  // Keep the sheet above the on-screen keyboard. A fixed element is positioned
+  // against the LAYOUT viewport, which iOS does not shrink when the keyboard
+  // opens — so `bottom: 0` puts the surah list behind the keys.
+  //
+  // Anchoring by `bottom` and a measured keyboard inset is the usual fix, but it
+  // ignores `visualViewport.offsetTop`: iOS also scrolls the visual viewport up
+  // to reveal the focused field, and the sheet drifts with it. Measuring the
+  // visual viewport RECT instead — top and height together — pins the sheet to
+  // what's actually on screen in both engines.
+  const [rect, setRect] = useState(null); // {top, height} in layout-viewport px
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const sync = () => {
+      // 92% of the visible area, sitting at its bottom edge.
+      const height = Math.round(vv.height * 0.92);
+      setRect({ top: Math.round(vv.offsetTop + vv.height - height), height });
+    };
+    sync();
+    vv.addEventListener("resize", sync);
+    vv.addEventListener("scroll", sync);
+    return () => {
+      vv.removeEventListener("resize", sync);
+      vv.removeEventListener("scroll", sync);
+    };
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  // Opened from the toolbar's search button: put the caret in the field so the
+  // teacher can start typing (and the keyboard is already up on a phone).
+  const searchRef = useRef(null);
+  useEffect(() => {
+    if (autoFocusSearch && tab === "surah") searchRef.current?.focus();
+  }, [autoFocusSearch, tab]);
+
+  const filteredChapters = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return state.chapters;
+    return state.chapters.filter(
+      (c) =>
+        c.nameSimple.toLowerCase().includes(q) ||
+        c.translatedName.toLowerCase().includes(q) ||
+        String(c.id) === q
+    );
+  }, [state.chapters, query]);
+
+  function go(chapterId, verseKey) {
+    store.goTo(chapterId, verseKey || null);
+    onClose();
+  }
+
+  function chapterOf(id) {
+    return state.chapters.find((c) => c.id === Number(id)) || null;
+  }
+
+  // A typed "18:2" becomes a direct jump offered above the results.
+  const typedRef = useMemo(() => {
+    const m = REF.exec(query.trim());
+    if (!m) return null;
+    const chapter = chapterOf(m[1]);
+    if (!chapter) return null;
+    const ayah = Math.min(chapter.versesCount, Math.max(1, Number(m[2])));
+    return { chapter, ayah };
+  }, [query, state.chapters]);
+
+  function juzLabel(juz) {
+    const chapterIds = Object.keys(juz.verseMapping)
+      .map(Number)
+      .sort((a, b) => a - b);
+    return chapterIds
+      .map((id) => {
+        const c = chapterOf(id);
+        return c ? `${c.nameSimple} ${juz.verseMapping[id]}` : "";
+      })
+      .filter(Boolean)
+      .join(" · ");
+  }
+
+  function goToJuz(juz) {
+    const first = Object.keys(juz.verseMapping)
+      .map(Number)
+      .sort((a, b) => a - b)[0];
+    if (!first) return;
+    const from = String(juz.verseMapping[first]).split("-")[0];
+    go(first, `${first}:${from}`);
+  }
+
+  const ayahChapter = chapterOf(ayahSurah);
+  const maxAyah = ayahChapter ? ayahChapter.versesCount : 286;
+
+  function submitAyah() {
+    const s = ayahChapter ? ayahChapter.id : 1;
+    const a = Math.min(maxAyah, Math.max(1, Number(ayahNum) || 1));
+    go(s, `${s}:${a}`);
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40 bg-ink/40" onClick={onClose} />
+      <div
+        role="dialog"
+        aria-label="Browse the Quran"
+        style={
+          rect
+            ? { top: `${rect.top}px`, height: `${rect.height}px`, bottom: "auto", maxHeight: "none" }
+            : undefined
+        }
+        className="fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[86dvh] w-full max-w-[560px] flex-col rounded-t-[24px] bg-surface shadow-[0_-8px_24px_rgba(74,51,64,0.18)]"
+      >
+        {/* Everything above the list is flex-none, so it never scrolls away */}
+        <div className="flex-none px-4 pt-3">
+          <div className="mx-auto mb-3.5 h-1.5 w-11 rounded-pill bg-hairline" />
+
+          <div className="mb-3.5 flex rounded-pill bg-surface-3 p-1" role="tablist">
+            {[
+              { key: "surah", label: "Surah", icon: "book-open" },
+              { key: "juz", label: "Juz", icon: "layers" },
+              { key: "ayah", label: "Ayah", icon: "map-pin" },
+            ].map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                aria-selected={tab === t.key}
+                onClick={() => setTab(t.key)}
+                className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-pill py-2 text-[13px] font-semibold transition-colors ${
+                  tab === t.key ? "bg-ink text-page shadow-sm" : "text-muted"
+                }`}
+              >
+                <Icon name={t.icon} size={14} />
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {tab === "surah" && (
+            <div className="relative mb-3">
+            <Icon
+              name="search"
+              size={16}
+              className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted/60"
+            />
+            <input
+              ref={searchRef}
+              type="search"
+              placeholder="Search by name, or type 18:2"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter") return;
+                if (typedRef) go(typedRef.chapter.id, `${typedRef.chapter.id}:${typedRef.ayah}`);
+                else if (filteredChapters.length === 1) go(filteredChapters[0].id);
+              }}
+              className="w-full rounded-control border-[0.5px] border-hairline bg-page py-2.5 pl-10 pr-4 text-[15px] outline-none focus:border-ink focus:ring-[1.5px] focus:ring-ink"
+            />
+            </div>
+          )}
+        </div>
+
+        {/* min-h-0 is what lets this shrink inside the flex column — without it
+            the list grows past the sheet and slides under the search field. */}
+        {tab === "surah" && (
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-4 pb-4">
+            {typedRef && (
+              <button
+                type="button"
+                onClick={() => go(typedRef.chapter.id, `${typedRef.chapter.id}:${typedRef.ayah}`)}
+                className="flex w-full items-center gap-3 rounded-card border-[0.5px] border-accent bg-accent-soft/40 px-3.5 py-3 text-left transition-colors hover:bg-accent-soft"
+              >
+                <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-accent text-on-gold">
+                  <Icon name="chevron-right" size={16} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[14px] font-bold text-ink">
+                    Go to {typedRef.chapter.nameSimple}, ayah {typedRef.ayah}
+                  </span>
+                  <span className="block text-[12px] text-muted">
+                    Surah {typedRef.chapter.id} · {typedRef.chapter.versesCount} ayahs
+                  </span>
+                </span>
+              </button>
+            )}
+
+            {filteredChapters.length === 0 && !typedRef ? (
+              <p className="py-8 text-center text-[13px] text-muted">
+                Nothing matches “{query}”.
+              </p>
+            ) : (
+              filteredChapters.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => go(c.id)}
+                  className="flex w-full items-center gap-3 rounded-card bg-page px-3.5 py-3 text-left transition-colors hover:bg-surface-3"
+                >
+                  <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-accent-soft-2 text-[12px] font-bold text-accent-press">
+                    {c.id}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[14px] font-semibold text-ink">{c.nameSimple}</span>
+                    <span className="block text-[12px] text-muted">
+                      {c.translatedName} · {c.versesCount} ayahs
+                    </span>
+                  </span>
+                  <span className="font-arabic flex-none text-[20px] text-ink" lang="ar">
+                    {c.nameArabic}
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        )}
+
+        {tab === "juz" && (
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-4 pb-4">
+            {state.juzs.map((j) => (
+              <button
+                key={j.number}
+                type="button"
+                onClick={() => goToJuz(j)}
+                className="flex w-full items-center gap-3 rounded-card bg-page px-3.5 py-3 text-left transition-colors hover:bg-surface-3"
+              >
+                <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-accent-soft-2 text-[12px] font-bold text-accent-press">
+                  {j.number}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[14px] font-semibold text-ink">Juz {j.number}</span>
+                  <span className="block text-[12px] text-muted">{juzLabel(j)}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {tab === "ayah" && (
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 pb-5">
+            <label className="block">
+              <span className="mb-1.5 block text-[13px] font-semibold text-ink">Surah</span>
+              <select
+                value={ayahSurah}
+                onChange={(e) => {
+                  setAyahSurah(e.target.value);
+                  setAyahNum("1");
+                }}
+                className="w-full rounded-control border-[0.5px] border-hairline bg-page px-3.5 py-2.5 text-[15px] text-ink outline-none focus:border-ink focus:ring-[1.5px] focus:ring-ink"
+              >
+                {state.chapters.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.id}. {c.nameSimple}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="mb-1.5 flex items-baseline justify-between text-[13px] font-semibold text-ink">
+                Ayah
+                <span className="font-normal text-muted">1–{maxAyah}</span>
+              </span>
+              <input
+                type="number"
+                min="1"
+                max={maxAyah}
+                inputMode="numeric"
+                value={ayahNum}
+                onChange={(e) => setAyahNum(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && submitAyah()}
+                className="w-full rounded-control border-[0.5px] border-hairline bg-page px-3.5 py-2.5 text-[15px] outline-none focus:border-ink focus:ring-[1.5px] focus:ring-ink"
+              />
+            </label>
+
+            <button
+              type="button"
+              onClick={submitAyah}
+              className="flex w-full items-center justify-center gap-1.5 rounded-control bg-ink py-3 text-[14px] font-semibold text-page transition-[background-color,transform] duration-150 ease-out hover:bg-ink-strong active:scale-[0.98]"
+            >
+              <Icon name="book-open" size={16} />
+              Go to {ayahChapter ? ayahChapter.nameSimple : "surah"} {Math.min(maxAyah, Math.max(1, Number(ayahNum) || 1))}
+            </button>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}

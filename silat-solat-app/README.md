@@ -60,8 +60,12 @@ campaigns are seeded on first use.
 
 ## Deploy on Railway
 
-1. **New project › Deploy from GitHub repo** › `LQ-Media/Mr-Karim`.
-   Railway uses the `Dockerfile` and `railway.json` (health check `/api/health`).
+1. **New project › Deploy from GitHub repo** › `LQ-Media/Mr-Karim`. This app
+   lives in the `silat-solat-app/` folder (the repo root is The Saif's Bakery
+   site on GitHub Pages), so in the service's **Settings › Source** set
+   **Root Directory** to `/silat-solat-app`. Railway then builds this folder's
+   `Dockerfile`; if it asks for a config file, use `/silat-solat-app/railway.json`
+   (health check `/api/health`).
 2. **+ New › Database › PostgreSQL** in the same project.
 3. In the app service's **Variables**, add:
    - `DATABASE_URL` = `${{Postgres.DATABASE_URL}}` (reference variable)

@@ -143,7 +143,7 @@ export async function currentCustomer(req) {
   if (!t) return null;
   try {
     const { payload } = await jwtVerify(t, secret());
-    const { rows } = await q("SELECT id, email, name, phone, address, google, (password_hash IS NOT NULL) AS has_password FROM customers WHERE id = $1", [payload.cid]);
+    const { rows } = await q("SELECT id, email, name, phone, address, google, saved, (password_hash IS NOT NULL) AS has_password FROM customers WHERE id = $1", [payload.cid]);
     return rows[0] || null;
   } catch { return null; }
 }

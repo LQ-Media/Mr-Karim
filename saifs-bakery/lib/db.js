@@ -90,6 +90,7 @@ export async function migrate() {
     );
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id);
     CREATE INDEX IF NOT EXISTS orders_customer_idx ON orders (customer_id);
+    ALTER TABLE customers ADD COLUMN IF NOT EXISTS saved JSONB NOT NULL DEFAULT '[]';
   `);
   // Owners named in OWNER_EMAILS always exist (comma-separated).
   for (const email of String(process.env.OWNER_EMAILS || "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean)) {

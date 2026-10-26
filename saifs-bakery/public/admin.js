@@ -45,7 +45,7 @@ function needsYou(o) { return o.status === "new" || o.has_change || o.payment_st
 function loadOrders() { return api("GET", "/api/admin/orders").then(function (rows) { ORDERS = rows; renderOrders(); }).catch(function (e) { if (ME) toast(e.message); }); }
 function renderOrders() {
   var counts = { action: ORDERS.filter(needsYou).length };
-  $("#orderFilters").innerHTML = FILTERS.map(function (f) { return '<button class="chip" type="button" data-f="' + f[0] + '" aria-pressed="' + (FILTER === f[0]) + '">' + f[1] + (f[0] === "action" && counts.action ? " · " + counts.action : "") + "</button>"; }).join("");
+  $("#orderFilters").innerHTML = FILTERS.map(function (f) { return '<button class="chip" type="button" data-f="' + f[0] + '" aria-pressed="' + (FILTER === f[0]) + '"><span data-ic="' + ({ action: "bell", upcoming: "calendar", all: "list", done: "check" })[f[0]] + '"></span>' + f[1] + (f[0] === "action" && counts.action ? " · " + counts.action : "") + "</button>"; }).join("");
   var list = ORDERS.filter(function (o) {
     if (FILTER === "action") return needsYou(o);
     if (FILTER === "upcoming") return ["confirmed", "baking", "delivering"].indexOf(o.status) >= 0;
@@ -56,7 +56,7 @@ function renderOrders() {
   if (!list.length) { $("#orderList").innerHTML = '<div class="empty-note">' + (FILTER === "action" ? "Nothing needs you right now." : "No orders here yet.") + "</div>"; return; }
   var html = "", last = "";
   list.forEach(function (o) {
-    if (FILTER !== "action" && o.delivery_date !== last) { last = o.delivery_date; html += '<div class="daygroup">' + fmtDay(o.delivery_date) + "</div>"; }
+    if (FILTER !== "action" && o.delivery_date !== last) { last = o.delivery_date; html += '<div class="daygroup" data-ic="calendar">' + fmtDay(o.delivery_date) + "</div>"; }
     html += '<button class="ocard" type="button" data-id="' + o.id + '"><span><span class="ref">' + esc(o.ref) + '</span><br><span class="who">' + esc(o.customer_name) + '</span></span><span class="amt">' + money(o.total) + '<br><span class="when">' + fmtDay(o.delivery_date) + " · " + esc(o.slot) + "</span></span>" +
       '<span class="when" style="grid-column:1/-1">' + esc(o.firstItem || "") + (o.itemCount > 1 ? " + " + (o.itemCount - 1) + " more" : "") + "</span>" +
       '<span class="pills"><span class="pill ' + o.status + '">' + STATUS_L[o.status] + '</span><span class="pill ' + o.payment_status + '">' + PAY_L[o.payment_status] + "</span>" + (o.has_change ? '<span class="pill change">Change request</span>' : "") + "</span></button>";
@@ -93,7 +93,7 @@ function renderOrder() {
   if (c) {
     var before = o.items.map(function (i) { return i.name + (i.qty > 1 ? " ×" + i.qty : "") + " (" + money(i.price) + ")"; }).join("; ");
     var after = c.items.map(function (i) { return i.name + (i.qty > 1 ? " ×" + i.qty : "") + " (" + money(i.price) + ")"; }).join("; ");
-    changeBox = '<div class="box hot"><h3>Customer asked for a change</h3>' + (c.reason ? "<p><b>“" + esc(c.reason) + "”</b></p>" : "") +
+    changeBox = '<div class="box hot"><h3 data-ic="bell">Customer asked for a change</h3>' + (c.reason ? "<p><b>“" + esc(c.reason) + "”</b></p>" : "") +
       '<div class="diff"><span><b>Items now:</b> <del>' + esc(before) + '</del></span><span><b>Asked for:</b> <ins>' + esc(after) + "</ins></span>" +
       (c.delivery_date !== o.delivery_date || c.slot !== o.slot ? '<span><b>Date:</b> <del>' + fmtDay(o.delivery_date) + " " + esc(o.slot) + "</del> → <ins>" + fmtDay(c.delivery_date) + " " + esc(c.slot) + "</ins></span>" : "") +
       (c.address !== o.address ? '<span><b>Address:</b> <del>' + esc(o.address) + "</del> → <ins>" + esc(c.address) + "</ins></span>" : "") +
@@ -109,20 +109,20 @@ function renderOrder() {
     ["Ask a question", "Hi " + first + ", a quick question about your order " + o.ref + ": "]
   ];
   $("#dBody").innerHTML = changeBox +
-    '<div class="box"><h3>Status</h3><div class="statusrow">' + STATUS.map(function (s) { return '<button class="chip" type="button" data-status="' + s[0] + '" aria-pressed="' + (o.status === s[0]) + '">' + s[1] + "</button>"; }).join("") + "</div>" +
+    '<div class="box"><h3 data-ic="flag">Status</h3><div class="statusrow">' + STATUS.map(function (s) { return '<button class="chip" type="button" data-status="' + s[0] + '" aria-pressed="' + (o.status === s[0]) + '">' + s[1] + "</button>"; }).join("") + "</div>" +
     (o.status === "new" ? '<p class="small muted">Confirming locks the order for the customer (they can still ask for changes) and shows them the PayNow QR.</p>' : "") + "</div>" +
-    '<div class="box"><h3>Payment · <span class="pill ' + o.payment_status + '">' + PAY_L[o.payment_status] + "</span></h3>" + proofs +
+    '<div class="box"><h3 data-ic="wallet">Payment · <span class="pill ' + o.payment_status + '">' + PAY_L[o.payment_status] + "</span></h3>" + proofs +
     '<div class="row gap"><button class="primary" type="button" data-pay="paid">Mark as paid</button>' + (o.payment_status !== "unpaid" ? '<button class="secondary" type="button" data-pay="unpaid">Not received</button>' : "") + "</div></div>" +
-    '<div class="box"><h3>WhatsApp ' + esc(first) + '</h3><p class="small"><a href="' + esc(waLink(o.customer_phone, "")) + '" target="_blank" rel="noopener">' + esc(o.customer_phone) + '</a> · <a href="' + esc(link) + '" target="_blank" rel="noopener">customer’s order page</a></p><div class="wabtns">' +
+    '<div class="box"><h3 data-ic="chat">WhatsApp ' + esc(first) + '</h3><p class="small"><a href="' + esc(waLink(o.customer_phone, "")) + '" target="_blank" rel="noopener">' + esc(o.customer_phone) + '</a> · <a href="' + esc(link) + '" target="_blank" rel="noopener">customer’s order page</a></p><div class="wabtns">' +
       msgs.map(function (m) { return '<a href="' + esc(waLink(o.customer_phone, m[1])) + '" target="_blank" rel="noopener">' + esc(m[0]) + "</a>"; }).join("") + "</div></div>" +
-    '<div class="box"><h3>Items</h3><div id="dItems" class="stack">' + itemRows(CUR.draftItems) + '</div><button class="addbtn" type="button" id="addItem">+ Add a line (extra, discount, etc.)</button>' +
+    '<div class="box"><h3 data-ic="list">Items</h3><div id="dItems" class="stack">' + itemRows(CUR.draftItems) + '</div><button class="addbtn" type="button" id="addItem">+ Add a line (extra, discount, etc.)</button>' +
       '<div class="fields two"><div class="field"><label for="dFee">Delivery fee</label><input id="dFee" type="number" step="0.5" min="0" value="' + (o.delivery_fee == null ? "" : o.delivery_fee) + '"></div><div class="field"><label>Total</label><input id="dTotal" value="' + money(t.total) + '" readonly></div></div></div>' +
-    '<div class="box"><h3>Delivery</h3><div class="fields two"><div class="field"><label for="dDate">Date</label><input id="dDate" type="date" value="' + esc(o.delivery_date) + '"></div><div class="field"><label for="dSlot">Time slot</label><input id="dSlot" value="' + esc(o.slot) + '"></div></div>' +
+    '<div class="box"><h3 data-ic="truck">Delivery</h3><div class="fields two"><div class="field"><label for="dDate">Date</label><input id="dDate" type="date" value="' + esc(o.delivery_date) + '"></div><div class="field"><label for="dSlot">Time slot</label><input id="dSlot" value="' + esc(o.slot) + '"></div></div>' +
       '<div class="field"><label for="dAddr">Address</label><input id="dAddr" value="' + esc(o.address) + '"></div>' +
       '<div class="fields two"><div class="field"><label for="dName">Customer name</label><input id="dName" value="' + esc(o.customer_name) + '"></div><div class="field"><label for="dPhone">Phone</label><input id="dPhone" value="' + esc(o.customer_phone) + '"></div></div>' +
       (o.customer_email ? '<p class="small"><b>Account:</b> ' + esc(o.customer_email) + "</p>" : "") +
       (o.notes ? '<p class="small"><b>Customer notes:</b> ' + esc(o.notes) + "</p>" : "") + "</div>" +
-    '<div class="box"><h3>Notes</h3><div class="field"><label for="dNoteC">Note to customer (they see this on their order page)</label><textarea id="dNoteC" rows="2">' + esc(o.note_to_customer) + '</textarea></div>' +
+    '<div class="box"><h3 data-ic="note">Notes</h3><div class="field"><label for="dNoteC">Note to customer (they see this on their order page)</label><textarea id="dNoteC" rows="2">' + esc(o.note_to_customer) + '</textarea></div>' +
       '<div class="field"><label for="dNoteA">Private note (only admins see this)</label><textarea id="dNoteA" rows="2">' + esc(o.admin_note) + "</textarea></div></div>" +
     '<button class="primary" type="button" id="saveOrder">Save changes</button>' +
     '<details class="history"><summary>History</summary><ul>' + o.events.map(function (e) { return "<li><b>" + esc(e.actor.replace("admin:", "")) + "</b> " + esc(e.message) + (e.visible ? "" : " <i>(private)</i>") + ' <span class="muted small">' + new Date(e.created_at).toLocaleString("en-SG", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) + "</span></li>"; }).join("") + "</ul></details>";
@@ -175,14 +175,14 @@ function optionRows(path, fields, newItem, addLabel) {
   }).join("") + '<button class="addbtn" type="button" data-add="' + path + '" data-new=\'' + esc(JSON.stringify(newItem)) + "'>+ " + esc(addLabel) + "</button>";
 }
 function renderMenu() {
-  $("#menuSections").innerHTML = SECTIONS.map(function (s) { return '<button class="chip" type="button" data-sec="' + s[0] + '" aria-pressed="' + (SECTION === s[0]) + '">' + s[1] + "</button>"; }).join("");
+  $("#menuSections").innerHTML = SECTIONS.map(function (s) { return '<button class="chip" type="button" data-sec="' + s[0] + '" aria-pressed="' + (SECTION === s[0]) + '"><span data-ic="' + ({ shop: "bag", products: "cake", gallery: "image", cake: "layers", decor: "star", cupcakes: "cupcake", words: "pen" })[s[0]] + '"></span>' + s[1] + "</button>"; }).join("");
   var B = CAT.builder, h = "";
   var sizesOpts = B.sizes.map(function (s) { return [s.id, s.label]; }), pick = function (list) { return list.map(function (s) { return [s.id, s.label]; }); };
   if (SECTION === "shop") {
-    h = '<div class="mcard"><h3>Shop</h3><div class="mgrid">' + inp("shop.whatsapp", "Ain’s WhatsApp (digits)") + inp("shop.leadDays.ready", "Days’ notice: ready-made", "number") + inp("shop.leadDays.custom", "Days’ notice: custom", "number") + "</div>" +
+    h = '<div class="mcard"><h3 data-ic="bag">Shop</h3><div class="mgrid">' + inp("shop.whatsapp", "Ain’s WhatsApp (digits)") + inp("shop.leadDays.ready", "Days’ notice: ready-made", "number") + inp("shop.leadDays.custom", "Days’ notice: custom", "number") + inp("shop.dailyLimit", "Most orders per day (0 = no limit)", "number") + "</div>" +
       inp("shop.showPrices", "Show prices to customers", "check") + "</div>" +
-      '<div class="mcard"><h3>Delivery</h3><div class="mgrid">' + inp("shop.delivery.fee", "Delivery fee", "number") + inp("shop.delivery.freeAbove", "Free delivery from", "number") + "</div>" + inp("shop.delivery.note", "Delivery note shown to customers", "text") + listInp("shop.slots", "Time slots", "comma between each") + "</div>" +
-      '<div class="mcard"><h3>Closed or fully booked days</h3>' + listInp("shop.closedDates", "Dates", "YYYY-MM-DD, comma between each") + "</div>";
+      '<div class="mcard"><h3 data-ic="truck">Delivery</h3><div class="mgrid">' + inp("shop.delivery.fee", "Delivery fee", "number") + inp("shop.delivery.freeAbove", "Free delivery from", "number") + "</div>" + inp("shop.delivery.note", "Delivery note shown to customers", "text") + listInp("shop.slots", "Time slots", "comma between each") + "</div>" +
+      '<div class="mcard"><h3 data-ic="calendar">Closed or fully booked days</h3>' + listInp("shop.closedDates", "Dates", "YYYY-MM-DD, comma between each") + "</div>";
   }
   if (SECTION === "products") {
     h = CAT.products.map(function (p, i) {
@@ -207,18 +207,18 @@ function renderMenu() {
     }).join("") + '<button class="addbtn" type="button" data-add="gallery" data-new=\'' + esc(JSON.stringify({ id: "", active: true, name: "New design", meta: "", photo: "img/logo.png", theme: "classic", preset: { type: "cake", size: "6", decor: [] } })) + "'>+ Add a past design</button>";
   }
   if (SECTION === "cake") {
-    h = '<div class="mcard"><h3>Sizes (base price)</h3>' + optionRows("builder.sizes", [["label", "Size", "text"], ["note", "Serves", "text"], ["price", "Price", "number"]], { label: '9"', note: "", price: 0, active: true }, "Add size") + "</div>" +
-      '<div class="mcard"><h3>Sponges</h3>' + optionRows("builder.sponges", [["label", "Sponge", "text"], ["price", "Extra", "number"], ["color", "Colour (3D)", "color"]], { label: "New sponge", price: 0, color: "#F3DDA8", active: true }, "Add sponge") + "</div>" +
-      '<div class="mcard"><h3>Fillings &amp; frostings</h3>' + optionRows("builder.fillings", [["label", "Filling", "text"], ["price", "Extra", "number"]], { label: "New filling", price: 0, active: true }, "Add filling") + "</div>" +
-      '<div class="mcard"><h3>Finishes</h3>' + optionRows("builder.finishes", [["label", "Finish", "text"], ["price", "Extra", "number"], ["look", "Looks like (3D)", "select", [["buttercream", "Buttercream"], ["freshcream", "Fresh cream"], ["fondant", "Fondant"], ["naked", "Naked"]]]], { label: "New finish", price: 0, look: "buttercream", active: true }, "Add finish") + "</div>" +
-      '<div class="mcard"><h3>Tiers</h3>' + optionRows("builder.tiers", [["label", "Tiers", "text"], ["price", "Extra", "number"]], { label: "3 tiers", price: 0, active: true }, "Add tier option") + "</div>" +
-      '<div class="mcard"><h3>Shapes</h3>' + optionRows("builder.shapes", [["label", "Shape", "text"], ["price", "Extra", "number"]], { label: "New shape", price: 0, active: true }, "Add shape") + "</div>";
+    h = '<div class="mcard"><h3 data-ic="cake">Sizes (base price)</h3>' + optionRows("builder.sizes", [["label", "Size", "text"], ["note", "Serves", "text"], ["price", "Price", "number"]], { label: '9"', note: "", price: 0, active: true }, "Add size") + "</div>" +
+      '<div class="mcard"><h3 data-ic="bowl">Sponges</h3>' + optionRows("builder.sponges", [["label", "Sponge", "text"], ["price", "Extra", "number"], ["color", "Colour (3D)", "color"]], { label: "New sponge", price: 0, color: "#F3DDA8", active: true }, "Add sponge") + "</div>" +
+      '<div class="mcard"><h3 data-ic="drop">Fillings &amp; frostings</h3>' + optionRows("builder.fillings", [["label", "Filling", "text"], ["price", "Extra", "number"]], { label: "New filling", price: 0, active: true }, "Add filling") + "</div>" +
+      '<div class="mcard"><h3 data-ic="sparkle">Finishes</h3>' + optionRows("builder.finishes", [["label", "Finish", "text"], ["price", "Extra", "number"], ["look", "Looks like (3D)", "select", [["buttercream", "Buttercream"], ["freshcream", "Fresh cream"], ["fondant", "Fondant"], ["naked", "Naked"]]]], { label: "New finish", price: 0, look: "buttercream", active: true }, "Add finish") + "</div>" +
+      '<div class="mcard"><h3 data-ic="layers">Tiers</h3>' + optionRows("builder.tiers", [["label", "Tiers", "text"], ["price", "Extra", "number"]], { label: "3 tiers", price: 0, active: true }, "Add tier option") + "</div>" +
+      '<div class="mcard"><h3 data-ic="shapes">Shapes</h3>' + optionRows("builder.shapes", [["label", "Shape", "text"], ["price", "Extra", "number"]], { label: "New shape", price: 0, active: true }, "Add shape") + "</div>";
   }
   if (SECTION === "decor") {
-    h = '<div class="mcard"><h3>Decorations</h3><p class="small muted">“Per cupcake” prices apply when decorating cupcakes.</p>' +
+    h = '<div class="mcard"><h3 data-ic="star">Decorations</h3><p class="small muted">“Per cupcake” prices apply when decorating cupcakes.</p>' +
       (B.decorations.map(function (d, i) { d.perCupcake = d.perCupcake || {}; return ""; }).join("")) +
       optionRows("builder.decorations", [["label", "Decoration", "text"], ["price", "Cake price", "number"], ["perCupcake.Regular", "Per regular", "number"], ["perCupcake.Mini", "Per mini", "number"], ["look", "3D", "select", [["none", "No preview"], ["toppers", "Toppers"], ["plaque", "Plaque"], ["candles", "Candles"], ["sprinkles", "Sprinkles"], ["candy", "Candy"], ["flowers", "Flowers"], ["drip", "Drip"], ["gold", "Gold beads"]]]], { label: "New decoration", price: 0, perCupcake: {}, look: "none", active: true }, "Add decoration") + "</div>" +
-      '<div class="mcard"><h3>Colour palettes</h3>' + optionRows("builder.palettes", [["label", "Name", "text"], ["frost", "Frosting", "color"], ["trim", "Trim", "color"], ["accent", "Accent", "color"], ["drip", "Drip", "color"]], { label: "New palette", frost: "#FFFFFF", trim: "#F2C66D", accent: "#A84D2E", drip: "#3B2418", active: true }, "Add palette") + "</div>";
+      '<div class="mcard"><h3 data-ic="palette">Colour palettes</h3>' + optionRows("builder.palettes", [["label", "Name", "text"], ["frost", "Frosting", "color"], ["trim", "Trim", "color"], ["accent", "Accent", "color"], ["drip", "Drip", "color"]], { label: "New palette", frost: "#FFFFFF", trim: "#F2C66D", accent: "#A84D2E", drip: "#3B2418", active: true }, "Add palette") + "</div>";
   }
   if (SECTION === "cupcakes") {
     h = B.cupcakeSizes.map(function (cs, i) {
@@ -228,8 +228,8 @@ function renderMenu() {
     }).join("");
   }
   if (SECTION === "words") {
-    h = '<div class="mcard"><h3>Wording customers can pick</h3>' + listInp("plaques", "Plaque messages (ready-made)", "comma between each") + listInp("builder.greetings", "Greetings (custom cakes)", "comma between each") + listInp("builder.diets", "Dietary requests", "comma between each") + "</div>" +
-      (ME && ME.role === "owner" ? '<div class="mcard"><h3>Start over</h3><p class="small muted">Puts the whole menu back to the original version. Orders aren’t affected.</p><button class="secondary" type="button" id="resetMenu">Reset menu to original</button></div>' : "");
+    h = '<div class="mcard"><h3 data-ic="pen">Wording customers can pick</h3>' + listInp("plaques", "Plaque messages (ready-made)", "comma between each") + listInp("builder.greetings", "Greetings (custom cakes)", "comma between each") + listInp("builder.diets", "Dietary requests", "comma between each") + "</div>" +
+      (ME && ME.role === "owner" ? '<div class="mcard"><h3 data-ic="repeat">Start over</h3><p class="small muted">Puts the whole menu back to the original version. Orders aren’t affected.</p><button class="secondary" type="button" id="resetMenu">Reset menu to original</button></div>' : "");
   }
   $("#menuBody").innerHTML = h;
 }
@@ -328,7 +328,7 @@ function loadSite() {
 }
 var AREA = { header: "Header", home: "Home", shop: "Shop", gallery: "Custom designs", custom: "Cake builder", cart: "Basket", date: "Delivery date", send: "Review & place order", account: "Sign in & account", foot: "Footer", nav: "Menu bar", page: "Pages" };
 function renderSite() {
-  $("#siteSections").innerHTML = [["pages", "Pages"], ["texts", "All texts"], ["colours", "Colours"]].map(function (s) { return '<button class="chip" type="button" data-ssec="' + s[0] + '" aria-pressed="' + (SITE_SEC === s[0]) + '">' + s[1] + "</button>"; }).join("");
+  $("#siteSections").innerHTML = [["pages", "Pages"], ["texts", "All texts"], ["colours", "Colours"]].map(function (s) { return '<button class="chip" type="button" data-ssec="' + s[0] + '" aria-pressed="' + (SITE_SEC === s[0]) + '"><span data-ic="' + ({ pages: "file", texts: "pen", colours: "palette" })[s[0]] + '"></span>' + s[1] + "</button>"; }).join("");
   var h = "";
   if (SITE_SEC === "pages") {
     if (PAGE_OPEN != null && SITE.pages[PAGE_OPEN]) h = pageEditor(SITE.pages[PAGE_OPEN], PAGE_OPEN);
@@ -345,7 +345,7 @@ function renderSite() {
   }
   if (SITE_SEC === "colours") {
     var defs = { accent: "#A84D2E", butter: "#F2C66D", bg: "#FBF5EC", ink: "#3B2A20" };
-    h = '<div class="mcard"><h3>Colours</h3><p class="small muted">These change the whole shop: buttons, highlights, background and text. Keep text dark on a light background so it stays easy to read.</p><div class="mgrid">' +
+    h = '<div class="mcard"><h3 data-ic="palette">Colours</h3><p class="small muted">These change the whole shop: buttons, highlights, background and text. Keep text dark on a light background so it stays easy to read.</p><div class="mgrid">' +
       [["accent", "Buttons & accents"], ["butter", "Highlight"], ["bg", "Background"], ["ink", "Text & outlines"]].map(function (c) {
         return '<div class="field"><label for="col_' + c[0] + '">' + c[1] + '</label><input class="colorin" id="col_' + c[0] + '" type="color" data-scol="' + c[0] + '" value="' + esc(SITE.theme[c[0]] || defs[c[0]]) + '"></div>'; }).join("") +
       '</div><button class="secondary" type="button" id="resetCols">Back to original colours</button>' +
@@ -362,7 +362,7 @@ function pageEditor(p, i) {
     if (bl.t === "image") f = '<div class="photoedit"><img src="' + esc(bl.src || "img/logo.png") + '" alt=""><label class="addbtn" style="display:inline-flex;align-items:center;cursor:pointer"><input type="file" accept="image/*" data-bkphoto="' + k + '" hidden>' + (bl.src ? "Change photo" : "Choose photo") + "</label></div>" +
       '<div class="fields two"><div class="field"><label for="bka' + k + '">Describe the photo (for screen readers)</label><input id="bka' + k + '" data-bk="' + k + '" data-bf="alt" value="' + esc(bl.alt) + '"></div><div class="field"><label for="bkc' + k + '">Caption (optional)</label><input id="bkc' + k + '" data-bk="' + k + '" data-bf="caption" value="' + esc(bl.caption) + '"></div></div>';
     if (bl.t === "button") f = '<div class="fields two"><div class="field"><label for="bk' + k + '">Button text</label><input id="bk' + k + '" data-bk="' + k + '" data-bf="text" value="' + esc(bl.text) + '"></div><div class="field"><label for="bkh' + k + '">Goes to</label><select id="bkh' + k + '" data-bk="' + k + '" data-bf="href">' + linkOptions(bl.href) + "</select></div></div>";
-    return '<div class="mcard blockcard"><h3><span class="pill">' + BLOCKS[bl.t] + '</span><span class="row gap"><button class="del" type="button" data-bmove="' + k + '" data-dir="-1" aria-label="Move up"' + (k === 0 ? " disabled" : "") + '>↑</button><button class="del" type="button" data-bmove="' + k + '" data-dir="1" aria-label="Move down"' + (k === p.blocks.length - 1 ? " disabled" : "") + '>↓</button><button class="del" type="button" data-bdel="' + k + '" aria-label="Remove block">✕</button></span></h3>' + f + "</div>";
+    return '<div class="mcard blockcard"><h3 data-ic="' + ({ heading: "pen", text: "note", image: "image", button: "flag" })[bl.t] + '"><span class="pill">' + BLOCKS[bl.t] + '</span><span class="row gap"><button class="del" type="button" data-bmove="' + k + '" data-dir="-1" aria-label="Move up"' + (k === 0 ? " disabled" : "") + '>↑</button><button class="del" type="button" data-bmove="' + k + '" data-dir="1" aria-label="Move down"' + (k === p.blocks.length - 1 ? " disabled" : "") + '>↓</button><button class="del" type="button" data-bdel="' + k + '" aria-label="Remove block">✕</button></span></h3>' + f + "</div>";
   }).join("");
   return '<div class="row"><button class="secondary small-btn" type="button" id="backPages">← All pages</button><a class="secondary small-btn" href="/#page/' + esc(p.slug) + '" target="_blank" rel="noopener">View page</a></div>' +
     '<div class="mcard"><div class="fields two"><div class="field"><label for="pTitle">Page title</label><input id="pTitle" data-pf="title" value="' + esc(p.title) + '"></div>' +
@@ -384,7 +384,7 @@ function renderTexts() {
   var last = "", h = "";
   list.forEach(function (d) {
     var area = d[0].split(".")[0];
-    if (area !== last) { last = area; h += '<div class="daygroup">' + esc(AREA[area] || area) + "</div>"; }
+    if (area !== last) { last = area; h += '<div class="daygroup" data-ic="pen">' + esc(AREA[area] || area) + "</div>"; }
     var v = SITE.text[d[0]], changed = v != null;
     h += '<div class="textrow' + (changed ? " changed" : "") + '"><label for="tx_' + esc(d[0]) + '">' + esc(d[2] || ("Was: " + d[1])) + "</label>" +
       '<div class="row gap"><textarea id="tx_' + esc(d[0]) + '" rows="' + (d[1].length > 60 ? 2 : 1) + '" data-tkey="' + esc(d[0]) + '" placeholder="' + esc(d[1]) + '">' + esc(changed ? v : d[1]) + "</textarea>" +

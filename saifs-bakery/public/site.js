@@ -62,9 +62,9 @@ function renderPage(slug) {
   if (!p) { box.innerHTML = '<div class="empty"><p class="lede">' + span("page.missing", "That page isn’t here any more.") + '</p><a class="primary" href="#home">Back to home</a></div>'; return; }
   var pb = function (i, f) { return ' data-pb="' + esc(p.slug) + "|" + i + "|" + f + '"'; };
   var h = (!p.published ? '<div class="notice"><b>Draft</b><span>Only admins can see this page until it’s published.</span></div>' : "") +
-    '<h1 class="h1"' + pb(-1, "title") + ">" + esc(p.title) + "</h1>";
+    '<h1 class="h1" data-ic="sparkle"' + pb(-1, "title") + ">" + esc(p.title) + "</h1>";
   p.blocks.forEach(function (b, i) {
-    if (b.t === "heading") h += '<h2 class="h2"' + pb(i, "text") + ">" + esc(b.text) + "</h2>";
+    if (b.t === "heading") h += '<h2 class="h2" data-ic="star"' + pb(i, "text") + ">" + esc(b.text) + "</h2>";
     else if (b.t === "text") h += '<p class="pagetext" data-rich' + pb(i, "text") + ">" + rich(b.text) + "</p>";
     else if (b.t === "image") h += '<figure class="pageimg"><img src="' + esc(b.src) + '" alt="' + esc(b.alt) + '" loading="lazy">' + (b.caption || draft ? "<figcaption" + pb(i, "caption") + ">" + esc(b.caption) + "</figcaption>" : "") + "</figure>";
     else if (b.t === "button") h += '<a class="primary pagebtn" href="' + esc(b.href) + '"' + pb(i, "text") + ">" + esc(b.text) + "</a>";

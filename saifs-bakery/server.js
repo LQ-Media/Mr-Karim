@@ -77,6 +77,14 @@ export function cleanSite(b) {
   return { text, theme, pages };
 }
 
+/** Throws when the delivery day already has as many orders as Ain takes (shop.dailyLimit; 0 = no limit). */
+async function checkCapacity(cat, date, excludeId) {
+  const limit = Number(cat.shop.dailyLimit) || 0;
+  if (!limit) return;
+  const { rows: [r] } = await q("SELECT count(*)::int AS n FROM orders WHERE status <> 'cancelled' AND delivery_date = $1 AND id <> $2", [date, excludeId || 0]);
+  if (r.n >= limit) throw new UserError("Sorry, " + date + " is fully booked. Please pick another day.");
+}
+
 export async function getCatalog() {
   const { rows } = await q("SELECT value FROM settings WHERE key = 'catalog'");
   return rows.length ? rows[0].value : clone(DEFAULT_CATALOG);
@@ -175,7 +183,7 @@ export function createApp() {
     if (attempts.size > 5000) attempts.clear();
   };
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const pubCustomer = (c) => c && { name: c.name, email: c.email, phone: c.phone, address: c.address, google: c.google, hasPassword: c.has_password };
+  const pubCustomer = (c) => c && { name: c.name, email: c.email, phone: c.phone, address: c.address, google: c.google, hasPassword: c.has_password, saved: c.saved || [] };
 
   app.get("/api/account/me", wrap(async (req, res) => {
     res.set("Cache-Control", "no-store").json({ customer: pubCustomer(await currentCustomer(req)), google: googleConfigured() });
@@ -227,13 +235,31 @@ export function createApp() {
     const { rows } = await q(`SELECT ref, token, status, payment_status, delivery_date, slot, total, items, created_at FROM orders
       WHERE customer_id = $1 ORDER BY id DESC LIMIT 100`, [req.customer.id]);
     res.set("Cache-Control", "no-store").json(rows.map((r) => ({ ref: r.ref, token: r.token, status: r.status, statusLabel: STATUS_LABEL[r.status] || r.status, payment: r.payment_status,
-      date: ymd(new Date(r.delivery_date)), slot: r.slot, total: money(r.total), firstItem: r.items[0] && r.items[0].name, itemCount: r.items.length })));
+      date: ymd(new Date(r.delivery_date)), slot: r.slot, total: money(r.total), firstItem: r.items[0] && r.items[0].name, itemCount: r.items.length,
+      items: r.items.map((i) => ({ kind: i.kind, data: i.data, qty: i.qty, name: i.name, detail: i.detail, photo: i.photo, price: i.price })) })));
+  }));
+  app.put("/api/account/saved", requireCustomer(), wrap(async (req, res) => {
+    const ids = (Array.isArray(req.body && req.body.ids) ? req.body.ids : []).map((x) => str(x, 40)).filter((x) => /^[A-Za-z0-9_-]+$/.test(x));
+    const uniq = [...new Set(ids)].slice(0, 60);
+    await q("UPDATE customers SET saved = $2 WHERE id = $1", [req.customer.id, JSON.stringify(uniq)]);
+    res.json({ saved: uniq });
+  }));
+
+  /* ---------- availability: how many orders each day already has ---------- */
+  app.get("/api/availability", wrap(async (req, res) => {
+    const cat = await getCatalog();
+    const { rows } = await q(`SELECT to_char(delivery_date, 'YYYY-MM-DD') AS d, count(*)::int AS n FROM orders
+      WHERE status <> 'cancelled' AND delivery_date >= (now() AT TIME ZONE 'Asia/Singapore')::date AND delivery_date < (now() AT TIME ZONE 'Asia/Singapore')::date + 180
+      GROUP BY 1`);
+    const booked = {}; rows.forEach((r) => { booked[r.d] = r.n; });
+    res.set("Cache-Control", "no-store").json({ limit: Number(cat.shop.dailyLimit) || 0, booked });
   }));
 
   /* ---------- customer orders ---------- */
   app.post("/api/orders", requireCustomer(), wrap(async (req, res) => {
     const cat = await getCatalog();
     const { fields, lines, totals } = buildOrder(cat, req.body || {});
+    await checkCapacity(cat, fields.delivery_date, 0);
     const token = randomBytes(18).toString("base64url");
     const { rows: [{ n }] } = await q("SELECT nextval('order_ref_seq') AS n");
     const ref = "TSB-" + n;
@@ -261,6 +287,7 @@ export function createApp() {
     const cat = await getCatalog();
     if (EDITABLE_BY_CUSTOMER.includes(o.status)) {
       const { fields, lines, totals } = buildOrder(cat, req.body || {});
+      if (fields.delivery_date !== ymd(new Date(o.delivery_date))) await checkCapacity(cat, fields.delivery_date, o.id);
       await q(`UPDATE orders SET customer_name=$2, customer_phone=$3, address=$4, delivery_date=$5, slot=$6, notes=$7, items=$8, subtotal=$9, delivery_fee=$10, total=$11, updated_at=now() WHERE id=$1`,
         [o.id, fields.customer_name, fields.customer_phone, fields.address, fields.delivery_date, fields.slot, fields.notes, JSON.stringify(lines), totals.subtotal, totals.delivery_fee, totals.total]);
       await event(o.id, "customer", "Order edited.");

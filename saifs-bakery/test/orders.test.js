@@ -164,3 +164,24 @@ test("website editor: texts, colours, pages; hidden drafts; unsafe links dropped
   assert.match(r.data.error, /Two pages/);
   cust = saved;
 });
+
+test("capacity, availability, saved designs, reorder data", async () => {
+  const cat = (await j("GET", "/api/catalog")).data;
+  cat.shop.dailyLimit = 1;
+  assert.equal((await j("PUT", "/api/admin/catalog", cat, cookie)).status, 200);
+  const day = future(40);
+  let r = await j("POST", "/api/orders", order({ date: day }));
+  assert.equal(r.status, 201);
+  r = await j("POST", "/api/orders", order({ date: day }));
+  assert.equal(r.status, 400); assert.match(r.data.error, /fully booked/);
+  const av = (await j("GET", "/api/availability")).data;
+  assert.equal(av.limit, 1); assert.equal(av.booked[day], 1);
+  r = await j("PUT", "/api/account/saved", { ids: ["paw", "elmo", "paw", "<bad>"] });
+  assert.deepEqual(r.data.saved, ["paw", "elmo"]);
+  const me = (await j("GET", "/api/account/me")).data.customer;
+  assert.deepEqual(me.saved, ["paw", "elmo"]);
+  const mine = (await j("GET", "/api/account/orders")).data;
+  assert.ok(mine[0].items.length && mine[0].items[0].data && mine[0].items[0].kind);
+  cat.shop.dailyLimit = 0;
+  await j("PUT", "/api/admin/catalog", cat, cookie);
+});

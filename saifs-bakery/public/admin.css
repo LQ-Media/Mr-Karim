@@ -104,3 +104,13 @@ body.admin .bgsprinkles{display:none}
 .del:disabled{opacity:.35}
 #tab-website .row .primary.small-btn{color:#FFFFFF}
 @media (min-width:960px){#tab-website{max-width:900px}#tab-website #siteBody{display:flex;flex-direction:column;gap:12px}}
+
+/* heading icons in the dashboard */
+.mcard h3[data-ic]{justify-content:flex-start}
+.mcard h3[data-ic]>.del,.mcard h3[data-ic]>.row{margin-left:auto}
+.daygroup[data-ic]::before{background:var(--accent)}
+.admintabs button span[data-ic]::before{width:16px;height:16px;margin-right:6px;vertical-align:-3px}
+.admintabs button[aria-selected="true"] span[data-ic]::before{background:var(--ink)}
+@media (max-width:520px){.admintabs button span[data-ic]::before{display:none}}
+.chip span[data-ic]::before{width:15px;height:15px;margin-right:6px;vertical-align:-3px}
+.box h3 .pill{vertical-align:2px}

@@ -9,6 +9,7 @@
       instagram: "https://www.instagram.com/bake.withthesaifs/",
       showPrices: true,
       leadDays: { ready: 3, custom: 7 },
+      dailyLimit: 4,
       delivery: { fee: 20, freeAbove: 150, note: "Islandwide · $20, free above $150" },
       slots: ["10am – 12pm", "2pm – 4pm", "5pm – 7pm"],
       closedDates: []

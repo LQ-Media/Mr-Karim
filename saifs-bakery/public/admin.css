@@ -1,5 +1,6 @@
 /* Ain's Kitchen dashboard: same Design 1 language, tuned for working. */
 body.admin main{padding-bottom:40px}
+#app:not([hidden]){display:flex;flex-direction:column;gap:16px}
 .adminmain{display:flex;flex-direction:column;gap:16px;padding-block:8px 40px}
 .signin{align-items:center;text-align:center;gap:16px;padding-top:30px}
 .signin img{border-radius:50%;box-shadow:0 0 0 3px #FFFFFF,0 10px 24px rgba(59,42,32,.16)}
@@ -64,3 +65,21 @@ select{font:inherit;min-height:46px;border-radius:12px;border:2px solid var(--li
 .adminrow b{display:block}
 .adminrow small{color:var(--muted);font-weight:700}
 body.admin .bgsprinkles{display:none}
+
+/* ===== Desktop dashboard (960px and wider) ===== */
+@media (min-width:960px){
+  .adminmain{padding-block:16px 48px}
+  .admintabs{max-width:520px;top:88px}
+  #orderList{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;align-items:start}
+  #orderList>.daygroup,#orderList>.empty-note{grid-column:1/-1}
+  .ocard{height:100%;align-content:start}
+  /* order opens as a side panel with the list still visible behind */
+  .drawer{left:auto;width:min(720px,62vw);border-left:2px solid var(--ink);box-shadow:0 0 0 100vmax rgba(59,42,32,.35)}
+  .drawerpanel{padding-inline:28px;max-width:none}
+  /* menu editor: cards side by side */
+  #menuBody{display:grid;grid-template-columns:repeat(auto-fill,minmax(460px,1fr));gap:16px;align-items:start}
+  #menuBody>.addbtn{grid-column:1/-1}
+  #tab-menu .actionbar{max-width:760px}
+  #tab-admins{max-width:760px}
+  .itemrow{grid-template-columns:1fr 80px 110px auto}
+}

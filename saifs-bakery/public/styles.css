@@ -379,3 +379,88 @@ a.primary.wa{background:var(--wa);color:#FFFFFF;animation:wapulse 2s infinite}
 .upload{position:relative;cursor:pointer;padding:0 14px;text-align:center;color:var(--ink)}
 .upload input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
 .upload:focus-within{outline:3px solid var(--butter);outline-offset:2px}
+
+/* ===== Desktop layout (960px and wider). Phones keep the layout above. ===== */
+@media (min-width:960px){
+  .wrap{max-width:1180px;padding-left:32px;padding-right:32px}
+  main{padding-bottom:48px}
+  .toast{bottom:32px}
+  .topbar{padding-block:12px;min-height:76px}
+  .brand{flex:0 1 auto;max-width:calc(50% - 226px)}
+  .topbar>.iconbtn{margin-left:auto}
+
+  /* menu bar moves into the header, always visible */
+  .tabs,body[data-mode="step"] .tabs{display:block;top:12px;bottom:auto;left:50%;right:auto;transform:translateX(-50%);width:420px}
+  .tabs .wrap{height:54px;padding:0 6px;max-width:none}
+  .tabs a{min-height:42px;font-size:14px}
+  .tabs a:hover{color:#FFFFFF}
+  .tabs a[aria-current="page"]:hover{color:var(--ink)}
+  body[data-mode="step"] .foot{display:flex}
+
+  /* sticky bottom bars become floating cards */
+  .actionbar{margin-inline:0;bottom:20px;border:2px solid var(--ink);border-radius:22px;padding:14px 18px;box-shadow:0 14px 30px rgba(59,42,32,.14)}
+  .stagebox{height:min(64vh,560px)}
+  .stage{position:sticky;top:96px;padding-bottom:0}
+
+  /* home: words left, cake rows right */
+  #v-home{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px 24px;align-items:center}
+  #v-home .homehero{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);grid-template-rows:1fr auto;gap:28px 40px;padding:48px 32px 56px;margin-inline:-32px;align-items:end}
+  .burst-title{grid-column:1;grid-row:1;font-size:clamp(64px,6.4vw,92px);margin:0}
+  .ctas{grid-column:1;grid-row:2;flex-direction:row;margin:0;align-self:start}
+  .ctas .bigcta{padding:0 30px}.ctas .ghostcta{padding:0 26px}
+  .marquee{grid-column:2;grid-row:1/3;align-self:center;margin:0 -120px 0 0;gap:16px}
+  .tile{width:176px;height:220px}
+  .spinbadge{right:auto;left:calc(45% - 10px);top:36px;width:104px;height:104px}
+  #v-home .family{margin:0}
+  #v-home .insta{padding:0 26px}
+
+  /* shop and designs */
+  .grid2{grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}
+  #v-shop .lede,#v-gallery .h1{max-width:760px}
+  #startBlank{max-width:420px}
+
+  /* product: photo left (sticky), choices right */
+  #v-product{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:48px;row-gap:0;align-items:start;padding-top:20px}
+  #v-product>.hero{grid-column:1;grid-row:1/span 12;position:sticky;top:96px}
+  #v-product>.hero img{max-height:calc(100vh - 140px)}
+  #v-product>*:not(.hero){grid-column:2;margin-bottom:18px}
+
+  /* custom builder: 3D cake left (sticky), options right */
+  #v-custom{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);column-gap:40px;row-gap:0;align-items:start}
+  #v-custom>.stephead{grid-column:1/-1;margin-bottom:18px}
+  #v-custom>.stage{grid-column:1;grid-row:2/span 3}
+  #v-custom>#cOpts,#v-custom>.actionbar{grid-column:2}
+  #v-custom>#cOpts{margin-bottom:18px}
+
+  /* basket: items left, totals right */
+  #v-cart{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:20px 32px;align-items:start}
+  #v-cart>h1,#v-cart>#editBanner{grid-column:1/-1}
+  #v-cart>#cartList{grid-column:1;grid-row:3}
+  #v-cart>#cartFoot{grid-column:2;grid-row:3/span 2;position:sticky;top:96px}
+  #v-cart>#myOrders{grid-column:1;grid-row:4}
+  #v-cart>#cartList:has(.empty){grid-column:1/-1}
+
+  /* date: calendar left, address + slot right */
+  #v-date{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px 40px;align-items:start}
+  #v-date>.stephead{grid-column:1/-1}
+  #v-date>.cal{grid-column:1;grid-row:2/span 3}
+  #v-date>fieldset,#v-date>.actionbar{grid-column:2}
+
+  /* review: summary left, details right */
+  #v-send{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px 40px;align-items:start}
+  #v-send>.stephead{grid-column:1/-1}
+  #v-send>.summary{grid-column:1;position:sticky;top:96px}
+  #v-send>form{grid-column:2}
+
+  /* order page: progress + items left, payment right */
+  #orderBody{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);column-gap:40px;row-gap:0;align-items:start}
+  #orderBody>*{grid-column:1;margin-bottom:16px}
+  #orderBody>.placed{grid-column:1/-1}
+  #orderBody>.paycard{grid-column:2;grid-row:1/span 12;position:sticky;top:96px}
+  #orderBody>.placed~.paycard{grid-row:2/span 12}
+
+  /* footer in a row */
+  .foot{flex-direction:row;justify-content:center;gap:28px;text-align:left}
+}
+@media (min-width:1280px){.grid2{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (min-width:960px) and (max-width:1359px){body:not(.admin) .brand small{display:none}}

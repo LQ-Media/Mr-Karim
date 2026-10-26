@@ -9,9 +9,9 @@ const { q, migrate } = await import("../lib/db.js");
 const { createApp } = await import("../server.js");
 const { testSession } = await import("../lib/auth.js");
 
-let base, server, cookie;
+let base, server, cookie, cust = "";
 const j = async (method, p, body, c) => {
-  const r = await fetch(base + p, { method, headers: { "content-type": "application/json", ...(c ? { cookie: "tsb_session=" + c } : {}) }, body: body ? JSON.stringify(body) : undefined });
+  const r = await fetch(base + p, { method, headers: { "content-type": "application/json", cookie: [c ? "tsb_session=" + c : "", cust].filter(Boolean).join("; ") }, body: body ? JSON.stringify(body) : undefined });
   const t = await r.text(); let data; try { data = JSON.parse(t); } catch { data = t; }
   return { status: r.status, data };
 };
@@ -24,10 +24,13 @@ const order = (over = {}) => ({
   ], ...over });
 
 test.before(async () => {
-  await q("DROP TABLE IF EXISTS order_events, payment_proofs, orders, admins, settings, images CASCADE; DROP SEQUENCE IF EXISTS order_ref_seq");
+  await q("DROP TABLE IF EXISTS order_events, payment_proofs, orders, customers, admins, settings, images CASCADE; DROP SEQUENCE IF EXISTS order_ref_seq");
   await migrate();
   server = createApp().listen(0); base = "http://127.0.0.1:" + server.address().port;
   cookie = await testSession("karim@littlequrankids.sg");
+  const r = await fetch(base + "/api/account/signup", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "Siti", email: "siti@example.com", phone: "+65 9123 4567", password: "kek-lapis-88" }) });
+  assert.equal(r.status, 201);
+  cust = r.headers.get("set-cookie").split(";")[0];
 });
 test.after(async () => { server.close(); const { db } = await import("../lib/db.js"); await db().end(); });
 
@@ -103,4 +106,29 @@ test("cancel only while waiting", async () => {
   const r = await j("POST", "/api/orders", order());
   assert.equal((await j("POST", "/api/orders/" + r.data.token + "/cancel")).status, 200);
   assert.equal((await j("POST", "/api/orders/" + token + "/cancel")).status, 409);
+});
+
+test("accounts: ordering needs sign-in; login, wrong password, my orders, admin reset", async () => {
+  const saved = cust; cust = "";
+  let r = await j("POST", "/api/orders", order());
+  assert.equal(r.status, 401);
+  assert.equal((await j("GET", "/api/account/me")).data.customer, null);
+  r = await j("POST", "/api/account/signup", { name: "X", email: "siti@example.com", phone: "91234567", password: "longenough" });
+  assert.match(r.data.error, /already an account/);
+  r = await j("POST", "/api/account/login", { email: "siti@example.com", password: "wrong-password" });
+  assert.equal(r.status, 400);
+  const lr = await fetch(base + "/api/account/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "SITI@example.com", password: "kek-lapis-88" }) });
+  assert.equal(lr.status, 200);
+  cust = lr.headers.get("set-cookie").split(";")[0];
+  const me = (await j("GET", "/api/account/me")).data.customer;
+  assert.equal(me.email, "siti@example.com"); assert.equal(me.address, "Blk 1 Woodlands");
+  const mine = (await j("GET", "/api/account/orders")).data;
+  assert.ok(mine.length >= 1 && mine[0].ref.startsWith("TSB-"));
+  const list = (await j("GET", "/api/admin/customers", null, cookie)).data;
+  const s = list.find((c) => c.email === "siti@example.com"); assert.ok(s.orders >= 1);
+  const pw = (await j("POST", "/api/admin/customers/" + s.id + "/reset-password", {}, cookie)).data.password;
+  assert.match(pw, /^[a-z]+-[a-z]+-\d{4}$/);
+  r = await j("POST", "/api/account/login", { email: "siti@example.com", password: pw });
+  assert.equal(r.status, 200);
+  cust = saved;
 });

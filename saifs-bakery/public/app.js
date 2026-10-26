@@ -42,8 +42,8 @@ function deliveryFee(sub) { return P.deliveryFee(C, sub); }
 function priceText(n) { return C.shop.showPrices && isNum(n) ? money(n) : null; }
 
 /* ---------------- routing ---------------- */
-var VIEWS = ["home", "shop", "product", "gallery", "custom", "cart", "date", "send", "order"];
-var TAB = { home: "home", shop: "shop", product: "shop", gallery: "gallery", custom: "gallery", cart: "cart", date: "cart", send: "cart", order: "cart" };
+var VIEWS = ["home", "shop", "product", "gallery", "custom", "cart", "date", "send", "order", "account"];
+var TAB = { home: "home", shop: "shop", product: "shop", gallery: "gallery", custom: "gallery", cart: "cart", date: "cart", send: "cart", order: "cart", account: "" };
 var live = null;
 function route() {
   var parts = (location.hash || "#home").slice(1).split("/"), v = parts[0];
@@ -52,11 +52,12 @@ function route() {
   if (v === "custom" && !S.custom) S.custom = defaultCustom();
   if ((v === "date" || v === "send") && !S.cart.length) v = "cart";
   if (v === "send" && !S.date) v = "date";
+  if ((v === "date" || v === "send") && API && !S.me) { S.after = v; v = "account"; if (location.hash !== "#account") history.replaceState(null, "", "#account"); }
   VIEWS.forEach(function (n) { $("#v-" + n).hidden = n !== v; });
   document.body.dataset.mode = $("#v-" + v).dataset.mode;
   $$(".tabs a").forEach(function (a) { if (a.dataset.tab === TAB[v]) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
   ({ home: renderHome, shop: renderShop, product: renderProduct, gallery: renderGallery, custom: renderCustom, cart: renderCart, date: renderDate, send: renderSend,
-     order: function () { loadOrder(parts[1]); } })[v]();
+     order: function () { loadOrder(parts[1]); }, account: renderAccount })[v]();
   if (v !== "custom" && live) live.stop();
   popWords($("#v-" + v));
   window.scrollTo(0, 0);
@@ -89,7 +90,7 @@ function toast(msg) { var t = $("#toast"); t.textContent = msg; t.classList.add(
 function badges() { var n = S.cart.reduce(function (a, i) { return a + i.qty; }, 0); ["#cartBadge", "#tabBadge"].forEach(function (s) { var b = $(s); b.textContent = n; b.dataset.n = n; }); }
 function api(method, url, body) {
   return fetch(url, { method: method, headers: body ? { "content-type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined })
-    .then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { if (!r.ok) throw new Error(d.error || "Something went wrong. Please try again."); return d; }); });
+    .then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { if (!r.ok) { var er = new Error(d.error || "Something went wrong. Please try again."); er.signin = !!d.signin; throw er; } return d; }); });
 }
 
 /* ---------------- home & shop ---------------- */
@@ -324,7 +325,14 @@ function renderCart() {
   renderMyOrders();
 }
 function renderMyOrders() {
-  var mine = myOrders(), box = $("#myOrders");
+  var box = $("#myOrders");
+  if (API && S.me) {
+    api("GET", "/api/account/orders").then(function (list) {
+      box.innerHTML = list.length ? '<h2 class="h2" style="margin-top:10px">Your orders</h2>' + list.slice(0, 5).map(orderRow).join("") + (list.length > 5 ? '<a class="link" href="#account">See all your orders</a>' : "") : "";
+    }).catch(function () { box.innerHTML = ""; });
+    return;
+  }
+  var mine = myOrders();
   if (!mine.length || !API) { box.innerHTML = ""; return; }
   box.innerHTML = '<h2 class="h2" style="margin-top:10px">Your orders</h2>' + mine.map(function (o) { return '<a class="myorder" href="#order/' + esc(o.token) + '"><b>' + esc(o.ref) + '</b><span>View, pay or change →</span></a>'; }).join("");
 }
@@ -425,14 +433,16 @@ $("#sendForm").addEventListener("submit", function (e) {
       S.edit = null; S.cart = load("saifs-cart-saved", []); store("saifs-cart-saved", []); saveCart(); badges();
       go("order/" + tok); return;
     }
-    rememberOrder(r.ref, r.token);
+    rememberOrder(r.ref, r.token); loadMe();
     var text = orderText(name, phone, notes, r.ref, r.token);
     S.cart = []; S.date = null; saveCart(); badges();
     S.justPlaced = { token: r.token, wa: waUrl(text) };
     window.open(S.justPlaced.wa, "_blank", "noopener");
     go("order/" + r.token);
-  }).catch(function (err) { $("#sendErr").textContent = err.message; })
-    .then(function () { sending = false; $("#sendBtn").disabled = false; });
+  }).catch(function (err) {
+    if (err.signin) { S.me = null; acctBadge(); S.after = "send"; toast("Please sign in to place your order"); go("account"); return; }
+    $("#sendErr").textContent = err.message;
+  }).then(function () { sending = false; $("#sendBtn").disabled = false; });
 });
 
 /* ---------------- customer order page ---------------- */
@@ -509,15 +519,108 @@ function shrinkImage(file, max) {
   });
 }
 
+/* ---------------- customer account ---------------- */
+function acctBadge() {
+  var i = $("#acctInitial"), b = $("#acctBtn");
+  if (S.me) { i.textContent = (S.me.name || S.me.email || "?").trim().charAt(0).toUpperCase(); i.hidden = false; b.classList.add("in"); b.setAttribute("aria-label", "Your account"); }
+  else { i.hidden = true; b.classList.remove("in"); b.setAttribute("aria-label", "Sign in or create an account"); }
+}
+function fillFromMe() {
+  if (!S.me) return;
+  if (!$("#sName").value) $("#sName").value = S.me.name || "";
+  if (!$("#sPhone").value) $("#sPhone").value = S.me.phone || "";
+  if (!$("#addr").value) $("#addr").value = S.me.address || "";
+}
+function orderRow(o) {
+  return '<a class="myorder" href="#order/' + esc(o.token) + '"><span><b>' + esc(o.ref) + "</b> · " + esc(o.statusLabel) + '<br><small>' + esc(fmtDate(parseYmd(o.date))) + " · " + esc(o.firstItem || "") + (o.itemCount > 1 ? " + " + (o.itemCount - 1) + " more" : "") + "</small></span><span>" + (isNum(o.total) ? money(o.total) : "") + " →</span></a>";
+}
+var acctMode = "signin";
+var GOOGLE_SVG = '<svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>';
+function renderAccount() {
+  var box = $("#accountBody");
+  if (!API) { box.innerHTML = '<h1 class="h1">Your account</h1><p class="lede">Accounts need the full app. Please WhatsApp Ain to order.</p>'; return; }
+  var err = new URLSearchParams(location.search).get("autherr");
+  if (S.me) {
+    var m = S.me;
+    box.innerHTML = '<div class="acctgrid"><div class="stack">' +
+      '<span class="eyebrow">Signed in as ' + esc(m.email) + '</span><h1 class="h1">Salam, ' + esc((m.name || "there").split(" ")[0]) + '!</h1>' +
+      (S.after ? '<div class="notice ain"><b>You’re signed in</b><span>Carry on with your order.</span><a class="primary" href="#' + esc(S.after) + '">Continue to delivery details</a></div>' : "") +
+      '<h2 class="h2">Your orders</h2><div id="acctOrders" class="stack"><p class="small muted">Loading…</p></div></div>' +
+      '<form class="card-panel stack" id="profileForm" novalidate><h2 class="h2">Your details</h2>' +
+      '<div class="field"><label for="pName">Name</label><input id="pName" autocomplete="name" value="' + esc(m.name) + '" required></div>' +
+      '<div class="field"><label for="pPhone">Phone (WhatsApp)</label><input id="pPhone" type="tel" autocomplete="tel" value="' + esc(m.phone) + '" placeholder="+65"></div>' +
+      '<div class="field"><label for="pAddr">Delivery address</label><textarea id="pAddr" rows="2" autocomplete="street-address" placeholder="Block, street, unit, postal code">' + esc(m.address) + "</textarea></div>" +
+      '<details class="pwbox"><summary>' + (m.hasPassword ? "Change password" : "Add a password (so you can also sign in with email)") + "</summary>" +
+      (m.hasPassword ? '<div class="field"><label for="pCur">Current password</label><input id="pCur" type="password" autocomplete="current-password"></div>' : "") +
+      '<div class="field"><label for="pNew">New password (8+ characters)</label><input id="pNew" type="password" autocomplete="new-password" minlength="8"></div></details>' +
+      '<p class="err" id="profileErr" role="alert"></p><div class="row gap"><button class="primary" type="submit">Save details</button><button class="secondary" type="button" id="signOutBtn">Sign out</button></div></form></div>';
+    api("GET", "/api/account/orders").then(function (list) {
+      $("#acctOrders").innerHTML = list.length ? list.map(orderRow).join("") : '<div class="empty-note">No orders yet. <a class="link" href="#shop">Browse the bakes</a></div>';
+    }).catch(function (e) { $("#acctOrders").innerHTML = '<p class="small muted">' + esc(e.message) + "</p>"; });
+    popWords($("#v-account"));
+    return;
+  }
+  var next = S.after ? "#" + S.after : "#account";
+  box.innerHTML = '<div class="authcard">' +
+    '<img src="img/logo.png" alt="" width="72" height="72" class="authlogo">' +
+    '<h1 class="h1">' + (acctMode === "signup" ? "Create your account" : "Welcome back") + "</h1>" +
+    '<p class="lede">' + (S.after ? "Sign in or create an account to place your order. Your basket is saved." : "Track your orders, pay by PayNow and reorder faster.") + "</p>" +
+    (err ? '<p class="err" role="alert">' + esc(err) + "</p>" : "") +
+    '<div class="seg" role="tablist"><button type="button" role="tab" data-amode="signin" aria-selected="' + (acctMode === "signin") + '">Sign in</button><button type="button" role="tab" data-amode="signup" aria-selected="' + (acctMode === "signup") + '">Create account</button></div>' +
+    (S.google !== false ? '<a class="googlebtn" href="/api/auth/google/start?as=customer&amp;next=' + encodeURIComponent(next) + '">' + GOOGLE_SVG + "Continue with Google</a>" +
+      '<div class="ordiv"><span>or with email</span></div>' : "") +
+    '<form id="authForm" class="stack" novalidate>' +
+    (acctMode === "signup" ? '<div class="field"><label for="aName">Your name</label><input id="aName" autocomplete="name" required></div>' +
+      '<div class="field"><label for="aPhone">Phone (WhatsApp)</label><input id="aPhone" type="tel" autocomplete="tel" placeholder="+65" required></div>' : "") +
+    '<div class="field"><label for="aEmail">Email</label><input id="aEmail" type="email" autocomplete="email" required></div>' +
+    '<div class="field"><label for="aPw">Password' + (acctMode === "signup" ? " (8+ characters)" : "") + '</label><input id="aPw" type="password" autocomplete="' + (acctMode === "signup" ? "new-password" : "current-password") + '" required></div>' +
+    '<p class="err" id="authErr" role="alert"></p>' +
+    '<button class="primary" type="submit" id="authBtn">' + (acctMode === "signup" ? "Create account" : "Sign in") + "</button>" +
+    (acctMode === "signin" ? '<p class="small muted">Forgot your password? WhatsApp Ain and she’ll send you a new one.</p>' : '<p class="small muted">By creating an account you agree to our <a class="link" href="privacy.html">privacy notice</a>.</p>') +
+    "</form>" +
+    '<p class="small staff">Bakery staff? <a class="link" href="admin.html">Sign in to Ain’s Kitchen</a></p></div>';
+  popWords($("#v-account"));
+}
+$("#v-account").addEventListener("click", function (e) {
+  var b = e.target.closest("[data-amode]");
+  if (b) { acctMode = b.dataset.amode; renderAccount(); var f = $("#aName") || $("#aEmail"); if (f) f.focus(); return; }
+  if (e.target.closest("#signOutBtn")) {
+    api("POST", "/api/account/logout", {}).then(function () { S.me = null; acctMode = "signin"; acctBadge(); $("#sName").value = ""; $("#sPhone").value = ""; $("#addr").value = ""; toast("Signed out"); renderAccount(); renderMyOrders(); });
+  }
+});
+$("#v-account").addEventListener("submit", function (e) {
+  e.preventDefault();
+  if (e.target.id === "authForm") {
+    var body = { email: $("#aEmail").value.trim(), password: $("#aPw").value };
+    if (acctMode === "signup") { body.name = $("#aName").value.trim(); body.phone = $("#aPhone").value.trim(); }
+    $("#authBtn").disabled = true; $("#authErr").textContent = "";
+    api("POST", acctMode === "signup" ? "/api/account/signup" : "/api/account/login", body).then(loadMe).then(function () {
+      toast(acctMode === "signup" ? "Account created" : "Signed in"); acctMode = "signin";
+      if (location.search) history.replaceState(null, "", "/" + location.hash);
+      if (S.after) { var n = S.after; S.after = null; go(n); } else renderAccount();
+    }).catch(function (er) { $("#authErr").textContent = er.message; $("#authBtn").disabled = false; });
+  }
+  if (e.target.id === "profileForm") {
+    var p = { name: $("#pName").value.trim(), phone: $("#pPhone").value.trim(), address: $("#pAddr").value.trim() };
+    if ($("#pNew") && $("#pNew").value) { p.newPassword = $("#pNew").value; p.currentPassword = $("#pCur") ? $("#pCur").value : ""; }
+    $("#profileErr").textContent = "";
+    api("PUT", "/api/account/me", p).then(loadMe).then(function () { $("#sName").value = ""; $("#sPhone").value = ""; $("#addr").value = ""; fillFromMe(); toast("Details saved"); renderAccount(); })
+      .catch(function (er) { $("#profileErr").textContent = er.message; });
+  }
+});
+function loadMe() {
+  return api("GET", "/api/account/me").then(function (d) { S.me = d.customer; S.google = d.google; acctBadge(); fillFromMe(); }).catch(function () { S.me = null; acctBadge(); });
+}
+
 /* ---------------- boot ---------------- */
 function applyCatalog(cat) { C = cat; B = C.builder; }
 function boot() {
   $("#instaLink").href = C.shop.instagram; $("#footInsta").href = C.shop.instagram;
-  var me = load("saifs-me", null); if (me) { $("#sName").value = me.name || ""; $("#sPhone").value = me.phone || ""; $("#addr").value = me.address || ""; }
-  badges(); bgSprinkles(); route();
+  var me = S.me ? null : load("saifs-me", null); if (me) { $("#sName").value = me.name || ""; $("#sPhone").value = me.phone || ""; $("#addr").value = me.address || ""; }
+  badges(); bgSprinkles(); acctBadge(); route();
 }
 fetch("/api/catalog").then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
-  .then(function (cat) { applyCatalog(cat); }).catch(function () { API = false; })
+  .then(function (cat) { applyCatalog(cat); return loadMe(); }).catch(function () { API = false; })
   .then(boot);
 if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(function () {});
 })();

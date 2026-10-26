@@ -8,7 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import QRCode from "qrcode";
 import { q, migrate } from "./lib/db.js";
-import { startGoogle, finishGoogle, logout, requireAdmin, googleConfigured } from "./lib/auth.js";
+import { startGoogle, finishGoogle, logout, requireAdmin, googleConfigured, hashPassword, checkPassword, setCustomer, clearCustomer, currentCustomer, requireCustomer } from "./lib/auth.js";
 import { paynowPayload, paynowAccount } from "./lib/paynow.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -108,17 +108,83 @@ export function createApp() {
     res.set("Content-Type", rows[0].mime).set("Cache-Control", "public, max-age=31536000, immutable").send(rows[0].data);
   }));
 
+  /* ---------- customer accounts ---------- */
+  const attempts = new Map();
+  const limit = (req, key) => {
+    const k = req.ip + "|" + key, now = Date.now(), a = (attempts.get(k) || []).filter((t) => now - t < 15 * 60 * 1000);
+    if (a.length >= 20) throw new UserError("Too many tries. Please wait 15 minutes and try again.");
+    a.push(now); attempts.set(k, a);
+    if (attempts.size > 5000) attempts.clear();
+  };
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const pubCustomer = (c) => c && { name: c.name, email: c.email, phone: c.phone, address: c.address, google: c.google, hasPassword: c.has_password };
+
+  app.get("/api/account/me", wrap(async (req, res) => {
+    res.set("Cache-Control", "no-store").json({ customer: pubCustomer(await currentCustomer(req)), google: googleConfigured() });
+  }));
+  app.post("/api/account/signup", wrap(async (req, res) => {
+    const b = req.body || {};
+    const email = str(b.email, 120).toLowerCase(), name = str(b.name, 80), phone = str(b.phone, 30), password = String(b.password || "");
+    limit(req, "signup");
+    if (!name) throw new UserError("Add your name.");
+    if (!EMAIL_RE.test(email)) throw new UserError("That email address doesn’t look right.");
+    if (phone.replace(/\D/g, "").length < 8) throw new UserError("Add a phone number Ain can WhatsApp.");
+    if (password.length < 8) throw new UserError("Use a password of at least 8 characters.");
+    const { rows: ex } = await q("SELECT id, password_hash, google FROM customers WHERE email = $1", [email]);
+    if (ex.length) throw new UserError(ex[0].password_hash ? "There’s already an account with this email. Sign in instead." : "This email already has an account that signs in with Google. Use “Continue with Google”.");
+    const { rows: [c] } = await q("INSERT INTO customers (email, name, phone, password_hash, last_login) VALUES ($1,$2,$3,$4,now()) RETURNING id",
+      [email, name, phone, await hashPassword(password)]);
+    await setCustomer(req, res, c.id);
+    res.status(201).json({ ok: true });
+  }));
+  app.post("/api/account/login", wrap(async (req, res) => {
+    const email = str((req.body || {}).email, 120).toLowerCase(), password = String((req.body || {}).password || "");
+    limit(req, "login:" + email);
+    const { rows } = await q("SELECT id, password_hash, google FROM customers WHERE email = $1", [email]);
+    const c = rows[0];
+    if (c && !c.password_hash && c.google) throw new UserError("This account signs in with Google. Use “Continue with Google”.");
+    if (!c || !(await checkPassword(password, c.password_hash))) throw new UserError("Email or password isn’t right.");
+    await q("UPDATE customers SET last_login = now() WHERE id = $1", [c.id]);
+    await setCustomer(req, res, c.id);
+    res.json({ ok: true });
+  }));
+  app.post("/api/account/logout", (req, res) => { clearCustomer(req, res); res.json({ ok: true }); });
+  app.put("/api/account/me", requireCustomer(), wrap(async (req, res) => {
+    const b = req.body || {}, c = req.customer;
+    const name = str(b.name, 80), phone = str(b.phone, 30), address = str(b.address, 300);
+    if (!name) throw new UserError("Add your name.");
+    if (phone && phone.replace(/\D/g, "").length < 8) throw new UserError("That phone number looks too short.");
+    if (b.newPassword) {
+      if (String(b.newPassword).length < 8) throw new UserError("Use a new password of at least 8 characters.");
+      if (c.has_password) {
+        const { rows: [h] } = await q("SELECT password_hash FROM customers WHERE id = $1", [c.id]);
+        if (!(await checkPassword(b.currentPassword || "", h.password_hash))) throw new UserError("Your current password isn’t right.");
+      }
+      await q("UPDATE customers SET password_hash = $2 WHERE id = $1", [c.id, await hashPassword(b.newPassword)]);
+    }
+    await q("UPDATE customers SET name = $2, phone = $3, address = $4 WHERE id = $1", [c.id, name, phone, address]);
+    res.json({ ok: true });
+  }));
+  app.get("/api/account/orders", requireCustomer(), wrap(async (req, res) => {
+    const { rows } = await q(`SELECT ref, token, status, payment_status, delivery_date, slot, total, items, created_at FROM orders
+      WHERE customer_id = $1 ORDER BY id DESC LIMIT 100`, [req.customer.id]);
+    res.set("Cache-Control", "no-store").json(rows.map((r) => ({ ref: r.ref, token: r.token, status: r.status, statusLabel: STATUS_LABEL[r.status] || r.status, payment: r.payment_status,
+      date: ymd(new Date(r.delivery_date)), slot: r.slot, total: money(r.total), firstItem: r.items[0] && r.items[0].name, itemCount: r.items.length })));
+  }));
+
   /* ---------- customer orders ---------- */
-  app.post("/api/orders", wrap(async (req, res) => {
+  app.post("/api/orders", requireCustomer(), wrap(async (req, res) => {
     const cat = await getCatalog();
     const { fields, lines, totals } = buildOrder(cat, req.body || {});
     const token = randomBytes(18).toString("base64url");
     const { rows: [{ n }] } = await q("SELECT nextval('order_ref_seq') AS n");
     const ref = "TSB-" + n;
     const { rows: [o] } = await q(
-      `INSERT INTO orders (ref, token, customer_name, customer_phone, address, delivery_date, slot, notes, items, subtotal, delivery_fee, total)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
-      [ref, token, fields.customer_name, fields.customer_phone, fields.address, fields.delivery_date, fields.slot, fields.notes, JSON.stringify(lines), totals.subtotal, totals.delivery_fee, totals.total]);
+      `INSERT INTO orders (ref, token, customer_name, customer_phone, address, delivery_date, slot, notes, items, subtotal, delivery_fee, total, customer_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id`,
+      [ref, token, fields.customer_name, fields.customer_phone, fields.address, fields.delivery_date, fields.slot, fields.notes, JSON.stringify(lines), totals.subtotal, totals.delivery_fee, totals.total, req.customer.id]);
+    // Remember the latest contact details and address on the account for next time.
+    await q("UPDATE customers SET name = $2, phone = $3, address = $4 WHERE id = $1", [req.customer.id, fields.customer_name, fields.customer_phone, fields.address]);
     await event(o.id, "customer", "Order placed.");
     res.status(201).json({ ref, token });
   }));
@@ -205,7 +271,7 @@ export function createApp() {
   }));
 
   app.get("/api/admin/orders/:id", requireAdmin(), wrap(async (req, res) => {
-    const { rows } = await q("SELECT * FROM orders WHERE id = $1", [parseInt(req.params.id, 10)]);
+    const { rows } = await q("SELECT o.*, c.email AS customer_email FROM orders o LEFT JOIN customers c ON c.id = o.customer_id WHERE o.id = $1", [parseInt(req.params.id, 10)]);
     if (!rows.length) return res.status(404).json({ error: "Order not found." });
     const o = rows[0];
     const { rows: ev } = await q("SELECT actor, message, visible, created_at FROM order_events WHERE order_id = $1 ORDER BY id", [o.id]);
@@ -311,6 +377,22 @@ export function createApp() {
     if (rows[0].role === "owner") { const { rows: [c] } = await q("SELECT count(*)::int AS n FROM admins WHERE role='owner'"); if (c.n <= 1) throw new UserError("Keep at least one owner."); }
     await q("DELETE FROM admins WHERE email=$1", [email]);
     res.json({ ok: true });
+  }));
+
+  /* ---------- admin: customers ---------- */
+  app.get("/api/admin/customers", requireAdmin(), wrap(async (req, res) => {
+    const { rows } = await q(`SELECT c.id, c.email, c.name, c.phone, c.google, (c.password_hash IS NOT NULL) AS has_password, c.created_at, c.last_login,
+      count(o.id)::int AS orders, coalesce(sum(o.total) FILTER (WHERE o.status <> 'cancelled'), 0)::float AS spent
+      FROM customers c LEFT JOIN orders o ON o.customer_id = c.id GROUP BY c.id ORDER BY c.id DESC LIMIT 1000`);
+    res.set("Cache-Control", "no-store").json(rows);
+  }));
+  app.post("/api/admin/customers/:id/reset-password", requireAdmin(), wrap(async (req, res) => {
+    const words = "cake bun tart icing sugar honey mango pandan cocoa cream berry lemon apple kaya donut cookie".split(" ");
+    const pick = () => words[randomBytes(1)[0] % words.length];
+    const pw = pick() + "-" + pick() + "-" + (1000 + (randomBytes(2).readUInt16BE(0) % 9000));
+    const { rowCount } = await q("UPDATE customers SET password_hash = $2 WHERE id = $1", [parseInt(req.params.id, 10), await hashPassword(pw)]);
+    if (!rowCount) return res.status(404).json({ error: "Customer not found." });
+    res.json({ password: pw });
   }));
 
   app.use("/api", (req, res) => res.status(404).json({ error: "Not found." }));

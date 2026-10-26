@@ -69,7 +69,7 @@ body.admin .bgsprinkles{display:none}
 /* ===== Desktop dashboard (960px and wider) ===== */
 @media (min-width:960px){
   .adminmain{padding-block:16px 48px}
-  .admintabs{max-width:520px;top:88px}
+  .admintabs{max-width:640px;top:88px}
   #orderList{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;align-items:start}
   #orderList>.daygroup,#orderList>.empty-note{grid-column:1/-1}
   .ocard{height:100%;align-content:start}
@@ -83,3 +83,9 @@ body.admin .bgsprinkles{display:none}
   #tab-admins{max-width:760px}
   .itemrow{grid-template-columns:1fr 80px 110px auto}
 }
+.custrow small{display:block}
+.custrow .newpw{display:block;font-size:13px;margin-top:6px}
+.custrow .newpw b{display:inline;font-family:ui-monospace,Menlo,monospace;background:var(--butter);padding:2px 6px;border-radius:6px}
+.custrow .newpw a{color:var(--wa);font-weight:800}
+.admintabs button{white-space:nowrap}
+@media (min-width:960px){#tab-customers{max-width:860px}}

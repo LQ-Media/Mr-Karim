@@ -380,6 +380,26 @@ a.primary.wa{background:var(--wa);color:#FFFFFF;animation:wapulse 2s infinite}
 .upload input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
 .upload:focus-within{outline:3px solid var(--butter);outline-offset:2px}
 
+/* ===== Accounts ===== */
+.topbar{gap:10px}
+.acct{position:relative;background:#FFFFFF;border:2px solid var(--ink)}
+.acct .initial{position:absolute;inset:-2px;border-radius:50%;display:grid;place-items:center;background:var(--ink);color:var(--butter);font-family:var(--display);font-weight:700;font-size:18px}
+.authcard{max-width:460px;width:100%;margin:8px auto 0;background:#FFFFFF;border:2px solid var(--ink);border-radius:26px;padding:24px 20px;display:flex;flex-direction:column;gap:14px;box-shadow:0 14px 34px rgba(59,42,32,.12)}
+.authcard .h1{margin:0;text-align:center}
+.authcard>.lede{text-align:center;margin:0}
+.authlogo{align-self:center;border-radius:50%;box-shadow:0 0 0 3px #FFFFFF,0 8px 20px rgba(59,42,32,.18)}
+.googlebtn{min-height:52px;border-radius:26px;border:2px solid var(--ink);background:#FFFFFF;color:var(--ink);font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;gap:10px;text-decoration:none;transition:transform .15s}
+.googlebtn:hover{transform:translateY(-2px)}
+.ordiv{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+.ordiv::before,.ordiv::after{content:"";flex:1;height:1px;background:var(--line)}
+.authcard .staff{text-align:center;border-top:1px dashed var(--line);padding-top:12px;margin:0}
+.card-panel{background:#FFFFFF;border:2px solid var(--ink);border-radius:22px;padding:18px}
+.acctgrid{display:flex;flex-direction:column;gap:22px}
+.pwbox summary{cursor:pointer;font-weight:800;font-size:14px;padding:6px 0}
+.pwbox[open]{display:flex;flex-direction:column;gap:10px}
+.empty-note{background:#FFFFFF;border:2px dashed var(--line);border-radius:18px;padding:20px;text-align:center;color:var(--muted);font-weight:700}
+.myorder small{color:var(--muted);font-weight:600}
+
 /* ===== Desktop layout (960px and wider). Phones keep the layout above. ===== */
 @media (min-width:960px){
   .wrap{max-width:1180px;padding-left:32px;padding-right:32px}
@@ -388,6 +408,10 @@ a.primary.wa{background:var(--wa);color:#FFFFFF;animation:wapulse 2s infinite}
   .topbar{padding-block:12px;min-height:76px}
   .brand{flex:0 1 auto;max-width:calc(50% - 226px)}
   .topbar>.iconbtn{margin-left:auto}
+  .topbar>.iconbtn+.iconbtn{margin-left:0}
+  .acctgrid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:32px;align-items:start}
+  .acctgrid>.card-panel{position:sticky;top:96px}
+  .authcard{margin-top:24px;padding:32px 36px}
 
   /* menu bar moves into the header, always visible */
   .tabs,body[data-mode="step"] .tabs{display:block;top:12px;bottom:auto;left:50%;right:auto;transform:translateX(-50%);width:420px}
@@ -464,3 +488,4 @@ a.primary.wa{background:var(--wa);color:#FFFFFF;animation:wapulse 2s infinite}
 }
 @media (min-width:1280px){.grid2{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media (min-width:960px) and (max-width:1359px){body:not(.admin) .brand small{display:none}}
+.myorder>span:first-child{color:var(--ink);font-size:14px}

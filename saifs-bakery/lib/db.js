@@ -76,6 +76,21 @@ export async function migrate() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `);
+  await q(`
+    CREATE TABLE IF NOT EXISTS customers (
+      id SERIAL PRIMARY KEY,
+      email TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL DEFAULT '',
+      phone TEXT NOT NULL DEFAULT '',
+      address TEXT NOT NULL DEFAULT '',
+      password_hash TEXT,
+      google BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      last_login TIMESTAMPTZ
+    );
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id);
+    CREATE INDEX IF NOT EXISTS orders_customer_idx ON orders (customer_id);
+  `);
   // Owners named in OWNER_EMAILS always exist (comma-separated).
   for (const email of String(process.env.OWNER_EMAILS || "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean)) {
     await q(`INSERT INTO admins (email, role, added_by) VALUES ($1, 'owner', 'setup')

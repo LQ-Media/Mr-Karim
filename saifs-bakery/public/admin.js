@@ -29,7 +29,8 @@ $(".admintabs").addEventListener("click", function (e) {
   var b = e.target.closest("[data-tab]"); if (!b) return;
   if (CAT_DIRTY && b.dataset.tab !== "menu" && !confirmLeave()) return;
   $$(".admintabs [data-tab]").forEach(function (x) { x.setAttribute("aria-selected", x === b); });
-  ["orders", "menu", "admins"].forEach(function (t) { $("#tab-" + t).hidden = t !== b.dataset.tab; });
+  ["orders", "menu", "customers", "admins"].forEach(function (t) { $("#tab-" + t).hidden = t !== b.dataset.tab; });
+  if (b.dataset.tab === "customers") loadCustomers();
   if (b.dataset.tab === "orders") loadOrders();
   if (b.dataset.tab === "menu") loadMenu();
   if (b.dataset.tab === "admins") loadAdmins();
@@ -117,6 +118,7 @@ function renderOrder() {
     '<div class="box"><h3>Delivery</h3><div class="fields two"><div class="field"><label for="dDate">Date</label><input id="dDate" type="date" value="' + esc(o.delivery_date) + '"></div><div class="field"><label for="dSlot">Time slot</label><input id="dSlot" value="' + esc(o.slot) + '"></div></div>' +
       '<div class="field"><label for="dAddr">Address</label><input id="dAddr" value="' + esc(o.address) + '"></div>' +
       '<div class="fields two"><div class="field"><label for="dName">Customer name</label><input id="dName" value="' + esc(o.customer_name) + '"></div><div class="field"><label for="dPhone">Phone</label><input id="dPhone" value="' + esc(o.customer_phone) + '"></div></div>' +
+      (o.customer_email ? '<p class="small"><b>Account:</b> ' + esc(o.customer_email) + "</p>" : "") +
       (o.notes ? '<p class="small"><b>Customer notes:</b> ' + esc(o.notes) + "</p>" : "") + "</div>" +
     '<div class="box"><h3>Notes</h3><div class="field"><label for="dNoteC">Note to customer (they see this on their order page)</label><textarea id="dNoteC" rows="2">' + esc(o.note_to_customer) + '</textarea></div>' +
       '<div class="field"><label for="dNoteA">Private note (only admins see this)</label><textarea id="dNoteA" rows="2">' + esc(o.admin_note) + "</textarea></div></div>" +
@@ -275,6 +277,31 @@ function shrink(file, max) {
   });
 }
 window.addEventListener("beforeunload", function (e) { if (CAT_DIRTY) { e.preventDefault(); e.returnValue = ""; } });
+
+/* ---------------- customers ---------------- */
+var CUSTS = [];
+function loadCustomers() { api("GET", "/api/admin/customers").then(function (rows) { CUSTS = rows; renderCustomers(); }).catch(function (e) { toast(e.message); }); }
+function renderCustomers() {
+  var term = $("#custSearch").value.trim().toLowerCase();
+  var list = CUSTS.filter(function (c) { return !term || (c.name + " " + c.email + " " + c.phone).toLowerCase().indexOf(term) >= 0; });
+  $("#custList").innerHTML = list.length ? list.map(function (c) {
+    return '<div class="adminrow custrow"><span><b>' + esc(c.name || c.email) + "</b><small>" + esc(c.email) + (c.phone ? " · " + esc(c.phone) : "") + "</small>" +
+      "<small>" + c.orders + " order" + (c.orders === 1 ? "" : "s") + (c.spent ? " · " + money(c.spent) : "") + " · " + (c.google ? "Google" : "") + (c.google && c.has_password ? " + " : "") + (c.has_password ? "password" : "") + "</small>" +
+      '<span class="newpw" id="pw' + c.id + '"></span></span>' +
+      '<button class="secondary small-btn" type="button" data-resetpw="' + c.id + '">New password</button></div>';
+  }).join("") : '<div class="empty-note">' + (CUSTS.length ? "No match." : "No customer accounts yet.") + "</div>";
+}
+$("#custSearch").addEventListener("input", renderCustomers);
+$("#custList").addEventListener("click", function (e) {
+  var b = e.target.closest("[data-resetpw]"); if (!b) return;
+  if (!b.dataset.sure) { b.dataset.sure = 1; b.textContent = "Tap again to reset"; return; }
+  var c = CUSTS.filter(function (x) { return String(x.id) === b.dataset.resetpw; })[0];
+  api("POST", "/api/admin/customers/" + c.id + "/reset-password", {}).then(function (r) {
+    b.textContent = "New password"; delete b.dataset.sure;
+    var msg = "Assalamualaikum " + (c.name || "").split(" ")[0] + "! Your new password for The Saif’s Bakery is " + r.password + " . Sign in at " + location.origin + "/#account with " + c.email + " and change it under Your details.";
+    $("#pw" + c.id).innerHTML = 'New password: <b>' + esc(r.password) + "</b>" + (c.phone ? ' · <a href="' + esc(waLink(c.phone, msg)) + '" target="_blank" rel="noopener">Send on WhatsApp</a>' : "");
+  }).catch(function (er) { toast(er.message); });
+});
 
 /* ---------------- admins ---------------- */
 function loadAdmins() {
